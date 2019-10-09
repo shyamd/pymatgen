@@ -142,7 +142,7 @@ class Slab(Structure):
         lattice = Lattice.from_parameters(lattice.a, lattice.b, lattice.c,
                                           lattice.alpha, lattice.beta,
                                           lattice.gamma) \
-            if self.reorient_lattice else lattice
+            if self.reorient_lattice and not coords_are_cartesian else lattice
         super().__init__(
             lattice, species, coords, validate_proximity=validate_proximity,
             to_unit_cell=to_unit_cell,
