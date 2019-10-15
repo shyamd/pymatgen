@@ -3264,13 +3264,12 @@ class Structure(IStructure, collections.abc.MutableSequence):
         if not isinstance(indices, collections.abc.Iterable):
             indices = [indices]
 
+        if not frac_coords:
+            vector = fcoords = self._lattice.get_fractional_coords(vector)
+
         for i in indices:
             site = self._sites[i]
-            if frac_coords:
-                fcoords = site.frac_coords + vector
-            else:
-                fcoords = self._lattice.get_fractional_coords(
-                    site.coords + vector)
+            fcoords = site.frac_coords + vector
             if to_unit_cell:
                 fcoords = np.mod(fcoords, 1)
             self._sites[i].frac_coords = fcoords
