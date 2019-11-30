@@ -26,7 +26,6 @@ __author__ = "Shyam Dwaraknath, Eric Sivonxay, and Kyle Bystrom"
 __copyright__ = "Copyright 2019, The Materials Project"
 __maintainer__ = "Shyam Dwaraknath"
 __email__ = "shyamd@lbl.gov"
-__date__ = "11/29/2019"
 __status__ = "Prototype"
 
 
@@ -48,13 +47,12 @@ class Interface(Structure):
         **kwargs,
     ):
         """
-        Makes an interface structure by merging a substrate and film slab
-        The top of the film slab will be put ontop of the top of the
-        substrate slab the two slabs are expected to be commensurate
-        IE. the a,b, and c lattice vectors for the film and slab correspond
+        Makes an interface structure by merging a substrate and film slabs
+        The film a- and b-vectors will be forced to be the substrate slab's
+        a- and b-vectors.
 
-        For now, it's suggested to use one of the factory methods rather
-        than directly calling this constructor
+        For now, it's suggested to use a factory method that will ensure the
+        appropriate interface structure is already met.
 
         Args:
             sub_slab: slab for the substrate
@@ -175,8 +173,9 @@ class Interface(Structure):
         Args:
             new_shift - fractional shift in a and b
         """
+
         if len(new_shift) != 2:
-            raise Exception("In-plane shifts require two floats for a and b vectors")
+            raise ValueError("In-plane shifts require two floats for a and b vectors")
         delta = new_shift - self.in_plane_shift
         self._in_plane_shift = new_shift
         self.translate_sites(
@@ -185,20 +184,29 @@ class Interface(Structure):
 
     @property
     def gap(self) -> float:
+        """
+        The gap in cartesian units between the film and the substrate
+        """
         return self._gap
 
     @gap.setter
     def gap(self, new_gap) -> None:
-        # TODO: Should this change the lattice as well to be consistent with the constructor?
+        if new_gap < 0:
+            raise ValueError("Can't reduce interface gap below 0")
+
         delta = new_gap - self.gap
         self._gap = new_gap
 
+        self.__update_c(self.lattice.c + delta)
         self.translate_sites(
             self.film_indices, [0, 0, delta], frac_coords=False, to_unit_cell=True
         )
 
     @property
     def vacuum_over_film(self) -> float:
+        """
+        The vacuum space over the film in cartesian units
+        """
         return self._vacuum_over_film
 
     @vacuum_over_film.setter
@@ -270,7 +278,7 @@ class Interface(Structure):
         """
         return Structure.from_sites(self.film_sites)
 
-    def copy(self, site_properties=None) -> Interface:
+    def copy(self) -> Interface:
         """
         Convenience method to get a copy of the structure, with options to add
         site properties.
@@ -285,6 +293,8 @@ class Interface(Structure):
             in_plane_offset=self.in_plane_offset,
             gap=self.gap,
             vacuum_over_film=self.vacuum_over_film,
+            structure_properties=self.structure_properties,
+            center_slab=self.center_slab,
             **self._kwargs,
         )
 
@@ -309,12 +319,14 @@ class Interface(Structure):
         """
         Modifies the c-direction of the lattice without changing the site cartesian coordinates
         """
-        assert new_c > 0, "New c-length must be greater than 0"
+        if new_c <= 0:
+            raise ValueError("New c-length must be greater than 0")
+
         new_latice = Lattice(self.lattice.matrix[:2].tolist() + [0, 0, new_c])
         self._lattice = new_latice
 
         for site, c_coords in zip(self, self.cart_coords):
-            site.lattice = new_latice  # Update the lattice
+            site._lattice = new_latice  # Update the lattice
             site.coords = c_coords  # Put back into original cartesian space
 
 
@@ -324,13 +336,7 @@ class CoherentInterfaceBuilder:
     """
 
     def __init__(
-        self,
-        substrate_structure,
-        film_structure,
-        film_miller,
-        substrate_miller,
-        zslgen=None,
-        **kwargs,
+        self, substrate_structure, film_structure, film_miller, substrate_miller
     ):
         """
         Args:
@@ -341,15 +347,15 @@ class CoherentInterfaceBuilder:
         # Bulk structures
         self.substrate_structure = substrate_structure
         self.film_structure = film_structure
-        self.zsl_matches = []
         self.film_miller = film_miller
         self.substrate_miller = substrate_miller
         self.zslgen = zslgen or ZSLGenerator()
 
-        self.get_slabs()
-        self.get_matches()
+        self.find_matches()
+        self.find_terminations()
 
-    def get_matches(self):
+    def find_matches(self):
+        self.zsl_matches = []
 
         film_sg = SlabGenerator(
             self.film_structure,
@@ -395,7 +401,7 @@ class CoherentInterfaceBuilder:
                 strain, strain.astype(int)
             ), "Substrate lattice vectors changed during ZSL match, check your ZSL Generator parameters"
 
-    def get_slabs(self):
+    def find_terminations(self):
 
         film_sg = SlabGenerator(
             self.film_structure,
