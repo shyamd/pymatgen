@@ -158,6 +158,8 @@ class Interface(Structure):
             **kwargs,
         )
 
+        self.sort()
+
     @property
     def in_plane_shift(self) -> List[float]:
         return self._in_plane_shift
