@@ -22,12 +22,11 @@ from pymatgen.analysis.substrate_analyzer import fast_norm, ZSLGenerator
 This module provides classes to store, generate, and manipulate material interfaces.
 """
 
-__author__ = "Eric Sivonxay, Shyam Dwaraknath, and Kyle Bystrom"
+__author__ = "Shyam Dwaraknath, Eric Sivonxay, and Kyle Bystrom"
 __copyright__ = "Copyright 2019, The Materials Project"
-__version__ = "0.1"
 __maintainer__ = "Shyam Dwaraknath"
 __email__ = "shyamd@lbl.gov"
-__date__ = "5/29/2019"
+__date__ = "11/29/2019"
 __status__ = "Prototype"
 
 
