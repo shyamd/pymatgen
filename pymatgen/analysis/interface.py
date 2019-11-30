@@ -201,7 +201,13 @@ class Interface(Structure):
 
     @vacuum_over_film.setter
     def vacuum_over_film(self, new_vacuum) -> None:
-        raise NotImplemented("This is not trivial and might not be reasonable")
+        if new_vacuum < 0:
+            raise ValueError("The vacuum over the film can not be less then 0")
+
+        delta = new_vacuum - self.vacuum_over_film
+        self._vacuum_over_film = new_vacuum
+
+        self.__update_c(self.lattice.c + delta)
 
     @property
     def substrate_indicies(self) -> List[int]:
