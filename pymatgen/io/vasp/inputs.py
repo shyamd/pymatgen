@@ -96,24 +96,34 @@ class Poscar(MSONable):
         to -1 (MB hasn"t been performed).
     """
 
-    def __init__(self, structure, comment=None, selective_dynamics=None,
-                 true_names=True, velocities=None, predictor_corrector=None,
-                 predictor_corrector_preamble=None):
+    def __init__(self,
+                 structure: Structure,
+                 comment: str = None,
+                 selective_dynamics=None,
+                 true_names: bool = True,
+                 velocities=None,
+                 predictor_corrector=None,
+                 predictor_corrector_preamble=None,
+                 sort_structure: bool = False):
         """
-        Args:
-            structure (Structure):  Structure object.
-            comment (str): Optional comment line for POSCAR. Defaults to unit
-                cell formula of structure. Defaults to None.
-            selective_dynamics (Nx3 array): bool values for selective dynamics,
-                where N is number of sites. Defaults to None.
-            true_names (bool): Set to False is the names in the POSCAR are not
-                well-defined and ambiguous. This situation arises commonly in
-                vasp < 5 where the POSCAR sometimes does not contain element
-                symbols. Defaults to True.
-            velocities (Nx3 array): Velocities for the POSCAR. Typically parsed
-                in MD runs or can be used to initialize velocities.
-            predictor_corrector (Nx3 array): Predictor corrector for the POSCAR.
-                Typically parsed in MD runs.
+
+        :param structure: Structure object.
+        :param comment: Optional comment line for POSCAR. Defaults to unit
+            cell formula of structure. Defaults to None.
+        :param selective_dynamics: bool values for selective dynamics,
+            where N is number of sites. Defaults to None.
+        :param true_names: Set to False if the names in the POSCAR are not
+            well-defined and ambiguous. This situation arises commonly in
+            vasp < 5 where the POSCAR sometimes does not contain element
+            symbols. Defaults to True.
+        :param velocities: Velocities for the POSCAR. Typically parsed
+            in MD runs or can be used to initialize velocities.
+        :param predictor_corrector: Predictor corrector for the POSCAR.
+            Typically parsed in MD runs.
+        :param predictor_corrector_preamble: Preamble to the predictor
+            corrector.
+        :param sort_structure: Whether to sort structure. Useful if species
+            are not grouped properly together.
         """
         if structure.is_ordered:
             site_properties = {}
@@ -125,6 +135,8 @@ class Poscar(MSONable):
                 site_properties["predictor_corrector"] = predictor_corrector
             structure = Structure.from_sites(structure)
             self.structure = structure.copy(site_properties=site_properties)
+            if sort_structure:
+                self.structure = self.structure.get_sorted_structure()
             self.true_names = true_names
             self.comment = structure.formula if comment is None else comment
             self.predictor_corrector_preamble = predictor_corrector_preamble
@@ -2028,8 +2040,9 @@ class VaspInput(dict, MSONable):
         if make_dir_if_not_present and not os.path.exists(output_dir):
             os.makedirs(output_dir)
         for k, v in self.items():
-            with zopen(os.path.join(output_dir, k), "wt") as f:
-                f.write(v.__str__())
+            if v is not None:
+                with zopen(os.path.join(output_dir, k), "wt") as f:
+                    f.write(v.__str__())
 
     @staticmethod
     def from_directory(input_dir, optional_files=None):
@@ -2047,8 +2060,13 @@ class VaspInput(dict, MSONable):
         sub_d = {}
         for fname, ftype in [("INCAR", Incar), ("KPOINTS", Kpoints),
                              ("POSCAR", Poscar), ("POTCAR", Potcar)]:
-            fullzpath = zpath(os.path.join(input_dir, fname))
-            sub_d[fname.lower()] = ftype.from_file(fullzpath)
+            try:
+                fullzpath = zpath(os.path.join(input_dir, fname))
+                sub_d[fname.lower()] = ftype.from_file(fullzpath)
+            except FileNotFoundError:  # handle the case where there is no KPOINTS file
+                sub_d[fname.lower()] = None
+                pass
+
         sub_d["optional_files"] = {}
         if optional_files is not None:
             for fname, ftype in optional_files.items():

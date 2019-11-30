@@ -46,13 +46,13 @@ import shutil
 import warnings
 from itertools import chain
 from copy import deepcopy
-from typing import List, Union
 from pathlib import Path
-
+from typing import List, Union, Optional
 import numpy as np
 from monty.serialization import loadfn
 from monty.io import zopen
 from monty.dev import deprecated
+from zipfile import ZipFile
 
 from pymatgen.core.periodic_table import Specie, Element
 from pymatgen.core.structure import Structure
@@ -172,6 +172,38 @@ class VaspInputSet(MSONable, metaclass=abc.ABCMeta):
             s = vinput["POSCAR"].structure
             fname = Path(output_dir) / ("%s.cif" % re.sub(r'\s', "", s.formula))
             s.to(filename=fname)
+
+    def write_spec(self, filename=None, readme=None):
+        """
+        Write a set of the VASP input files to a zip file, WITHOUT the Potcar
+        file. The Potcar file will instead be written as a "POTCAR.spec". This is
+        intended to help sharing an input set with people who might not have a license
+        to specific Potcar files.
+
+        Given a "POTCAR.spec", the specific POTCAR file can be re-generated using
+        pymatgen with the "generate_potcar" function in the pymatgen CLI when set
+        up with a corresponding directory of POTCAR files.
+
+        Args:
+            filename (str): Filename to output as zip file, will default to name
+            of input set.
+            readme (str): Additional file to include as README
+        """
+
+        if not filename:
+            filename = self.__class__.__name__ + "_spec.zip"
+        if not filename.endswith(".zip"):
+            filename += ".zip"
+
+        with ZipFile(filename, 'w') as zip:
+            zip.writestr("INCAR", str(self.incar))
+            zip.writestr("POSCAR", str(self.poscar))
+            zip.writestr("KPOINTS", str(self.kpoints))
+            zip.writestr("POTCAR.spec", "\n".join(self.potcar_symbols))
+            if readme:
+                zip.writestr("README", readme)
+            # TODO: should write transformations.json also where appropriate
+            # cannot import TransformedStructure due to circular import
 
     def as_dict(self, verbosity=2):
         """
@@ -301,13 +333,22 @@ class DictSet(VaspInputSet):
         self.force_gamma = force_gamma
         self.reduce_structure = reduce_structure
         self.user_incar_settings = user_incar_settings or {}
-        self.user_kpoints_settings = user_kpoints_settings
+        self.user_kpoints_settings = user_kpoints_settings or {}
         self.user_potcar_settings = user_potcar_settings
         self.vdw = vdw.lower() if vdw is not None else None
         self.use_structure_charge = use_structure_charge
         self.standardize = standardize
         self.sym_prec = sym_prec
         self.international_monoclinic = international_monoclinic
+
+        if self.user_incar_settings.get("KSPACING") and user_kpoints_settings is not None:
+            warnings.warn(
+                "You have specified KSPACING and also supplied kpoints "
+                "settings. KSPACING only has effect when there is no "
+                "KPOINTS file. Since both settings were given, pymatgen"
+                "will generate a KPOINTS file and ignore KSPACING."
+                "Remove the `user_kpoints_settings` argument to enable KSPACING.",
+                BadInputSetWarning)
 
         if self.vdw:
             vdw_par = loadfn(str(MODULE_DIR / "vdW_parameters.yaml"))
@@ -353,6 +394,8 @@ class DictSet(VaspInputSet):
                     del settings[k]
                 except KeyError:
                     settings[k] = v
+            elif k == "KSPACING" and self.user_kpoints_settings != {}:
+                pass  # Ignore KSPACING if user_kpoints_settings are given
             else:
                 settings[k] = v
         structure = self.structure
@@ -426,8 +469,22 @@ class DictSet(VaspInputSet):
         if self.use_structure_charge:
             incar["NELECT"] = self.nelect
 
-        if np.product(self.kpoints.kpts) < 4 and incar.get("ISMEAR", 0) == -5:
-            incar["ISMEAR"] = 0
+        # Ensure adequate number of KPOINTS are present for the tetrahedron
+        # method (ISMEAR=-5). If KSPACING is in the INCAR file the number
+        # of kpoints is not known before calling VASP, but a warning is raised
+        # when the KSPACING value is > 0.5 (2 reciprocal Angstrom).
+        # An error handler in Custodian is available to
+        # correct overly large KSPACING values (small number of kpoints)
+        # if necessary.
+        # if "KSPACING" not in self.user_incar_settings.keys():
+        if self.kpoints is not None:
+            if np.product(self.kpoints.kpts) < 4 and incar.get("ISMEAR", 0) == -5:
+                incar["ISMEAR"] = 0
+
+        if self.user_incar_settings.get("KSPACING", 0) > 0.5 and incar.get("ISMEAR", 0 == -5):
+            warnings.warn("Large KSPACING value detected with ISMEAR = -5. Ensure that VASP "
+                          "generates an adequate number of KPOINTS, lower KSPACING, or "
+                          "set ISMEAR = 0", BadInputSetWarning)
 
         if all([k.is_metal for k in structure.composition.keys()]):
             if incar.get("NSW", 0) > 0 and incar.get("ISMEAR", 1) < 1:
@@ -466,10 +523,13 @@ class DictSet(VaspInputSet):
             return nelect
 
     @property
-    def kpoints(self) -> Kpoints:
+    def kpoints(self) -> Union[Kpoints, None]:
         """
         Returns a KPOINTS file using the fully automated grid method. Uses
         Gamma centered meshes for hexagonal cells and Monk grids otherwise.
+
+        If KSPACING is set in user_incar_settings (or the INCAR file), no
+        file is created because VASP will automatically generate the kpoints.
 
         Algorithm:
             Uses a simple approach scaling the number of divisions along each
@@ -479,6 +539,11 @@ class DictSet(VaspInputSet):
 
         if isinstance(settings, Kpoints):
             return settings
+
+        # Return None if KSPACING is present in the INCAR, because this will
+        # cause VASP to generate the kpoints automatically
+        if self.user_incar_settings.get("KSPACING") and self.user_kpoints_settings == {}:
+            return None
 
         # If grid_density is in the kpoints_settings use
         # Kpoints.automatic_density
@@ -712,7 +777,7 @@ class MPStaticSet(MPRelaxSet):
         return incar
 
     @property
-    def kpoints(self) -> Kpoints:
+    def kpoints(self) -> Optional[Kpoints]:
         """
         :return: Kpoints
         """
@@ -722,14 +787,15 @@ class MPStaticSet(MPRelaxSet):
 
         # Prefer to use k-point scheme from previous run
         # except for when lepsilon = True is specified
-        if self.prev_kpoints and self.prev_kpoints.style != kpoints.style:
-            if (self.prev_kpoints.style == Kpoints.supported_modes.Monkhorst) \
-                    and (not self.lepsilon):
-                k_div = [kp + 1 if kp % 2 == 1 else kp
-                         for kp in kpoints.kpts[0]]
-                kpoints = Kpoints.monkhorst_automatic(k_div)
-            else:
-                kpoints = Kpoints.gamma_automatic(kpoints.kpts[0])
+        if kpoints is not None:
+            if self.prev_kpoints and self.prev_kpoints.style != kpoints.style:
+                if (self.prev_kpoints.style == Kpoints.supported_modes.Monkhorst) \
+                        and (not self.lepsilon):
+                    k_div = [kp + 1 if kp % 2 == 1 else kp
+                             for kp in kpoints.kpts[0]]
+                    kpoints = Kpoints.monkhorst_automatic(k_div)
+                else:
+                    kpoints = Kpoints.gamma_automatic(kpoints.kpts[0])
         return kpoints
 
     def override_from_prev_calc(self, prev_calc_dir='.'):
@@ -1040,10 +1106,15 @@ class MPNonSCFSet(MPRelaxSet):
         return incar
 
     @property
-    def kpoints(self) -> Kpoints:
+    def kpoints(self) -> Optional[Kpoints]:
         """
         :return: Kpoints
         """
+        # override pymatgen kpoints if provided
+        user_kpoints = self.kwargs.get("user_kpoints_settings", None)
+        if isinstance(user_kpoints, Kpoints):
+            return user_kpoints
+
         if self.mode.lower() == "line":
             kpath = HighSymmKpath(self.structure)
             frac_k_points, k_points_labels = kpath.get_kpoints(
@@ -1074,12 +1145,7 @@ class MPNonSCFSet(MPRelaxSet):
         else:
             self._config_dict["KPOINTS"]["reciprocal_density"] = \
                 self.reciprocal_density
-            kpoints = super().kpoints
-
-        # override pymatgen kpoints if provided
-        user_kpoints = self.kwargs.get("user_kpoints_settings", None)
-        if isinstance(user_kpoints, Kpoints):
-            kpoints = user_kpoints
+            return super().kpoints
 
         return kpoints
 
@@ -2112,17 +2178,21 @@ class MVLScanRelaxSet(MPRelaxSet):
         super().__init__(structure, potcar_functional=potcar_functional,
                          **kwargs)
 
-        self._config_dict["INCAR"].update({"ADDGRID": True,
-                                           "EDIFF": 1e-05,
-                                           "EDIFFG": -0.05,
-                                           "LASPH": True,
-                                           "LDAU": False,
-                                           "METAGGA": "SCAN",
-                                           "NELM": 200})
+        updates = {"ADDGRID": True,
+                   "EDIFF": 1e-05,
+                   "EDIFFG": -0.05,
+                   "LASPH": True,
+                   "LDAU": False,
+                   "METAGGA": "SCAN",
+                   "NELM": 200}
+
+        if kwargs.get("vdw", "").lower() == "rvv10":
+            updates["BPARAM"] = 15.7  # This is the correct BPARAM for SCAN+rVV10
+
+        self._config_dict["INCAR"].update(updates)
 
 
 class LobsterSet(MPRelaxSet):
-
     """
     Input set to prepare VASP runs that can be digested by Lobster (See cohp.de)
     """
@@ -2130,7 +2200,8 @@ class LobsterSet(MPRelaxSet):
     CONFIG = _load_yaml_config("MPRelaxSet")
 
     def __init__(self, structure: Structure, isym: int = -1, ismear: int = -5, reciprocal_density: int = None,
-                 potcar_functional: str = "PBE_54", user_supplied_basis: dict = None, **kwargs):
+                 potcar_functional: str = "PBE_54", address_basis_file: str = None, user_supplied_basis: dict = None,
+                 **kwargs):
         """
         Args:
             structure (Structure): input structure.
@@ -2140,6 +2211,7 @@ class LobsterSet(MPRelaxSet):
             potcar_functional (string): only PBE_54, PBE_52 and PBE are recommended at the moment
             user_supplied_basis (dict): dict including basis functions for all elements in structure,
                 e.g. {"Fe": "3d 3p 4s", "O": "2s 2p"}; if not supplied, a standard basis is used
+            address_basis_file (str): address to a file similar to "BASIS_PBE_54.yaml" in pymatgen.io
             **kwargs: Other kwargs supported by :class:`DictSet`.
         """
         warnings.warn("Make sure that all parameters are okay! This is a brand new implementation.")
@@ -2173,11 +2245,15 @@ class LobsterSet(MPRelaxSet):
         self.isym = isym
         self.ismear = ismear
         self.user_supplied_basis = user_supplied_basis
+        self.address_basis_file = address_basis_file
         # predefined basis! Check if the basis is okay! (charge spilling and bandoverlaps!)
-        if user_supplied_basis is None:
+        if user_supplied_basis is None and address_basis_file is None:
             basis = Lobsterin._get_basis(structure=structure,
                                          potcar_symbols=self.potcar_symbols)
-        else:
+        elif address_basis_file is not None:
+            basis = Lobsterin._get_basis(structure=structure,
+                                         potcar_symbols=self.potcar_symbols, address_basis_file=address_basis_file)
+        elif user_supplied_basis is not None:
             # test if all elements from structure are in user_supplied_basis
             for atomtype in structure.symbol_set:
                 if atomtype not in user_supplied_basis:
