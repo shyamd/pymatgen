@@ -159,11 +159,11 @@ class Interface(Structure):
         self.sort()
 
     @property
-    def in_plane_shift(self) -> List[float]:
-        return self._in_plane_shift
+    def in_plane_offset(self) -> List[float]:
+        return self._in_plane_offset
 
-    @in_plane_shift.setter
-    def in_plane_shift(self, *new_shift: float) -> None:
+    @in_plane_offset.setter
+    def in_plane_offset(self, new_shift: List[float]) -> None:
         """
         Given two floats da and db, adjust the shift vector
         by da * (first lattice vector) + db * (second lattice vector).
@@ -176,10 +176,10 @@ class Interface(Structure):
 
         if len(new_shift) != 2:
             raise ValueError("In-plane shifts require two floats for a and b vectors")
-        delta = new_shift - self.in_plane_shift
-        self._in_plane_shift = new_shift
+        delta = new_shift - self.in_plane_offset
+        self._in_plane_offset = new_shift
         self.translate_sites(
-            self.film_indicies, [delta[0], delta[1], 0], to_unit_cell=True
+            self.film_indices, [delta[0], delta[1], 0], to_unit_cell=True
         )
 
     @property
@@ -252,12 +252,12 @@ class Interface(Structure):
         """
         Retrieve the indices of the film sites
         """
-        film_indicies = [
+        f_indicies = [
             i
             for i, tag in enumerate(self.site_properties["interface_label"])
             if "film" in tag
         ]
-        return film_indicies
+        return f_indicies
 
     @property
     def film_sites(self) -> List[Site]:
@@ -322,7 +322,8 @@ class Interface(Structure):
         if new_c <= 0:
             raise ValueError("New c-length must be greater than 0")
 
-        new_latice = Lattice(self.lattice.matrix[:2].tolist() + [0, 0, new_c])
+        new_latt_matrix = self.lattice.matrix[:2].tolist() + [[0, 0, new_c]]
+        new_latice = Lattice(new_latt_matrix)
         self._lattice = new_latice
 
         for site, c_coords in zip(self, self.cart_coords):
@@ -336,7 +337,12 @@ class CoherentInterfaceBuilder:
     """
 
     def __init__(
-        self, substrate_structure, film_structure, film_miller, substrate_miller
+        self,
+        substrate_structure,
+        film_structure,
+        film_miller,
+        substrate_miller,
+        zslgen=None,
     ):
         """
         Args:
@@ -354,7 +360,10 @@ class CoherentInterfaceBuilder:
         self.find_matches()
         self.find_terminations()
 
-    def find_matches(self):
+    def find_matches(self) -> None:
+        """
+        Finds and stores the ZSL matches
+        """
         self.zsl_matches = []
 
         film_sg = SlabGenerator(
@@ -402,6 +411,9 @@ class CoherentInterfaceBuilder:
             ), "Substrate lattice vectors changed during ZSL match, check your ZSL Generator parameters"
 
     def find_terminations(self):
+        """
+        Finds all terminations
+        """
 
         film_sg = SlabGenerator(
             self.film_structure,
