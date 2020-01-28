@@ -73,12 +73,14 @@ class Interface(Structure):
         self._in_plane_offset = list(in_plane_offset)
         self._gap = gap
         self._vacuum_over_film = vacuum_over_film
-        self._center_slab = center_slab
+        self.center_slab = center_slab
         self._kwargs = dict(kwargs)
 
         # Ensure c-axis is orthogonal to a/b plane
-        sub_slab = sub_slab.get_orthogonal_c_slab()
-        film_slab = film_slab.get_orthogonal_c_slab()
+        if isinstance(sub_slab, Slab):
+            sub_slab = sub_slab.get_orthogonal_c_slab()
+        if isinstance(film_slab, Slab):
+            film_slab = film_slab.get_orthogonal_c_slab()
         assert np.allclose(film_slab.lattice.alpha, 90, 0.1)
         assert np.allclose(film_slab.lattice.beta, 90, 0.1)
         assert np.allclose(sub_slab.lattice.alpha, 90, 0.1)
