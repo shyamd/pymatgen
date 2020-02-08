@@ -74,33 +74,33 @@ class ReactionNetwork(MSONable):
                 self.entries[k1][k2] = {}
                 for k3, g3 in itertools.groupby(sorted_entries_2, get_charge):
                     sorted_entries_3 = list(g3)
-                    if len(sorted_entries_3) > 1:
-                        unique = []
-                        for entry in sorted_entries_3:
-                            isomorphic_found = False
-                            for ii,Uentry in enumerate(unique):
-                                if entry.mol_graph.isomorphic_to(Uentry.mol_graph):
-                                    isomorphic_found = True
-                                    # print("Isomorphic entries with equal charges found!")
-                                    if entry.free_energy != None and Uentry.free_energy != None:
-                                        if entry.free_energy < Uentry.free_energy:
-                                            unique[ii] = entry
-                                            # if entry.energy > Uentry.energy:
-                                            #     print("WARNING: Free energy lower but electronic energy higher!")
-                                    elif entry.free_energy != None:
-                                        unique[ii] = entry
-                                    elif entry.energy < Uentry.energy:
-                                        unique[ii] = entry
-                                    break
-                            if not isomorphic_found:
-                                unique.append(entry)
-                        self.entries[k1][k2][k3] = unique
-                    else:
-                        self.entries[k1][k2][k3] = sorted_entries_3
+                    # if len(sorted_entries_3) > 1:
+                    #     unique = []
+                    #     for entry in sorted_entries_3:
+                    #         isomorphic_found = False
+                    #         for ii,Uentry in enumerate(unique):
+                    #             if entry.mol_graph.isomorphic_to(Uentry.mol_graph):
+                    #                 isomorphic_found = True
+                    #                 # print("Isomorphic entries with equal charges found!")
+                    #                 if entry.free_energy != None and Uentry.free_energy != None:
+                    #                     if entry.free_energy < Uentry.free_energy:
+                    #                         unique[ii] = entry
+                    #                         # if entry.energy > Uentry.energy:
+                    #                         #     print("WARNING: Free energy lower but electronic energy higher!")
+                    #                 elif entry.free_energy != None:
+                    #                     unique[ii] = entry
+                    #                 elif entry.energy < Uentry.energy:
+                    #                     unique[ii] = entry
+                    #                 break
+                    #         if not isomorphic_found:
+                    #             unique.append(entry)
+                    #     self.entries[k1][k2][k3] = unique
+                    # else:
+                    self.entries[k1][k2][k3] = sorted_entries_3
                     for entry in self.entries[k1][k2][k3]:
                         self.entries_list.append(entry)
 
-        print(len(self.entries_list),"unique entries")
+        print(len(self.entries_list),"total entries")
 
         for ii, entry in enumerate(self.entries_list):
             entry.parameters["ind"] = ii
