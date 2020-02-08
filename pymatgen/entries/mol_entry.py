@@ -33,7 +33,7 @@ class MoleculeEntry(MSONable):
     """
 
     def __init__(self, molecule, energy, correction=0.0, enthalpy=None, entropy=None,
-                 parameters=None, entry_id=None, attribute=None):
+                 parameters=None, entry_id=None, attribute=None, mol_doc=None):
         """
         Initializes a MoleculeEntry.
 
@@ -63,12 +63,27 @@ class MoleculeEntry(MSONable):
         self.parameters = parameters if parameters else {}
         self.entry_id = entry_id
         self.attribute = attribute
+        self.mol_doc = mol_doc if mol_doc else {}
 
-        mol_graph = MoleculeGraph.with_local_env_strategy(self.molecule,
-                                                          OpenBabelNN(),
-                                                          reorder=False,
-                                                          extend_structure=False)
-        self.mol_graph = metal_edge_extender(mol_graph)
+        if self.mol_doc != {}:
+            
+            self.enthalpy = self.mol_doc["enthalpy_kcal/mol"]
+            self.entropy = self.mol_doc["entropy_cal/molK"]
+            self.entry_id = self.mol_doc["task_id"]
+            if "mol_graph" in self.mol_doc:
+                self.mol_graph = MoleculeGraph.from_dict(self.mol_doc["mol_graph"])
+            else:
+                mol_graph = MoleculeGraph.with_local_env_strategy(self.molecule,
+                                                                  OpenBabelNN(),
+                                                                  reorder=False,
+                                                                  extend_structure=False)
+                self.mol_graph = metal_edge_extender(mol_graph)
+        else:
+            mol_graph = MoleculeGraph.with_local_env_strategy(self.molecule,
+                                                              OpenBabelNN(),
+                                                              reorder=False,
+                                                              extend_structure=False)
+            self.mol_graph = metal_edge_extender(mol_graph)
 
     @property
     def graph(self):

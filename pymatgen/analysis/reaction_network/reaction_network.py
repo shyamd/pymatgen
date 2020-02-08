@@ -141,7 +141,7 @@ class ReactionNetwork(MSONable):
                                 for entry1 in self.entries[formula][Nbonds][charge1]:
                                     if entry0.mol_graph.isomorphic_to(entry1.mol_graph):
                                         self.add_reaction([entry0],[entry1],"one_electron_redox")
-                                        break
+                                        # break
 
     def intramol_single_bond_change(self):
         # Intramolecular formation / breakage of one bond
@@ -169,7 +169,7 @@ class ReactionNetwork(MSONable):
                                             for entry0 in self.entries[formula][Nbonds0][charge]:
                                                 if entry0.mol_graph.isomorphic_to(mg):
                                                     self.add_reaction([entry0],[entry1],"intramol_single_bond_change")
-                                                    break
+                                                    # break
 
 
     def intermol_single_bond_change(self):
@@ -203,8 +203,8 @@ class ReactionNetwork(MSONable):
                                                             for entry1 in self.entries[formula1][Nbonds1][charge1]:
                                                                 if frags[1].isomorphic_to(entry1.mol_graph):
                                                                     self.add_reaction([entry],[entry0,entry1],"intermol_single_bond_change")
-                                                                    break
-                                                        break
+                                                                    # break
+                                                        # break
                                 except MolGraphSplitError:
                                     pass
 
@@ -265,7 +265,7 @@ class ReactionNetwork(MSONable):
                                                                         for nonM_entry in self.entries[nonM_formula][nonM_Nbonds][nonM_charge]:
                                                                             if frag.isomorphic_to(nonM_entry.mol_graph):
                                                                                 self.add_reaction([entry],[nonM_entry,M_entries[M_formula][M_charge]],"coordination_bond_change")
-                                                                                break
+                                                                                # break
                                         except MolGraphSplitError:
                                             pass
 
@@ -307,109 +307,109 @@ class ReactionNetwork(MSONable):
     #         print(len(to_add[0]),len(to_add[1]))
     #         self.add_reaction(to_add[0],to_add[1],"concerted")
 
-    def add_water_reactions(self):
-        # Since concerted reactions remain intractable, this function adds two specific concerted
-        # reactions involving water so that realisic paths to OH- are possible:
-        # 2H2O -> OH- + H3O+
-        # 2H2O + 2e- -> H2 + 2OH-
-        # Note that in the 2nd reaction, H2 should be in gas phase, but all calcs are currently in SMD.
-        H2O_found = False
-        OHminus_found = False
-        H3Oplus_found = False
-        H2_found = False
-        try:
-            H2O_entry = self.entries["H2 O1"][2][0][0]
-            # print("H2O_entry",H2O_entry)
-            H2O_found = True
-        except KeyError:
-            print("Missing H2O, will not add either concerted water splitting reaction")
+    # def add_water_reactions(self):
+    #     # Since concerted reactions remain intractable, this function adds two specific concerted
+    #     # reactions involving water so that realisic paths to OH- are possible:
+    #     # 2H2O -> OH- + H3O+
+    #     # 2H2O + 2e- -> H2 + 2OH-
+    #     # Note that in the 2nd reaction, H2 should be in gas phase, but all calcs are currently in SMD.
+    #     H2O_found = False
+    #     OHminus_found = False
+    #     H3Oplus_found = False
+    #     H2_found = False
+    #     try:
+    #         H2O_entry = self.entries["H2 O1"][2][0][0]
+    #         # print("H2O_entry",H2O_entry)
+    #         H2O_found = True
+    #     except KeyError:
+    #         print("Missing H2O, will not add either concerted water splitting reaction")
 
-        try:
-            OHminus_entry = self.entries["H1 O1"][1][-1][0]
-            # print("OHminus_entry",OHminus_entry)
-            OHminus_found = True
-        except KeyError:
-            print("Missing OH-, will not add either concerted water splitting reaction")
+    #     try:
+    #         OHminus_entry = self.entries["H1 O1"][1][-1][0]
+    #         # print("OHminus_entry",OHminus_entry)
+    #         OHminus_found = True
+    #     except KeyError:
+    #         print("Missing OH-, will not add either concerted water splitting reaction")
 
-        if H2O_found and OHminus_found:
-            try:
-                H3Oplus_entry = self.entries["H3 O1"][3][1][0]
-                # print("H3Oplus_entry",H3Oplus_entry)
-                H3Oplus_found = True
-            except KeyError:
-                print("Missing H3O+, will not add concerted water splitting rxn1")
+    #     if H2O_found and OHminus_found:
+    #         try:
+    #             H3Oplus_entry = self.entries["H3 O1"][3][1][0]
+    #             # print("H3Oplus_entry",H3Oplus_entry)
+    #             H3Oplus_found = True
+    #         except KeyError:
+    #             print("Missing H3O+, will not add concerted water splitting rxn1")
 
-            try:
-                H2_entry = self.entries["H2"][1][0][0]
-                # print("H2_entry",H2_entry)
-                H2_found = True
-            except KeyError:
-                print("Missing H2, will not add concerted water splitting rxn2")
+    #         try:
+    #             H2_entry = self.entries["H2"][1][0][0]
+    #             # print("H2_entry",H2_entry)
+    #             H2_found = True
+    #         except KeyError:
+    #             print("Missing H2, will not add concerted water splitting rxn2")
 
-            if H3Oplus_found or H2_found:
-                H2O_PR_H2O_name = str(H2O_entry.parameters["ind"])+"+PR_"+str(H2O_entry.parameters["ind"])
+    #         if H3Oplus_found or H2_found:
+    #             H2O_PR_H2O_name = str(H2O_entry.parameters["ind"])+"+PR_"+str(H2O_entry.parameters["ind"])
 
-                if H3Oplus_found:
-                    print("Adding concerted water splitting rxn1: 2H2O -> OH- + H3O+")
+    #             if H3Oplus_found:
+    #                 print("Adding concerted water splitting rxn1: 2H2O -> OH- + H3O+")
 
-                    if OHminus_entry.parameters["ind"] <= H3Oplus_entry.parameters["ind"]:
-                        OHminus_H3Oplus_name = str(OHminus_entry.parameters["ind"])+"+"+str(H3Oplus_entry.parameters["ind"])
-                    else:
-                        OHminus_H3Oplus_name = str(H3Oplus_entry.parameters["ind"])+"+"+str(OHminus_entry.parameters["ind"])
+    #                 if OHminus_entry.parameters["ind"] <= H3Oplus_entry.parameters["ind"]:
+    #                     OHminus_H3Oplus_name = str(OHminus_entry.parameters["ind"])+"+"+str(H3Oplus_entry.parameters["ind"])
+    #                 else:
+    #                     OHminus_H3Oplus_name = str(H3Oplus_entry.parameters["ind"])+"+"+str(OHminus_entry.parameters["ind"])
 
-                    rxn_node_1 = H2O_PR_H2O_name+","+OHminus_H3Oplus_name
-                    rxn1_energy = OHminus_entry.energy + H3Oplus_entry.energy - 2*H2O_entry.energy
-                    rxn1_free_energy = OHminus_entry.free_energy + H3Oplus_entry.free_energy - 2*H2O_entry.free_energy
-                    print("Rxn1 free energy =",rxn1_free_energy)
+    #                 rxn_node_1 = H2O_PR_H2O_name+","+OHminus_H3Oplus_name
+    #                 rxn1_energy = OHminus_entry.energy + H3Oplus_entry.energy - 2*H2O_entry.energy
+    #                 rxn1_free_energy = OHminus_entry.free_energy + H3Oplus_entry.free_energy - 2*H2O_entry.free_energy
+    #                 print("Rxn1 free energy =",rxn1_free_energy)
 
-                    self.graph.add_node(rxn_node_1,rxn_type="water_dissociation",bipartite=1,energy=rxn1_energy,free_energy=rxn1_free_energy)
-                    self.graph.add_edge(H2O_entry.parameters["ind"],
-                                        rxn_node_1,
-                                        softplus=self.softplus(rxn1_free_energy),
-                                        exponent=self.exponent(rxn1_free_energy),
-                                        weight=1.0
-                                        )
-                    self.graph.add_edge(rxn_node_1,
-                                        OHminus_entry.parameters["ind"],
-                                        softplus=0.0,
-                                        exponent=0.0,
-                                        weight=1.0
-                                        )
-                    self.graph.add_edge(rxn_node_1,
-                                        H3Oplus_entry.parameters["ind"],
-                                        softplus=0.0,
-                                        exponent=0.0,
-                                        weight=1.0
-                                        )
+    #                 self.graph.add_node(rxn_node_1,rxn_type="water_dissociation",bipartite=1,energy=rxn1_energy,free_energy=rxn1_free_energy)
+    #                 self.graph.add_edge(H2O_entry.parameters["ind"],
+    #                                     rxn_node_1,
+    #                                     softplus=self.softplus(rxn1_free_energy),
+    #                                     exponent=self.exponent(rxn1_free_energy),
+    #                                     weight=1.0
+    #                                     )
+    #                 self.graph.add_edge(rxn_node_1,
+    #                                     OHminus_entry.parameters["ind"],
+    #                                     softplus=0.0,
+    #                                     exponent=0.0,
+    #                                     weight=1.0
+    #                                     )
+    #                 self.graph.add_edge(rxn_node_1,
+    #                                     H3Oplus_entry.parameters["ind"],
+    #                                     softplus=0.0,
+    #                                     exponent=0.0,
+    #                                     weight=1.0
+    #                                     )
 
-                if H2_found:
-                    print("Adding concerted water splitting rxn2: 2H2O + 2e- -> H2 + 2OH-")
+    #             if H2_found:
+    #                 print("Adding concerted water splitting rxn2: 2H2O + 2e- -> H2 + 2OH-")
 
-                    OHminus2_H2_name = str(OHminus_entry.parameters["ind"])+"+"+str(OHminus_entry.parameters["ind"])+"+"+str(H2_entry.parameters["ind"])
-                    rxn_node_2 = H2O_PR_H2O_name+","+OHminus2_H2_name
-                    rxn2_energy = 2*OHminus_entry.energy + H2_entry.energy - 2*H2O_entry.energy
-                    rxn2_free_energy = 2*OHminus_entry.free_energy + H2_entry.free_energy - 2*H2O_entry.free_energy - 2*self.electron_free_energy
-                    print("Water rxn2 free energy =",rxn2_free_energy)
+    #                 OHminus2_H2_name = str(OHminus_entry.parameters["ind"])+"+"+str(OHminus_entry.parameters["ind"])+"+"+str(H2_entry.parameters["ind"])
+    #                 rxn_node_2 = H2O_PR_H2O_name+","+OHminus2_H2_name
+    #                 rxn2_energy = 2*OHminus_entry.energy + H2_entry.energy - 2*H2O_entry.energy
+    #                 rxn2_free_energy = 2*OHminus_entry.free_energy + H2_entry.free_energy - 2*H2O_entry.free_energy - 2*self.electron_free_energy
+    #                 print("Water rxn2 free energy =",rxn2_free_energy)
 
-                    self.graph.add_node(rxn_node_2,rxn_type="water_2e_redox",bipartite=1,energy=rxn2_energy,free_energy=rxn2_free_energy)
-                    self.graph.add_edge(H2O_entry.parameters["ind"],
-                                        rxn_node_2,
-                                        softplus=self.softplus(rxn2_free_energy),
-                                        exponent=self.exponent(rxn2_free_energy),
-                                        weight=1.0
-                                        )
-                    self.graph.add_edge(rxn_node_2,
-                                        OHminus_entry.parameters["ind"],
-                                        softplus=0.0,
-                                        exponent=0.0,
-                                        weight=1.0
-                                        )
-                    self.graph.add_edge(rxn_node_2,
-                                        H2_entry.parameters["ind"],
-                                        softplus=0.0,
-                                        exponent=0.0,
-                                        weight=1.0
-                                        )
+    #                 self.graph.add_node(rxn_node_2,rxn_type="water_2e_redox",bipartite=1,energy=rxn2_energy,free_energy=rxn2_free_energy)
+    #                 self.graph.add_edge(H2O_entry.parameters["ind"],
+    #                                     rxn_node_2,
+    #                                     softplus=self.softplus(rxn2_free_energy),
+    #                                     exponent=self.exponent(rxn2_free_energy),
+    #                                     weight=1.0
+    #                                     )
+    #                 self.graph.add_edge(rxn_node_2,
+    #                                     OHminus_entry.parameters["ind"],
+    #                                     softplus=0.0,
+    #                                     exponent=0.0,
+    #                                     weight=1.0
+    #                                     )
+    #                 self.graph.add_edge(rxn_node_2,
+    #                                     H2_entry.parameters["ind"],
+    #                                     softplus=0.0,
+    #                                     exponent=0.0,
+    #                                     weight=1.0
+    #                                     )
 
     def add_reaction(self,entries0,entries1,rxn_type):
         """
