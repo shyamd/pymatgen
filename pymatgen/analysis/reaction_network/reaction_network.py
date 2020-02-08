@@ -998,7 +998,7 @@ class ReactionNetwork(MSONable):
         valid_graph = self.find_or_remove_bad_nodes(bad_nodes,remove_nodes=True)
         return nx.shortest_simple_paths(valid_graph,hash(start),hash(target),weight=weight)
 
-    def find_paths(self,starts,target,weight,num_paths=10):
+    def find_paths(self,starts,target,weight,num_paths=10,alt_start=None):
         """
         Args:
             starts ([int]): List of starting node IDs (ints). 
@@ -1015,15 +1015,25 @@ class ReactionNetwork(MSONable):
         PR_paths = self.solve_prerequisites(starts,target,weight)
 
         print("Finding paths...")
-        for start in starts:
+        if alt_start != None:
             ind = 0
-            for path in self.valid_shortest_simple_paths(start,target,weight):
+            for path in self.valid_shortest_simple_paths(alt_start,target,weight):
                 if ind == num_paths:
                     break
                 else:
                     ind += 1
                     path_dict = self.characterize_path(path,weight,PR_paths,final=True)
                     heapq.heappush(my_heapq, (path_dict["cost"],next(c),path_dict))
+        else:
+            for start in starts:
+                ind = 0
+                for path in self.valid_shortest_simple_paths(start,target,weight):
+                    if ind == num_paths:
+                        break
+                    else:
+                        ind += 1
+                        path_dict = self.characterize_path(path,weight,PR_paths,final=True)
+                        heapq.heappush(my_heapq, (path_dict["cost"],next(c),path_dict))
 
         while len(paths) < num_paths and my_heapq:
             # Check if any byproduct could yield a prereq cheaper than from starting molecule(s)?
