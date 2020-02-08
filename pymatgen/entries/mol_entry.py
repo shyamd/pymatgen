@@ -71,7 +71,10 @@ class MoleculeEntry(MSONable):
             self.entropy = self.mol_doc["entropy_cal/molK"]
             self.entry_id = self.mol_doc["task_id"]
             if "mol_graph" in self.mol_doc:
-                self.mol_graph = MoleculeGraph.from_dict(self.mol_doc["mol_graph"])
+                if isinstance(self.mol_doc["mol_graph"],MoleculeGraph):
+                    self.mol_graph = self.mol_doc["mol_graph"]
+                else:
+                    self.mol_graph = MoleculeGraph.from_dict(self.mol_doc["mol_graph"])
             else:
                 mol_graph = MoleculeGraph.with_local_env_strategy(self.molecule,
                                                                   OpenBabelNN(),
