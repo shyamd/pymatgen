@@ -129,7 +129,7 @@ class Interface(Structure):
         coords = np.concatenate([sub_coords, film_coords])
 
         # Shift coords to center
-        if self._center_slab:
+        if self.center_slab:
             coords = np.add(coords, [0, 0, 0.5 - np.average(coords[:, 2])])
 
         # Only merge site properties in both slabs
@@ -178,8 +178,9 @@ class Interface(Structure):
 
         if len(new_shift) != 2:
             raise ValueError("In-plane shifts require two floats for a and b vectors")
-        delta = new_shift - self.in_plane_offset
-        self._in_plane_offset = new_shift
+        new_shift = np.mod(new_shift,1)
+        delta = new_shift - np.array(self.in_plane_offset)
+        self._in_plane_offset = new_shift.tolist()
         self.translate_sites(
             self.film_indices, [delta[0], delta[1], 0], to_unit_cell=True
         )
