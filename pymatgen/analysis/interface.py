@@ -458,14 +458,20 @@ class CoherentInterfaceBuilder:
         self.terminations = list(self._terminations.keys())
 
     def get_interfaces(
-        self, termination, gap=2.0, vacuum_over_film=20.0, film_layers=1, sub_layers=1
+        self,
+        termination,
+        gap=2.0,
+        vacuum_over_film=20.0,
+        film_thickness=1,
+        substrate_thickness=1,
+        in_layers=True,
     ):
         film_sg = SlabGenerator(
             self.film_structure,
             self.film_miller,
-            min_slab_size=film_layers,
+            min_slab_size=film_thickness,
             min_vacuum_size=3,
-            in_unit_planes=True,
+            in_unit_planes=in_layers,
             center_slab=True,
             primitive=True,
             reorient_lattice=False,  # This is necessary to not screw up the lattice
@@ -474,9 +480,9 @@ class CoherentInterfaceBuilder:
         sub_sg = SlabGenerator(
             self.substrate_structure,
             self.substrate_miller,
-            min_slab_size=sub_layers,
+            min_slab_size=substrate_thickness,
             min_vacuum_size=3,
-            in_unit_planes=True,
+            in_unit_planes=in_layers,
             center_slab=True,
             primitive=True,
             reorient_lattice=False,  # This is necessary to not screw up the lattice
@@ -527,8 +533,8 @@ class CoherentInterfaceBuilder:
                 match["film_sl_vecs"].tolist(), match["sub_sl_vecs"].tolist()
             )
             match["termination"] = termination
-            match["film_layers"] = film_layers
-            match["sub_layers"] = sub_layers
+            match["film_thickness"] = film_thickness
+            match["substrate_thickness"] = substrate_thickness
 
             yield (
                 Interface(
