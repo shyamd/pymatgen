@@ -4,7 +4,7 @@
 from __future__ import annotations
 import numpy as np
 from itertools import product, combinations
-from typing import List, Dict
+from typing import List, Dict, Tuple, Optional, Generator
 
 from scipy.linalg import polar
 from scipy.spatial.transform import Rotation
@@ -39,7 +39,7 @@ class Interface(Structure):
         self,
         sub_slab: Slab,
         film_slab: Slab,
-        in_plane_offset: List = (0, 0),
+        in_plane_offset: Tuple[float, float] = (0, 0),
         gap: float = 1.6,
         vacuum_over_film: float = 0.0,
         structure_properties: Dict = {},
@@ -161,24 +161,18 @@ class Interface(Structure):
         self.sort()
 
     @property
-    def in_plane_offset(self) -> List[float]:
+    def in_plane_offset(self) -> Tuple[float, float]:
+        """
+        The shift between the film and substrate in fractional
+        coordinates
+        """
         return self._in_plane_offset
 
     @in_plane_offset.setter
-    def in_plane_offset(self, new_shift: List[float]) -> None:
-        """
-        Given two floats da and db, adjust the shift vector
-        by da * (first lattice vector) + db * (second lattice vector).
-        This shift is in the plane of the interface.
-        I.e. da and db are fractional coordinates.
-
-        Args:
-            new_shift - fractional shift in a and b
-        """
-
+    def in_plane_offset(self, new_shift: Tuple[float, float]) -> None:
         if len(new_shift) != 2:
             raise ValueError("In-plane shifts require two floats for a and b vectors")
-        new_shift = np.mod(new_shift,1)
+        new_shift = np.mod(new_shift, 1)
         delta = new_shift - np.array(self.in_plane_offset)
         self._in_plane_offset = new_shift.tolist()
         self.translate_sites(
@@ -193,7 +187,7 @@ class Interface(Structure):
         return self._gap
 
     @gap.setter
-    def gap(self, new_gap) -> None:
+    def gap(self, new_gap: float) -> None:
         if new_gap < 0:
             raise ValueError("Can't reduce interface gap below 0")
 
@@ -213,7 +207,7 @@ class Interface(Structure):
         return self._vacuum_over_film
 
     @vacuum_over_film.setter
-    def vacuum_over_film(self, new_vacuum) -> None:
+    def vacuum_over_film(self, new_vacuum: float) -> None:
         if new_vacuum < 0:
             raise ValueError("The vacuum over the film can not be less then 0")
 
@@ -224,6 +218,9 @@ class Interface(Structure):
 
     @property
     def substrate_indicies(self) -> List[int]:
+        """
+        Site indicies for the substrate atoms
+        """
         sub_indicies = [
             i
             for i, tag in enumerate(self.site_properties["interface_label"])
@@ -234,7 +231,7 @@ class Interface(Structure):
     @property
     def substrate_sites(self) -> List[Site]:
         """
-        Return the substrate sites of the interface.
+        The site objects in the substrate
         """
         sub_sites = [
             site
@@ -246,14 +243,14 @@ class Interface(Structure):
     @property
     def substrate(self) -> Structure:
         """
-        Return the substrate (Structure) of the interface.
+        A pymatgen Structure for just the substrate
         """
         return Structure.from_sites(self.substrate_sites)
 
     @property
     def film_indices(self) -> List[int]:
         """
-        Retrieve the indices of the film sites
+        Site indices of the film sites
         """
         f_indicies = [
             i
@@ -303,7 +300,7 @@ class Interface(Structure):
 
     def get_sorted_structure(self, key=None, reverse=False) -> Structure:
         """
-        Get a sorted copy of the structure. The parameters have the same
+        Get a sorted structure for the interface. The parameters have the same
         meaning as in list.sort. By default, sites are sorted by the
         electronegativity of the species.
 
@@ -321,6 +318,7 @@ class Interface(Structure):
     def __update_c(self, new_c: float) -> None:
         """
         Modifies the c-direction of the lattice without changing the site cartesian coordinates
+        Be carefull you can mess up the interface by setting a c-length that can't accomodate all the sites
         """
         if new_c <= 0:
             raise ValueError("New c-length must be greater than 0")
@@ -341,16 +339,19 @@ class CoherentInterfaceBuilder:
 
     def __init__(
         self,
-        substrate_structure,
-        film_structure,
-        film_miller,
-        substrate_miller,
-        zslgen=None,
+        substrate_structure: Structure,
+        film_structure: Structure,
+        film_miller: Tuple[int, int, int],
+        substrate_miller: Tuple[int, int, int],
+        zslgen: Optional[ZSLGenerator] = None,
     ):
         """
         Args:
-            substrate_structure (Structure): structure of substrate
-            film_structure (Structure): structure of film
+            substrate_structure: structure of substrate
+            film_structure: structure of film
+            film_miller: miller index of the film layer
+            substrate_miller: miller index for the substrate layer
+            zslgen: ZSLGenerator if you want custom lattice matching tolerances for coherency
         """
 
         # Bulk structures
@@ -360,10 +361,10 @@ class CoherentInterfaceBuilder:
         self.substrate_miller = substrate_miller
         self.zslgen = zslgen or ZSLGenerator()
 
-        self.find_matches()
-        self.find_terminations()
+        self._find_matches()
+        self._find_terminations()
 
-    def find_matches(self) -> None:
+    def _find_matches(self) -> None:
         """
         Finds and stores the ZSL matches
         """
@@ -413,7 +414,7 @@ class CoherentInterfaceBuilder:
                 strain, strain.astype(int)
             ), "Substrate lattice vectors changed during ZSL match, check your ZSL Generator parameters"
 
-    def find_terminations(self):
+    def _find_terminations(self):
         """
         Finds all terminations
         """
@@ -459,13 +460,26 @@ class CoherentInterfaceBuilder:
 
     def get_interfaces(
         self,
-        termination,
-        gap=2.0,
-        vacuum_over_film=20.0,
-        film_thickness=1,
-        substrate_thickness=1,
-        in_layers=True,
-    ):
+        termination: Tuple[str, str],
+        gap: float = 2.0,
+        vacuum_over_film: float = 20.0,
+        film_thickness: Union[float, int] = 1,
+        substrate_thickness: Union[float, int] = 1,
+        in_layers: bool = True,
+    ) -> Generator[Interface]:
+        """
+        Generates interface structures given the film and substrate structure
+        as well as the desired terminations
+
+
+        Args:
+            terminations: termination from self.termination list
+            gap: gap between film and substrate
+            vacuum_over_film: vacuum over the top of the film
+            film_thickness: the film thickness
+            substrate_thickness: substrate thickness 
+            in_layers: set the thickness in layer units
+        """
         film_sg = SlabGenerator(
             self.film_structure,
             self.film_miller,
@@ -548,7 +562,12 @@ class CoherentInterfaceBuilder:
             )
 
 
-def get_rot_3d_for_2d(film_matrix, sub_matrix):
+Vector3D = Tuple[float, float, float]
+Matrix3D = Tuple[Vector3D, Vector3D, Vector3D]
+Matrix2D = Tuple[Vector3D, Vector3D]
+
+
+def get_rot_3d_for_2d(film_matrix: Matrix3D, sub_matrix: Matrix3D):
     """
     Finds a trasnformation matrix that will rotate and strain the film to the subtrate while preserving the c-axis
     """
@@ -574,7 +593,7 @@ def get_rot_3d_for_2d(film_matrix, sub_matrix):
     return rot
 
 
-def get_2d_transform(start, end):
+def get_2d_transform(start: Matrix2D, end: Matrix2D):
     """
     Gets a 2d transformation matrix
     that converts start to end
@@ -582,13 +601,13 @@ def get_2d_transform(start, end):
     return np.dot(end, np.linalg.pinv(start))
 
 
-def from_2d_to_3d(mat):
+def from_2d_to_3d(mat: Matrix2D):
     new_mat = np.diag([1.0, 1.0, 1.0])
     new_mat[:2, :2] = mat
     return new_mat
 
 
-def label_termination(slab):
+def label_termination(slab: Slab):
     frac_coords = slab.frac_coords
     n = len(frac_coords)
 
@@ -630,7 +649,7 @@ def label_termination(slab):
     return f"{form}_{sp_symbol}_{len(top_plane)}"
 
 
-def match_strain(film_sl_vecs, sub_sl_vecs):
+def match_strain(film_sl_vecs: Matrix2D, sub_sl_vecs: Matrix2D):
 
     # Generate 3D lattice vectors
     film_sl_vecs.append(np.cross(film_sl_vecs[0], film_sl_vecs[1]))
