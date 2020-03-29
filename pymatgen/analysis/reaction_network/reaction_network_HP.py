@@ -1,9 +1,7 @@
 from abc import ABCMeta, abstractproperty, abstractmethod, abstractclassmethod
 from abc import ABC, abstractmethod
-
 from gunicorn.util import load_class
 from monty.json import MSONable
-
 import logging
 import copy
 import itertools
@@ -18,12 +16,17 @@ from pymatgen.analysis.fragmenter import metal_edge_extender
 import networkx as nx
 from networkx.algorithms import bipartite
 from pymatgen.entries.mol_entry import MoleculeEntry
-from pymatgen.entries.rxn_entry import ReactionEntry
 from pymatgen.core.composition import CompositionError
 
 
 class Reaction(MSONable, metaclass=ABCMeta):
-    # def __init__(self, entries: List[MoleculeEntry], electron_free_energy=-2.15):
+    """
+       Abstract class for subsequent types of reaction class
+
+       Args:
+           reactants ([MoleculeEntry]): A list of MoleculeEntry objects of len 1.
+           products ([MoleculeEntry]): A list of MoleculeEntry objects of max len 2
+       """
 
     def __init__(self, reactants, products):
         self.reactants = reactants
@@ -92,6 +95,15 @@ class Reaction(MSONable, metaclass=ABCMeta):
 
 
 def graph_rep_1_2(reaction) -> nx.DiGraph:
+
+    """
+    A method to convert a reaction type object into graph representation. Reaction much be of type 1 reactant -> 2
+    products
+
+    Args:
+       reactant (any of the reaction class object, ex. RedoxReaction, IntramolSingleBondChangeReaction):
+    """
+
     entry = reaction.reactant
     entry0 = reaction.product0
     entry1 = reaction.product1
@@ -179,6 +191,15 @@ def graph_rep_1_2(reaction) -> nx.DiGraph:
 
 
 def graph_rep_1_1(reaction) -> nx.DiGraph:
+
+    """
+    A method to convert a reaction type object into graph representation. Reaction much be of type 1 reactant -> 1
+    product
+
+    Args:
+       reactant (any of the reaction class object, ex. RedoxReaction, IntramolSingleBondChangeReaction):
+    """
+
     entry0 = reaction.reactant
     entry1 = reaction.product
     graph = nx.DiGraph()
@@ -223,7 +244,21 @@ def graph_rep_1_1(reaction) -> nx.DiGraph:
 
 class RedoxReaction(Reaction):
 
-    # def __init__(self, reactant, product):
+    """
+    A class to define redox reactions as follows:
+    One electron oxidation / reduction without change to bonding
+        A^n ±e- <-> A^n±1
+        Two entries with:
+        identical composition
+        identical number of edges
+        a charge difference of 1
+        isomorphic molecule graphs
+
+    Args:
+       reactant([MolecularEntry]): list of single molecular entry
+       product([MoleculeEntry]): list of single molecular entry
+    """
+
     def __init__(self, reactant, product):
         if len(reactant) != 1 or len(product) != 1:
             raise RuntimeError("One electron redox requires two lists that each contain one entry!")
@@ -362,6 +397,21 @@ class RedoxReaction(Reaction):
 
 class IntramolSingleBondChangeReaction(Reaction):
 
+    """
+    A class to define intramolecular single bond change as follows:
+        Intramolecular formation / breakage of one bond
+        A^n <-> B^n
+        Two entries with:
+            identical composition
+            number of edges differ by 1
+            identical charge
+            removing one of the edges in the graph with more edges yields a graph isomorphic to the other entry
+
+    Args:
+       reactant([MolecularEntry]): list of single molecular entry
+       product([MoleculeEntry]): list of single molecular entry
+    """
+
     def __init__(self, reactant, product):
         if len(reactant) != 1 or len(product) != 1:
             raise RuntimeError("Intramolecular single bond change requires two lists that each contain one entry!")
@@ -489,6 +539,21 @@ class IntramolSingleBondChangeReaction(Reaction):
 
 
 class IntermolecularReaction(Reaction):
+
+    """
+    A class to define intermolecular bond change as follows:
+        Intermolecular formation / breakage of one bond
+        A <-> B + C aka B + C <-> A
+        Three entries with:
+            comp(A) = comp(B) + comp(C)
+            charge(A) = charge(B) + charge(C)
+            removing one of the edges in A yields two disconnected subgraphs that are isomorphic to B and C
+
+    Args:
+       reactant([MolecularEntry]): list of single molecular entry
+       product([MoleculeEntry]): list of two molecular entries
+    """
+
 
     def __init__(self, reactant, product):
         self.reactant = reactant[0]
@@ -660,6 +725,21 @@ class IntermolecularReaction(Reaction):
 
 
 class CoordinationBondChangeReaction(Reaction):
+
+    """
+    A class to define coordination bond change as follows:
+        Simultaneous formation / breakage of multiple coordination bonds
+        A + M <-> AM aka AM <-> A + M
+        Three entries with:
+            M = Li or Mg
+            comp(AM) = comp(A) + comp(M)
+            charge(AM) = charge(A) + charge(M)
+            removing two M-containing edges in AM yields two disconnected subgraphs that are isomorphic to B and C
+
+    Args:
+       reactant([MolecularEntry]): list of single molecular entry
+       product([MoleculeEntry]): list of two molecular entries
+    """
 
     def __init__(self, reactant, product):
         self.reactant = reactant[0]
@@ -864,12 +944,19 @@ class CoordinationBondChangeReaction(Reaction):
 
 
 class ReactionNetwork:
+    """
+       Class to build a reaction network from entries
+
+       Args:
+           input_entries ([MoleculeEntry]): A list of MoleculeEntry objects.
+           electron_free_energy (float): The Gibbs free energy of an electron.
+               Defaults to -2.15 eV, the value at which the LiEC SEI forms.
+       """
+
 
     def __init__(self, input_entries, electron_free_energy=-2.15):
         self.graph = nx.DiGraph()
         self.reactions = []
-        # self.reaction_entries = Reaction(self.entries)
-
         self.input_entries = input_entries
         self.entry_ids = {e.entry_id for e in self.input_entries}
         self.electron_free_energy = electron_free_energy
@@ -953,7 +1040,7 @@ class ReactionNetwork:
         self.reactions = [r.generate(self.entries) for r in reaction_types]
         self.reactions = [i for i in self.reactions if i]
         self.reactions = list(itertools.chain.from_iterable(self.reactions))
-
+        self.graph.add_nodes_from(range(len(self.entries_list)), bipartite=0)
         for r in self.reactions:
             if r.reaction_type()["class"] == "RedoxReaction" or r.reaction_type()["class"] == "IntramolSingleBondChangeReaction":
                 if r.reaction_type()["class"] == "RedoxReaction":

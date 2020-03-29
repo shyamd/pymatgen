@@ -185,64 +185,64 @@ class TestReactionNetwork(PymatgenTest):
         #         print(val, path[val])
         #     print()
 
-    def test_build_graph(self):
-        RN = ReactionNetwork(
-            self.LiEC_extended_entries,
-            electron_free_energy=-2.15)
-        self.assertEqual(len(RN.entries_list),251)
-        self.assertEqual(len(RN.graph.nodes),2021)
-        self.assertEqual(len(RN.graph.edges),4022)
-        # dumpfn(RN,"RN.json")
-        loaded_RN = loadfn("RN.json")
-        self.assertEqual(RN.as_dict(),loaded_RN.as_dict())
-
-    def test_solve_prerequisites(self):
-        RN = loadfn("RN.json")
-        LiEC_ind = None
-        LEDC_ind = None
-        for entry in RN.entries["C3 H4 Li1 O3"][12][1]:
-            if self.LiEC_mg.isomorphic_to(entry.mol_graph):
-                LiEC_ind = entry.parameters["ind"]
-                break
-        for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
-            if self.LEDC_mg.isomorphic_to(entry.mol_graph):
-                LEDC_ind = entry.parameters["ind"]
-                break
-        RN.num_starts = 1
-        PRs = RN.solve_prerequisites([LiEC_ind],LEDC_ind,weight="softplus")
-        # dumpfn(PRs,"PRs.json")
-        loaded_PRs = loadfn("PRs.json")
-        for key in PRs:
-            if PRs[key] == {}:
-                self.assertEqual(PRs[key],loaded_PRs[str(key)])
-            # else:
-            #     self.assertEqual(PRs[key][LiEC_ind],loaded_PRs[str(key)][str(LiEC_ind)])
-            elif PRs[key][LiEC_ind] != loaded_PRs[str(key)][str(LiEC_ind)]:
-                new_path = RN.characterize_path(path=PRs[key][LiEC_ind]["path"],weight="softplus",PR_paths=PRs,final=True)
-                old_path = RN.characterize_path(path=loaded_PRs[str(key)][str(LiEC_ind)]["path"],weight="softplus",PR_paths=PRs,final=True)
-                self.assertTrue(abs(new_path["hardest_step_deltaG"]-old_path["hardest_step_deltaG"])<0.000000000001)
-                self.assertTrue(abs(new_path["overall_free_energy_change"]-old_path["overall_free_energy_change"])<0.000000000001)
-                self.assertTrue(abs(new_path["cost"]-old_path["cost"])<0.000000000001)
-
-    def test_find_paths(self):
-        RN = loadfn("RN.json")
-        LiEC_ind = None
-        LEDC_ind = None
-        for entry in RN.entries["C3 H4 Li1 O3"][12][1]:
-            if self.LiEC_mg.isomorphic_to(entry.mol_graph):
-                LiEC_ind = entry.parameters["ind"]
-                break
-        for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
-            if self.LEDC_mg.isomorphic_to(entry.mol_graph):
-                LEDC_ind = entry.parameters["ind"]
-                break
-        PR_paths, paths = RN.find_paths([LiEC_ind],LEDC_ind,weight="softplus",num_paths=10)
-        self.assertEqual(paths[0]["cost"],1.7660275897855464)
-        self.assertEqual(paths[0]["overall_free_energy_change"],-5.131657887139409)
-        self.assertEqual(paths[0]["hardest_step_deltaG"],0.36044270861384575)
-        self.assertEqual(paths[9]["cost"],3.7546340395839226)
-        self.assertEqual(paths[9]["overall_free_energy_change"],-5.13165788713941)
-        self.assertEqual(paths[9]["hardest_step_deltaG"],2.7270388301945787)
+    # def test_build_graph(self):
+    #     RN = ReactionNetwork(
+    #         self.LiEC_extended_entries,
+    #         electron_free_energy=-2.15)
+    #     self.assertEqual(len(RN.entries_list),251)
+    #     self.assertEqual(len(RN.graph.nodes),2021)
+    #     self.assertEqual(len(RN.graph.edges),4022)
+    #     # dumpfn(RN,"RN.json")
+    #     loaded_RN = loadfn("RN.json")
+    #     self.assertEqual(RN.as_dict(),loaded_RN.as_dict())
+    #
+    # def test_solve_prerequisites(self):
+    #     RN = loadfn("RN.json")
+    #     LiEC_ind = None
+    #     LEDC_ind = None
+    #     for entry in RN.entries["C3 H4 Li1 O3"][12][1]:
+    #         if self.LiEC_mg.isomorphic_to(entry.mol_graph):
+    #             LiEC_ind = entry.parameters["ind"]
+    #             break
+    #     for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
+    #         if self.LEDC_mg.isomorphic_to(entry.mol_graph):
+    #             LEDC_ind = entry.parameters["ind"]
+    #             break
+    #     RN.num_starts = 1
+    #     PRs = RN.solve_prerequisites([LiEC_ind],LEDC_ind,weight="softplus")
+    #     # dumpfn(PRs,"PRs.json")
+    #     loaded_PRs = loadfn("PRs.json")
+    #     for key in PRs:
+    #         if PRs[key] == {}:
+    #             self.assertEqual(PRs[key],loaded_PRs[str(key)])
+    #         # else:
+    #         #     self.assertEqual(PRs[key][LiEC_ind],loaded_PRs[str(key)][str(LiEC_ind)])
+    #         elif PRs[key][LiEC_ind] != loaded_PRs[str(key)][str(LiEC_ind)]:
+    #             new_path = RN.characterize_path(path=PRs[key][LiEC_ind]["path"],weight="softplus",PR_paths=PRs,final=True)
+    #             old_path = RN.characterize_path(path=loaded_PRs[str(key)][str(LiEC_ind)]["path"],weight="softplus",PR_paths=PRs,final=True)
+    #             self.assertTrue(abs(new_path["hardest_step_deltaG"]-old_path["hardest_step_deltaG"])<0.000000000001)
+    #             self.assertTrue(abs(new_path["overall_free_energy_change"]-old_path["overall_free_energy_change"])<0.000000000001)
+    #             self.assertTrue(abs(new_path["cost"]-old_path["cost"])<0.000000000001)
+    #
+    # def test_find_paths(self):
+    #     RN = loadfn("RN.json")
+    #     LiEC_ind = None
+    #     LEDC_ind = None
+    #     for entry in RN.entries["C3 H4 Li1 O3"][12][1]:
+    #         if self.LiEC_mg.isomorphic_to(entry.mol_graph):
+    #             LiEC_ind = entry.parameters["ind"]
+    #             break
+    #     for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
+    #         if self.LEDC_mg.isomorphic_to(entry.mol_graph):
+    #             LEDC_ind = entry.parameters["ind"]
+    #             break
+    #     PR_paths, paths = RN.find_paths([LiEC_ind],LEDC_ind,weight="softplus",num_paths=10)
+    #     self.assertEqual(paths[0]["cost"],1.7660275897855464)
+    #     self.assertEqual(paths[0]["overall_free_energy_change"],-5.131657887139409)
+    #     self.assertEqual(paths[0]["hardest_step_deltaG"],0.36044270861384575)
+    #     self.assertEqual(paths[9]["cost"],3.7546340395839226)
+    #     self.assertEqual(paths[9]["overall_free_energy_change"],-5.13165788713941)
+    #     self.assertEqual(paths[9]["hardest_step_deltaG"],2.7270388301945787)
 
 if __name__ == "__main__":
     unittest.main()
