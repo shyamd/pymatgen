@@ -551,7 +551,7 @@ class Poscar(MSONable):
         """
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "structure": self.structure.as_dict(),
+                "structure": self.structure.as_dict,
                 "true_names": self.true_names,
                 "selective_dynamics": np.array(
                     self.selective_dynamics).tolist(),
@@ -2007,7 +2007,7 @@ class VaspInput(dict, MSONable):
         """
         :return: MSONable dict.
         """
-        d = {k: v.as_dict() for k, v in self.items()}
+        d = {k: v.as_dict for k, v in self.items()}
         d["@module"] = self.__class__.__module__
         d["@class"] = self.__class__.__name__
         return d

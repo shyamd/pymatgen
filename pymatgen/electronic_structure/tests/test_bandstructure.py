@@ -195,11 +195,11 @@ class BandStructureSymmLine_test(PymatgenTest):
         self.assertTrue([0., 0., 0.] in vbm_eqs)
 
     def test_as_dict(self):
-        s = json.dumps(self.bs.as_dict())
+        s = json.dumps(self.bs.as_dict)
         self.assertIsNotNone(s)
-        s = json.dumps(self.bs2.as_dict())
+        s = json.dumps(self.bs2.as_dict)
         self.assertIsNotNone(s)
-        s = json.dumps(self.bs_spin.as_dict())
+        s = json.dumps(self.bs_spin.as_dict)
         self.assertIsNotNone(s)
 
     def test_old_format_load(self):
@@ -261,7 +261,7 @@ class LobsterBandStructureSymmLine_test(PymatgenTest):
         self.assertAlmostEqual(bs_p.structure[0].coords[2], 3.67462144)
         self.assertAlmostEqual(bs_p.efermi, 1.06470288)
 
-        lattice = bs_p.lattice_rec.as_dict()
+        lattice = bs_p.lattice_rec.as_dict
         self.assertAlmostEqual(lattice["matrix"][0][0], 1.2511575194890285)
         self.assertAlmostEqual(lattice["matrix"][0][1], 0.7223560132915973)
         self.assertAlmostEqual(lattice["matrix"][0][2], 0.0)
@@ -422,9 +422,9 @@ class LobsterBandStructureSymmLine_test(PymatgenTest):
         self.assertEqual(bs.get_kpoint_degeneracy(vbm_k), 3)
 
     def test_as_dict(self):
-        s = json.dumps(self.bs_p.as_dict())
+        s = json.dumps(self.bs_p.as_dict)
         self.assertIsNotNone(s)
-        s = json.dumps(self.bs_spin.as_dict())
+        s = json.dumps(self.bs_spin.as_dict)
         self.assertIsNotNone(s)
 
     def test_old_format_load(self):

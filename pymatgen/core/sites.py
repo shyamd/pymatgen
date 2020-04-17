@@ -257,7 +257,7 @@ class Site(collections.abc.Hashable, MSONable):
         """
         species_list = []
         for spec, occu in self.species.items():
-            d = spec.as_dict()
+            d = spec.as_dict
             del d["@module"]
             del d["@class"]
             d["occu"] = occu
@@ -611,7 +611,7 @@ class PeriodicSite(Site, MSONable):
         """
         species_list = []
         for spec, occu in self._species.items():
-            d = spec.as_dict()
+            d = spec.as_dict
             del d["@module"]
             del d["@class"]
             d["occu"] = occu

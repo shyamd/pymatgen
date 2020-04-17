@@ -358,7 +358,7 @@ class DoscarTest(unittest.TestCase):
         self.assertListEqual(tdos_up, self.DOSCAR_spin_pol.completedos.densities[Spin.up].tolist())
         self.assertListEqual(tdos_down, self.DOSCAR_spin_pol.completedos.densities[Spin.down].tolist())
         self.assertAlmostEqual(fermi, self.DOSCAR_spin_pol.completedos.efermi)
-        self.assertDictEqual(self.DOSCAR_spin_pol.completedos.structure.as_dict(), self.structure.as_dict())
+        self.assertDictEqual(self.DOSCAR_spin_pol.completedos.structure.as_dict, self.structure.as_dict)
         self.assertListEqual(self.DOSCAR_spin_pol.completedos.pdos[self.structure[0]]['2s'][Spin.up].tolist(),
                              PDOS_F_2s_up)
         self.assertListEqual(self.DOSCAR_spin_pol.completedos.pdos[self.structure[0]]['2s'][Spin.down].tolist(),
@@ -388,7 +388,7 @@ class DoscarTest(unittest.TestCase):
         self.assertListEqual(tdos_nonspin, self.DOSCAR_nonspin_pol.completedos.densities[Spin.up].tolist())
 
         self.assertAlmostEqual(fermi, self.DOSCAR_nonspin_pol.completedos.efermi)
-        self.assertDictEqual(self.DOSCAR_nonspin_pol.completedos.structure.as_dict(), self.structure.as_dict())
+        self.assertDictEqual(self.DOSCAR_nonspin_pol.completedos.structure.as_dict, self.structure.as_dict)
 
         self.assertListEqual(self.DOSCAR_nonspin_pol.completedos.pdos[self.structure[0]]['2s'][Spin.up].tolist(),
                              PDOS_F_2s)
@@ -865,8 +865,8 @@ class FatbandTest(PymatgenTest):
         self.assertAlmostEqual(list(self.fatband_SiO2_p_x.label_dict['M'])[1], 0.0)
         self.assertAlmostEqual(list(self.fatband_SiO2_p_x.label_dict['M'])[2], 0.0)
         self.assertEqual(self.fatband_SiO2_p_x.efermi, self.vasprun_SiO2_p_x.efermi)
-        lattice1 = self.bs_symmline.lattice_rec.as_dict()
-        lattice2 = self.fatband_SiO2_p_x.lattice.as_dict()
+        lattice1 = self.bs_symmline.lattice_rec.as_dict
+        lattice2 = self.fatband_SiO2_p_x.lattice.as_dict
         self.assertAlmostEqual(lattice1["matrix"][0][0], lattice2["matrix"][0][0])
         self.assertAlmostEqual(lattice1["matrix"][0][1], lattice2["matrix"][0][1])
         self.assertAlmostEqual(lattice1["matrix"][0][2], lattice2["matrix"][0][2])
@@ -895,8 +895,8 @@ class FatbandTest(PymatgenTest):
         self.assertAlmostEqual(list(self.fatband_SiO2_p.label_dict['M'])[1], 0.0)
         self.assertAlmostEqual(list(self.fatband_SiO2_p.label_dict['M'])[2], 0.0)
         self.assertEqual(self.fatband_SiO2_p.efermi, self.vasprun_SiO2_p.efermi)
-        lattice1 = self.bs_symmline2.lattice_rec.as_dict()
-        lattice2 = self.fatband_SiO2_p.lattice.as_dict()
+        lattice1 = self.bs_symmline2.lattice_rec.as_dict
+        lattice2 = self.fatband_SiO2_p.lattice.as_dict
         self.assertAlmostEqual(lattice1["matrix"][0][0], lattice2["matrix"][0][0])
         self.assertAlmostEqual(lattice1["matrix"][0][1], lattice2["matrix"][0][1])
         self.assertAlmostEqual(lattice1["matrix"][0][2], lattice2["matrix"][0][2])
@@ -925,8 +925,8 @@ class FatbandTest(PymatgenTest):
         self.assertAlmostEqual(list(self.fatband_SiO2_spin.label_dict['M'])[1], 0.)
         self.assertAlmostEqual(list(self.fatband_SiO2_spin.label_dict['M'])[2], 0.)
         self.assertEqual(self.fatband_SiO2_spin.efermi, self.vasprun_SiO2_spin.efermi)
-        lattice1 = self.bs_symmline_spin.lattice_rec.as_dict()
-        lattice2 = self.fatband_SiO2_spin.lattice.as_dict()
+        lattice1 = self.bs_symmline_spin.lattice_rec.as_dict
+        lattice2 = self.fatband_SiO2_spin.lattice.as_dict
         self.assertAlmostEqual(lattice1["matrix"][0][0], lattice2["matrix"][0][0])
         self.assertAlmostEqual(lattice1["matrix"][0][1], lattice2["matrix"][0][1])
         self.assertAlmostEqual(lattice1["matrix"][0][2], lattice2["matrix"][0][2])
@@ -992,8 +992,8 @@ class FatbandTest(PymatgenTest):
         self.assertEqual(branch2["end_index"], branch1["end_index"])
 
         self.assertAlmostEqual(bs_p.distance[30], self.bs_symmline2.distance[30])
-        lattice1 = bs_p.lattice_rec.as_dict()
-        lattice2 = self.bs_symmline2.lattice_rec.as_dict()
+        lattice1 = bs_p.lattice_rec.as_dict
+        lattice2 = self.bs_symmline2.lattice_rec.as_dict
         self.assertAlmostEqual(lattice1["matrix"][0][0], lattice2["matrix"][0][0])
         self.assertAlmostEqual(lattice1["matrix"][0][1], lattice2["matrix"][0][1])
         self.assertAlmostEqual(lattice1["matrix"][0][2], lattice2["matrix"][0][2])
@@ -1374,7 +1374,7 @@ class LobsterinTest(unittest.TestCase):
 
     def test_MSONable_implementation(self):
         # tests as dict and from dict methods
-        newLobsterin = Lobsterin.from_dict(self.Lobsterinfromfile.as_dict())
+        newLobsterin = Lobsterin.from_dict(self.Lobsterinfromfile.as_dict)
         self.assertDictEqual(newLobsterin, self.Lobsterinfromfile)
         newLobsterin.to_json()
 

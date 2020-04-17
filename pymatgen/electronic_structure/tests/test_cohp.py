@@ -27,7 +27,7 @@ class CohpTest(unittest.TestCase):
     def test_as_from_dict(self):
         with open(os.path.join(test_dir, "cohp.json"), "r") as f:
             cohp_dict = json.load(f)
-        self.assertEqual(self.cohp.as_dict(), cohp_dict)
+        self.assertEqual(self.cohp.as_dict, cohp_dict)
 
     def test_attributes(self):
         self.assertEqual(len(self.cohp.energies), 301)
@@ -249,7 +249,7 @@ class CombinedIcohpTest(unittest.TestCase):
 
         dict_KF = self.icohpcollection_KF.get_icohp_dict_by_bondlengths(minbondlength=0.0, maxbondlength=8.0)
         for key, value in sorted(dict_KF.items()):
-            v = value.as_dict()
+            v = value.as_dict
             if "@version" in v:
                 v.pop("@version")
             self.assertDictEqual(v, icohpvalue[key])
@@ -272,7 +272,7 @@ class CombinedIcohpTest(unittest.TestCase):
 
         dict_Fe = self.icohpcollection_Fe.get_icohp_dict_by_bondlengths(minbondlength=0.0, maxbondlength=8.0)
         for key, value in sorted(dict_Fe.items()):
-            v = value.as_dict()
+            v = value.as_dict
             if "@version" in v:
                 v.pop("@version")
             self.assertDictEqual(v, icohpvalue_spin[key])
@@ -280,7 +280,7 @@ class CombinedIcohpTest(unittest.TestCase):
         dict_Fe2 = self.icohpcollection_Fe.get_icohp_dict_by_bondlengths(minbondlength=2.5, maxbondlength=2.9)
         self.assertEqual(len(dict_Fe2), 1)
         for key, value in sorted(dict_Fe2.items()):
-            v = value.as_dict()
+            v = value.as_dict
             if "@version" in v:
                 v.pop("@version")
             self.assertDictEqual(v, icohpvalue_spin[key])
@@ -316,7 +316,7 @@ class CombinedIcohpTest(unittest.TestCase):
         dict_KF = self.icohpcollection_KF.get_icohp_dict_of_site(site=0)
 
         for key, value in sorted(dict_KF.items()):
-            v = value.as_dict()
+            v = value.as_dict
             if "@version" in v:
                 v.pop("@version")
             self.assertDictEqual(v, icohpvalue[key])
@@ -374,7 +374,7 @@ class CombinedIcohpTest(unittest.TestCase):
                              '@class': 'IcohpValue', 'num': 1}
 
         for key, value in sorted(dict_Fe2.items()):
-            v = value.as_dict()
+            v = value.as_dict
             if "@version" in v:
                 v.pop("@version")
             self.assertEqual(v, icohplist_Fe[key])
@@ -392,7 +392,7 @@ class CombinedIcohpTest(unittest.TestCase):
         values = []
         for key, value in dict_Fe4.items():
             values.append(value)
-        v = values[0].as_dict()
+        v = values[0].as_dict
         if "@version" in v:
             v.pop("@version")
         self.assertDictEqual(v, icohplist_Fe["1"])
@@ -404,7 +404,7 @@ class CombinedIcohpTest(unittest.TestCase):
         values = []
         for key, value in dict_Fe5.items():
             values.append(value)
-        v = values[0].as_dict()
+        v = values[0].as_dict
         if "@version" in v:
             v.pop("@version")
         self.assertDictEqual(v, icohplist_Fe["2"])
@@ -417,7 +417,7 @@ class CombinedIcohpTest(unittest.TestCase):
         values = []
         for key, value in dict_Fe6.items():
             values.append(value)
-        v = values[0].as_dict()
+        v = values[0].as_dict
         if "@version" in v:
             v.pop("@version")
         self.assertDictEqual(v, icohplist_Fe["2"])
@@ -429,7 +429,7 @@ class CombinedIcohpTest(unittest.TestCase):
         values = []
         for key, value in dict_Fe7.items():
             values.append(value)
-        v = values[0].as_dict()
+        v = values[0].as_dict
         if "@version" in v:
             v.pop("@version")
         self.assertDictEqual(v, icohplist_Fe["1"])
@@ -533,13 +533,13 @@ class CompleteCohpTest(PymatgenTest):
         # The json files are dict representations of the COHPs from the LMTO
         # and LOBSTER calculations and should thus be the same.
 
-        self.assertEqual(self.cohp_lobster.as_dict(),
-                         self.cohp_lobster_dict.as_dict())
-        self.assertEqual(self.cohp_orb.as_dict(),
-                         self.cohp_orb_dict.as_dict())
+        self.assertEqual(self.cohp_lobster.as_dict,
+                         self.cohp_lobster_dict.as_dict)
+        self.assertEqual(self.cohp_orb.as_dict,
+                         self.cohp_orb_dict.as_dict)
         # Lobster 3.0, including f orbitals
-        self.assertEqual(self.cohp_lobster_forb.as_dict(),
-                         self.cohp_lobster_forb_dict.as_dict())
+        self.assertEqual(self.cohp_lobster_forb.as_dict,
+                         self.cohp_lobster_forb_dict.as_dict)
 
         # Testing the LMTO dicts will be more involved. Since the average
         # is calculated and not read, there may be differences in rounding
@@ -547,17 +547,17 @@ class CompleteCohpTest(PymatgenTest):
         # test to fail
         for key in ["COHP", "ICOHP"]:
             self.assertArrayAlmostEqual(
-                self.cohp_lmto.as_dict()[key]["average"]["1"],
-                self.cohp_lmto_dict.as_dict()[key]["average"]["1"], 5)
-        for key in self.cohp_lmto.as_dict():
+                self.cohp_lmto.as_dict[key]["average"]["1"],
+                self.cohp_lmto_dict.as_dict[key]["average"]["1"], 5)
+        for key in self.cohp_lmto.as_dict:
             if key not in ["COHP", "ICOHP"]:
-                self.assertEqual(self.cohp_lmto.as_dict()[key],
-                                 self.cohp_lmto_dict.as_dict()[key])
+                self.assertEqual(self.cohp_lmto.as_dict[key],
+                                 self.cohp_lmto_dict.as_dict[key])
             else:
-                for bond in self.cohp_lmto.as_dict()[key]:
+                for bond in self.cohp_lmto.as_dict[key]:
                     if bond != "average":
-                        self.assertEqual(self.cohp_lmto.as_dict()[key][bond],
-                                         self.cohp_lmto_dict.as_dict()[key][bond])
+                        self.assertEqual(self.cohp_lmto.as_dict[key][bond],
+                                         self.cohp_lmto_dict.as_dict[key][bond])
 
     def test_icohp_values(self):
         # icohp_ef are the ICHOP(Ef) values taken from
@@ -657,7 +657,7 @@ class CompleteCohpTest(PymatgenTest):
                                                          [[4, orb[0]], [4, orb[1]]]) for orb in orbitals]
         # print(cohps)
         for cohp in cohps:
-            self.assertEqual(cohp.as_dict(), cohp_label.as_dict())
+            self.assertEqual(cohp.as_dict, cohp_label.as_dict)
 
 
 if __name__ == "__main__":

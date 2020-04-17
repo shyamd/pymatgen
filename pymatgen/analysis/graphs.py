@@ -716,7 +716,7 @@ class StructureGraph(MSONable):
                 to_jimage = np.multiply(-1, to_jimage)
 
             to_jimage = tuple(map(int, np.add(to_jimage, jimage)))
-            site_d = self.structure[v].as_dict()
+            site_d = self.structure[v].as_dict
             site_d['abc'] = np.add(site_d['abc'], to_jimage).tolist()
             site = PeriodicSite.from_dict(site_d)
 
@@ -1233,7 +1233,7 @@ class StructureGraph(MSONable):
         # return new instance of StructureGraph with supercell
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "structure": new_structure.as_dict(),
+             "structure": new_structure.as_dict,
              "graphs": json_graph.adjacency_data(new_g)}
 
         sg = StructureGraph.from_dict(d)

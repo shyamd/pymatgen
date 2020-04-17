@@ -316,7 +316,7 @@ class MultiEntry(PourbaixEntry):
     def as_dict(self):
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "entry_list": [e.as_dict() for e in self.entry_list],
+                "entry_list": [e.as_dict for e in self.entry_list],
                 "weights": self.weights}
 
     @classmethod
@@ -365,7 +365,7 @@ class IonEntry(PDEntry):
         """
         Creates a dict of composition, energy, and ion name
         """
-        d = {"ion": self.ion.as_dict(), "energy": self.energy,
+        d = {"ion": self.ion.as_dict, "energy": self.energy,
              "name": self.name}
         return d
 
@@ -928,9 +928,9 @@ class PourbaixDiagram(MSONable):
 
     def as_dict(self, include_unprocessed_entries=False):
         if include_unprocessed_entries:
-            entries = [e.as_dict() for e in self._unprocessed_entries]
+            entries = [e.as_dict for e in self._unprocessed_entries]
         else:
-            entries = [e.as_dict() for e in self._processed_entries]
+            entries = [e.as_dict for e in self._processed_entries]
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
              "entries": entries,

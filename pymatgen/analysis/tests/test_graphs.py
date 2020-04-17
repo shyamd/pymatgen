@@ -473,9 +473,9 @@ from    to  to_image
             os.remove(test_file)
 
     def test_to_from_dict(self):
-        d = self.mos2_sg.as_dict()
+        d = self.mos2_sg.as_dict
         sg = StructureGraph.from_dict(d)
-        d2 = sg.as_dict()
+        d2 = sg.as_dict
         self.assertDictEqual(d, d2)
 
     def test_from_local_env_and_equality_and_diff(self):
@@ -999,9 +999,9 @@ class MoleculeGraphTest(unittest.TestCase):
         self.assertEqual(eth_copy_repl.get_coordination_of_site(5), 3)
 
     def test_as_from_dict(self):
-        d = self.cyclohexene.as_dict()
+        d = self.cyclohexene.as_dict
         mg = MoleculeGraph.from_dict(d)
-        d2 = mg.as_dict()
+        d2 = mg.as_dict
         self.assertEqual(str(d), str(d2))
 
 

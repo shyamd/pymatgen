@@ -381,7 +381,7 @@ class CompletePhononDos(PhononDos):
         """
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "structure": self.structure.as_dict(),
+             "structure": self.structure.as_dict,
              "frequencies": list(self.frequencies),
              "densities": list(self.densities),
              "pdos": []}

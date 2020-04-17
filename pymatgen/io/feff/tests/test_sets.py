@@ -55,7 +55,7 @@ TITLE sites: 4
                 self.assertIn(s, last4)
 
     def test_getfefftags(self):
-        tags = self.mp_xanes.tags.as_dict()
+        tags = self.mp_xanes.tags.as_dict
         self.assertEqual(tags['COREHOLE'], "FSR",
                          "Failed to generate PARAMETERS string")
 
@@ -72,16 +72,16 @@ TITLE sites: 4
     def test_to_and_from_dict(self):
         f1_dict = self.mp_xanes.as_dict()
         f2 = MPXANESSet.from_dict(f1_dict)
-        self.assertEqual(f1_dict, f2.as_dict())
+        self.assertEqual(f1_dict, f2.as_dict)
 
     def test_user_tag_settings(self):
-        tags_dict_ans = self.mp_xanes.tags.as_dict()
+        tags_dict_ans = self.mp_xanes.tags.as_dict
         tags_dict_ans["COREHOLE"] = "RPA"
         tags_dict_ans["EDGE"] = "L1"
         user_tag_settings = {"COREHOLE": "RPA", "EDGE": "L1"}
         mp_xanes_2 = MPXANESSet(self.absorbing_atom, self.structure,
                                 user_tag_settings=user_tag_settings)
-        self.assertEqual(mp_xanes_2.tags.as_dict(), tags_dict_ans)
+        self.assertEqual(mp_xanes_2.tags.as_dict, tags_dict_ans)
 
     def test_eels_to_from_dict(self):
         elnes = MPELNESSet(self.absorbing_atom, self.structure, radius=5.0,
@@ -89,7 +89,7 @@ TITLE sites: 4
                            collection_angle=7, convergence_angle=6)
         elnes_dict = elnes.as_dict()
         elnes_2 = MPELNESSet.from_dict(elnes_dict)
-        self.assertEqual(elnes_dict, elnes_2.as_dict())
+        self.assertEqual(elnes_dict, elnes_2.as_dict)
 
     def test_eels_tags_set(self):
         radius = 5.0

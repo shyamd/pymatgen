@@ -942,9 +942,7 @@ class ReactionNetwork(MSONable):
             print("old solved prs", old_solved_PRs)
             print("target", target)
             print("PRs", PRs)
-            print(min_cost[420])
-            print(cost_from_start[420])
-            print(PRs[420])
+
 
             solved_PRs = copy.deepcopy(old_solved_PRs)
             new_solved_PRs = []
@@ -979,14 +977,7 @@ class ReactionNetwork(MSONable):
             print("old solved prs", old_solved_PRs)
             print("target", target)
             print("PRs", PRs)
-            print("420", min_cost[420])
-            print("420", cost_from_start[420])
-            print("420", PRs[420])
-            print("421", min_cost[421])
-            print("421", cost_from_start[421])
-            print("421", PRs[421])
-            print("$$$$")
-            print(new_solved_PRs)
+
 
             # new_solved_PRs = []
             # for PR in solved_PRs:
@@ -996,11 +987,7 @@ class ReactionNetwork(MSONable):
             print(ii, len(old_solved_PRs), len(new_solved_PRs))
             attrs = {}
 
-            if int(420) in new_solved_PRs:
-                print("THE 240", ii)
-                print("420", min_cost[420])
-                print("420", cost_from_start[420])
-                print("420", PRs[420])
+
 
             for PR_ind in min_cost:  ##implement weight changes to the graph
                 for rxn_node in self.PR_record[PR_ind]:
@@ -1092,8 +1079,12 @@ class ReactionNetwork(MSONable):
         while len(paths) < num_paths and my_heapq:
             # Check if any byproduct could yield a prereq cheaper than from starting molecule(s)?
             (cost, _, path_dict) = heapq.heappop(my_heapq)
-            print(len(paths),cost,len(my_heapq),path_dict["all_prereqs"])
+            print(len(paths),cost,len(my_heapq),path_dict)
             paths.append(path_dict)
+
+        print(PR_paths)
+        print(paths)
+
 
         return PR_paths, paths
 

@@ -314,7 +314,7 @@ class PhononBSPlotter:
                      for j in range(b['start_index'], b['end_index'] + 1)])
 
         return {'ticks': ticks, 'distances': distance, 'frequency': frequency,
-                'lattice': self._bs.lattice_rec.as_dict()}
+                'lattice': self._bs.lattice_rec.as_dict}
 
     def get_plot(self, ylim=None, units="thz"):
         """

@@ -480,7 +480,7 @@ class CoordinationGeometry:
                 '_algorithms': [algo.as_dict for algo in
                                 self._algorithms] if self._algorithms is not None else None,
                 'equivalent_indices': self.equivalent_indices,
-                'neighbors_sets_hints': [nbsh.as_dict() for nbsh in self.neighbors_sets_hints]
+                'neighbors_sets_hints': [nbsh.as_dict for nbsh in self.neighbors_sets_hints]
                 if self.neighbors_sets_hints is not None else None}
 
     @classmethod

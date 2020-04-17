@@ -124,7 +124,7 @@ class InterfaceTest(PymatgenTest):
 
     def test_serialization(self):
         interface = self.ib.interfaces[0]
-        interface_dict = interface.as_dict()
+        interface_dict = interface.as_dict
         interface_from_dict = Interface.from_dict(interface_dict)
         for attr in ['lattice', 'cart_coords', 'sub_plane', 'film_plane',
                      'modified_film_structure', 'modified_sub_structure',
@@ -141,7 +141,7 @@ class InterfaceTest(PymatgenTest):
         interface = self.ib.interfaces[0].copy()
         interface.z_shift = 4
         interface.ab_shift = [0.5, 0.5]
-        interface_dict = interface.as_dict()
+        interface_dict = interface.as_dict
         interface_from_dict = Interface.from_dict(interface_dict)
         for attr in ['lattice', 'cart_coords', 'sub_plane', 'film_plane',
                      'modified_film_structure', 'modified_sub_structure',

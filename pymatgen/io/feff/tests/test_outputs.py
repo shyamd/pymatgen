@@ -31,13 +31,13 @@ class FeffLdosTest(unittest.TestCase):
 
     def test_complete_dos(self):
         complete_dos = FeffLdosTest.l.complete_dos
-        self.assertEqual(complete_dos.as_dict()['spd_dos']["s"]['efermi'],
+        self.assertEqual(complete_dos.as_dict['spd_dos']["s"]['efermi'],
                          - 11.430,
                          "Failed to construct complete_dos dict properly")
 
     def test_as_dict_and_from_dict(self):
         l2 = FeffLdosTest.l.charge_transfer_to_string()
-        d = FeffLdosTest.l.as_dict()
+        d = FeffLdosTest.l.as_dict
         l3 = LDos.from_dict(d).charge_transfer_to_string()
         self.assertEqual(l2, l3, "Feffldos to and from dict does not match")
 
@@ -48,7 +48,7 @@ class FeffLdosTest(unittest.TestCase):
 
     def test_reci_complete_dos(self):
         complete_dos = FeffLdosTest.reci_dos.complete_dos
-        self.assertEqual(complete_dos.as_dict()['spd_dos']["s"]['efermi'],
+        self.assertEqual(complete_dos.as_dict['spd_dos']["s"]['efermi'],
                          -9.672,
                          "Failed to construct complete_dos dict properly")
 
@@ -72,7 +72,7 @@ class XmuTest(unittest.TestCase):
         filepath2 = os.path.join(test_dir, 'feff.inp')
         x = Xmu.from_file(filepath1, filepath2)
         data = x.data.tolist()
-        d = x.as_dict()
+        d = x.as_dict
         x2 = Xmu.from_dict(d)
         data2 = x2.data.tolist()
         self.assertEqual(data, data2, "Xmu to and from dict does not match")

@@ -195,5 +195,5 @@ class PymatgenTest(unittest.TestCase):
         if test_if_subclass:
             self.assertIsInstance(obj, MSONable)
         self.assertDictEqual(obj.as_dict(), obj.__class__.from_dict(
-            obj.as_dict()).as_dict())
+            obj.as_dict()).as_dict)
         json.loads(obj.to_json(), cls=MontyDecoder)

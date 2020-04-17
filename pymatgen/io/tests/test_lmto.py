@@ -34,7 +34,7 @@ class CtrlTest(unittest.TestCase):
 
     def test_dict(self):
         self.assertEqual(self.ctrl_bise,
-                         LMTOCtrl.from_dict(self.ctrl_bise.as_dict()))
+                         LMTOCtrl.from_dict(self.ctrl_bise.as_dict))
 
     def test_structure(self):
         bise_poscar = Structure.from_file("POSCAR.BiSe")

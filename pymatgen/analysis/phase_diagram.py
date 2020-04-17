@@ -181,7 +181,7 @@ class GrandPotPDEntry(PDEntry):
         """
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "entry": self.original_entry.as_dict(),
+                "entry": self.original_entry.as_dict,
                 "chempots": {el.symbol: u for el, u in self.chempots.items()},
                 "name": self.name}
 
@@ -488,8 +488,8 @@ class PhaseDiagram(MSONable):
         """
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "all_entries": [e.as_dict() for e in self.all_entries],
-                "elements": [e.as_dict() for e in self.elements]}
+                "all_entries": [e.as_dict for e in self.all_entries],
+                "elements": [e.as_dict for e in self.elements]}
 
     @classmethod
     def from_dict(cls, d):
@@ -1020,9 +1020,9 @@ class GrandPotentialPhaseDiagram(PhaseDiagram):
         """
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "all_entries": [e.as_dict() for e in self.all_entries],
+                "all_entries": [e.as_dict for e in self.all_entries],
                 "chempots": self.chempots,
-                "elements": [e.as_dict() for e in self.elements]}
+                "elements": [e.as_dict for e in self.elements]}
 
     @classmethod
     def from_dict(cls, d):
@@ -1126,8 +1126,8 @@ class CompoundPhaseDiagram(PhaseDiagram):
         return {
             "@module": self.__class__.__module__,
             "@class": self.__class__.__name__,
-            "original_entries": [e.as_dict() for e in self.original_entries],
-            "terminal_compositions": [c.as_dict()
+            "original_entries": [e.as_dict for e in self.original_entries],
+            "terminal_compositions": [c.as_dict
                                       for c in self.terminal_compositions],
             "normalize_terminal_compositions":
                 self.normalize_terminals}

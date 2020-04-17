@@ -1765,7 +1765,7 @@ class WeightedNbSetChemenvStrategy(AbstractChemenvStrategy):
                 "@class": self.__class__.__name__,
                 "additional_condition": self._additional_condition,
                 "symmetry_measure_type": self.symmetry_measure_type,
-                "nb_set_weights": [nb_set_weight.as_dict() for nb_set_weight in self.nb_set_weights],
+                "nb_set_weights": [nb_set_weight.as_dict for nb_set_weight in self.nb_set_weights],
                 "ce_estimator": self.ce_estimator,
                 }
 
@@ -1904,17 +1904,17 @@ class MultiWeightsChemenvStrategy(WeightedNbSetChemenvStrategy):
                 "@class": self.__class__.__name__,
                 "additional_condition": self._additional_condition,
                 "symmetry_measure_type": self.symmetry_measure_type,
-                "dist_ang_area_weight": self.dist_ang_area_weight.as_dict()
+                "dist_ang_area_weight": self.dist_ang_area_weight.as_dict
                 if self.dist_ang_area_weight is not None else None,
-                "self_csm_weight": self.self_csm_weight.as_dict()
+                "self_csm_weight": self.self_csm_weight.as_dict
                 if self.self_csm_weight is not None else None,
-                "delta_csm_weight": self.delta_csm_weight.as_dict()
+                "delta_csm_weight": self.delta_csm_weight.as_dict
                 if self.delta_csm_weight is not None else None,
-                "cn_bias_weight": self.cn_bias_weight.as_dict()
+                "cn_bias_weight": self.cn_bias_weight.as_dict
                 if self.cn_bias_weight is not None else None,
-                "angle_weight": self.angle_weight.as_dict()
+                "angle_weight": self.angle_weight.as_dict
                 if self.angle_weight is not None else None,
-                "normalized_angle_distance_weight": self.normalized_angle_distance_weight.as_dict()
+                "normalized_angle_distance_weight": self.normalized_angle_distance_weight.as_dict
                 if self.normalized_angle_distance_weight is not None else None,
                 "ce_estimator": self.ce_estimator,
                 }

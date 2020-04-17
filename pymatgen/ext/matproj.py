@@ -917,7 +917,7 @@ class MPRester:
         """
         try:
             snl = snl if isinstance(snl, list) else [snl]
-            jsondata = [s.as_dict() for s in snl]
+            jsondata = [s.as_dict for s in snl]
             payload = {"snl": json.dumps(jsondata, cls=MontyEncoder)}
             response = self.session.post("{}/snl/submit".format(self.preamble),
                                          data=payload)
@@ -1065,7 +1065,7 @@ class MPRester:
                     "parameters": e.parameters,
                     "final_energy": e.energy,
                     "final_energy_per_atom": e.energy_per_atom,
-                    "initial_structure": e.data["initial_structure"].as_dict()
+                    "initial_structure": e.data["initial_structure"].as_dict
                 }
             }
             if "history" in e.parameters:
@@ -1115,7 +1115,7 @@ class MPRester:
         """
         entry = self.get_entry_by_material_id(material_id)
         ebulk = entry.energy / entry.composition.get_integer_formula_and_factor()[1]
-        comp_dict = entry.composition.reduced_composition.as_dict()
+        comp_dict = entry.composition.reduced_composition.as_dict
 
         isolated_atom_e_sum, n = 0, 0
         for el in comp_dict.keys():

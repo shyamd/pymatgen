@@ -353,7 +353,7 @@ class MPStaticSetTest(PymatgenTest):
         self.assertEqual(vis.kpoints.style, Kpoints.supported_modes.Monkhorst)
 
         # Check as from dict.
-        vis = MPStaticSet.from_dict(vis.as_dict())
+        vis = MPStaticSet.from_dict(vis.as_dict)
         self.assertEqual(vis.incar["NSW"], 0)
         # Check that the ENCUT has been inherited.
         self.assertEqual(vis.incar["ENCUT"], 600)
@@ -465,7 +465,7 @@ class MPNonSCFSetTest(PymatgenTest):
         self.assertEqual(vis.kpoints.style, Kpoints.supported_modes.Reciprocal)
 
         # Check as from dict.
-        vis = MPNonSCFSet.from_dict(vis.as_dict())
+        vis = MPNonSCFSet.from_dict(vis.as_dict)
         self.assertEqual(vis.incar["NSW"], 0)
         # Check that the ENCUT has been inherited.
         self.assertEqual(vis.incar["ENCUT"], 600)

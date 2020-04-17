@@ -1684,7 +1684,7 @@ class PseudoTable(collections.abc.Sequence, MSONable, metaclass=abc.ABCMeta):
             while k in d:
                 k += k.split("#")[0] + "#" + str(count)
                 count += 1
-            d.update({k: p.as_dict()})
+            d.update({k: p.as_dict})
         d['@module'] = self.__class__.__module__
         d['@class'] = self.__class__.__name__
         return d

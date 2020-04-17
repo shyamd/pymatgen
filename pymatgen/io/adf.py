@@ -334,7 +334,7 @@ class AdfKey(MSONable):
         if len(self.subkeys) > 0:
             subkeys = []
             for subkey in self.subkeys:
-                subkeys.append(subkey.as_dict())
+                subkeys.append(subkey.as_dict)
             d.update({"subkeys": subkeys})
         return d
 
@@ -577,7 +577,7 @@ class AdfTask(MSONable):
                 "xc": self.xc.as_dict(), "basis_set": self.basis_set.as_dict(),
                 "units": self.units.as_dict(), "scf": self.scf.as_dict(),
                 "geo": self.geo.as_dict(),
-                "others": [k.as_dict() for k in self.other_directives]}
+                "others": [k.as_dict for k in self.other_directives]}
 
     def to_json(self):
         """

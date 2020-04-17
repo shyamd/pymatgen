@@ -300,13 +300,13 @@ class LatticeTestCase(PymatgenTest):
         self.assertNotEqual(l.find_mapping(l2, ltol=0.1), None)
 
     def test_to_from_dict(self):
-        d = self.tetragonal.as_dict()
+        d = self.tetragonal.as_dict
         t = Lattice.from_dict(d)
         for i in range(3):
             self.assertEqual(t.abc[i], self.tetragonal.abc[i])
             self.assertEqual(t.angles[i], self.tetragonal.angles[i])
         # Make sure old style dicts work.
-        d = self.tetragonal.as_dict(verbosity=1)
+        d = self.tetragonal.as_dict
         del d["matrix"]
         t = Lattice.from_dict(d)
         for i in range(3):

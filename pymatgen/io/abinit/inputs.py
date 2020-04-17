@@ -713,7 +713,7 @@ class BasicAbinitInput(AbstractInput, MSONable):
             abi_args.append((key, value))
 
         return dict(structure=self.structure.as_dict(),
-                    pseudos=[p.as_dict() for p in self.pseudos],
+                    pseudos=[p.as_dict for p in self.pseudos],
                     comment=self.comment,
                     abi_args=abi_args)
 
@@ -798,7 +798,7 @@ class BasicAbinitInput(AbstractInput, MSONable):
 
         # Add JSON section with pseudo potentials.
         ppinfo = ["\n\n\n#<JSON>"]
-        d = {"pseudos": [p.as_dict() for p in self.pseudos]}
+        d = {"pseudos": [p.as_dict for p in self.pseudos]}
         ppinfo.extend(json.dumps(d, indent=4).splitlines())
         ppinfo.append("</JSON>")
 

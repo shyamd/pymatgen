@@ -98,6 +98,6 @@ class TestShengBTE(PymatgenTest):
     def test_MSONable_implementation(self):
         # tests as dict and from dict methods
         Controlinfromfile = Control.from_file(self.filename)
-        newControlin = Control.from_dict(Controlinfromfile.as_dict())
+        newControlin = Control.from_dict(Controlinfromfile.as_dict)
         self.assertDictEqual(newControlin, Controlinfromfile)
         newControlin.to_json()

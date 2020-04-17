@@ -127,33 +127,33 @@ class TransformedStructure(MSONable):
             ranked_list = transformation.apply_transformation(
                 self.final_structure, return_ranked_list=return_alternatives)
 
-            input_structure = self.final_structure.as_dict()
+            input_structure = self.final_structure.as_dict
             alts = []
             for x in ranked_list[1:]:
                 s = x.pop("structure")
                 actual_transformation = x.pop("transformation", transformation)
-                hdict = actual_transformation.as_dict()
+                hdict = actual_transformation.as_dict
                 hdict["input_structure"] = input_structure
                 hdict["output_parameters"] = x
                 self.final_structure = s
                 d = self.as_dict()
                 d['history'].append(hdict)
-                d['final_structure'] = s.as_dict()
+                d['final_structure'] = s.as_dict
                 alts.append(TransformedStructure.from_dict(d))
 
             x = ranked_list[0]
             s = x.pop("structure")
             actual_transformation = x.pop("transformation", transformation)
-            hdict = actual_transformation.as_dict()
-            hdict["input_structure"] = self.final_structure.as_dict()
+            hdict = actual_transformation.as_dict
+            hdict["input_structure"] = self.final_structure.as_dict
             hdict["output_parameters"] = x
             self.history.append(hdict)
             self.final_structure = s
             return alts
         else:
             s = transformation.apply_transformation(self.final_structure)
-            hdict = transformation.as_dict()
-            hdict["input_structure"] = self.final_structure.as_dict()
+            hdict = transformation.as_dict
+            hdict["input_structure"] = self.final_structure.as_dict
             hdict["output_parameters"] = {}
             self.history.append(hdict)
             self.final_structure = s
@@ -167,7 +167,7 @@ class TransformedStructure(MSONable):
                 AbstractStructureFilter API. Tells transmuter waht structures
                 to retain.
         """
-        hdict = structure_filter.as_dict()
+        hdict = structure_filter.as_dict
         hdict["input_structure"] = self.final_structure.as_dict()
         self.history.append(hdict)
 
@@ -286,7 +286,7 @@ class TransformedStructure(MSONable):
         """
         parser = CifParser.from_string(cif_string, occupancy_tolerance)
         raw_string = re.sub(r"'", "\"", cif_string)
-        cif_dict = parser.as_dict()
+        cif_dict = parser.as_dict
         cif_keys = list(cif_dict.keys())
         s = parser.get_structures(primitive)[0]
         partial_cif = cif_dict[cif_keys[0]]

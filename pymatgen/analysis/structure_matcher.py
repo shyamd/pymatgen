@@ -796,7 +796,7 @@ class StructureMatcher(MSONable):
         """
         return {"version": __version__, "@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "comparator": self._comparator.as_dict(),
+                "comparator": self._comparator.as_dict,
                 "stol": self.stol,
                 "ltol": self.ltol,
                 "angle_tol": self.angle_tol,

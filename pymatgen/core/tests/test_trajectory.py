@@ -337,7 +337,7 @@ class TrajectoryTest(PymatgenTest):
             all([np.allclose(struct.lattice.matrix, structures[i].lattice.matrix) for i, struct in enumerate(traj)]))
 
     def test_to_from_dict(self):
-        d = self.traj.as_dict()
+        d = self.traj.as_dict
         traj = Trajectory.from_dict(d)
         self.assertEqual(type(traj), Trajectory)
 

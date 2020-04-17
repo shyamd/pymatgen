@@ -124,7 +124,7 @@ class DiffusionAnalyzerTest(PymatgenTest):
                 ss[n].cart_coords - d.structure.cart_coords + d.drift[:, n_orig, :],
                 d.disp[:, n_orig, :])
 
-            d = DiffusionAnalyzer.from_dict(d.as_dict())
+            d = DiffusionAnalyzer.from_dict(d.as_dict)
             self.assertIsInstance(d, DiffusionAnalyzer)
 
             # Ensure summary dict is json serializable.
@@ -247,7 +247,7 @@ class DiffusionAnalyzerTest(PymatgenTest):
                 ss[n].cart_coords - d.structure.cart_coords + d.drift[:, n_orig, :],
                 d.disp[:, n_orig, :])
 
-            d = DiffusionAnalyzer.from_dict(d.as_dict())
+            d = DiffusionAnalyzer.from_dict(d.as_dict)
             self.assertIsInstance(d, DiffusionAnalyzer)
 
             # Ensure summary dict is json serializable.

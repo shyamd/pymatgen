@@ -304,7 +304,7 @@ class CompleteCohp(Cohp):
              "@class": self.__class__.__name__,
              "are_coops": self.are_coops,
              "efermi": self.efermi,
-             "structure": self.structure.as_dict(),
+             "structure": self.structure.as_dict,
              "energies": self.energies.tolist(),
              "COHP": {"average": {str(spin): pops.tolist()
                                   for spin, pops in
@@ -330,7 +330,7 @@ class CompleteCohp(Cohp):
                                                self.all_cohps[label].icohp.items()}})
         if False in [bond_dict == {} for bond_dict in self.bonds.values()]:
             d["bonds"] = {bond: {"length": self.bonds[bond]["length"],
-                                 "sites": [site.as_dict() for site
+                                 "sites": [site.as_dict for site
                                            in self.bonds[bond]["sites"]]}
                           for bond in self.bonds}
         if self.orb_res_cohp:

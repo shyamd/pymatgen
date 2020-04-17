@@ -486,7 +486,7 @@ class GaussianInput:
         """
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "molecule": self.molecule.as_dict(),
+                "molecule": self.molecule.as_dict,
                 "functional": self.functional,
                 "basis_set": self.basis_set,
                 "route_parameters": self.route_parameters,

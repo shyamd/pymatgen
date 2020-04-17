@@ -21,12 +21,12 @@ class BondDissociationTest(unittest.TestCase):
 
     def setUp(self):
         self.PC_65_principle = loadfn(os.path.join(module_dir, "PC_65_principle.json"))
-        self.PC_65_principle["initial_molecule"] = self.PC_65_principle["initial_molecule"].as_dict()
-        self.PC_65_principle["final_molecule"] = self.PC_65_principle["final_molecule"].as_dict()
+        self.PC_65_principle["initial_molecule"] = self.PC_65_principle["initial_molecule"].as_dict
+        self.PC_65_principle["final_molecule"] = self.PC_65_principle["final_molecule"].as_dict
         self.PC_65_fragments = loadfn(os.path.join(module_dir, "PC_65_fragments.json"))
         for entry in self.PC_65_fragments:
-            entry["initial_molecule"] = entry["initial_molecule"].as_dict()
-            entry["final_molecule"] = entry["final_molecule"].as_dict()
+            entry["initial_molecule"] = entry["initial_molecule"].as_dict
+            entry["final_molecule"] = entry["final_molecule"].as_dict
         self.PC_correct = [
             [-0.1537378967699965, [(0, 6)], 'O', 'C', '[O][C@H](CO[C]=O)C', 'no_change', 0, 3, -381.557913621934],
             [-0.13698599276000323, [(0, 3)], 'O', 'C', 'O=C(OC[CH]C)[O]', 'no_change', 0, 3, -381.574665525944],
@@ -61,12 +61,12 @@ class BondDissociationTest(unittest.TestCase):
             [-0.18298781245698592, [(5, 12)], 'C', 'H', 'O1[C](COC1=O)C', 'bond_change', 1, 1, -380.872458671047, '[H]',
              'no_change', -1, 1, -0.6562050352]]
         self.neg_EC_40_principle = loadfn(os.path.join(module_dir, "neg_EC_40_principle.json"))
-        self.neg_EC_40_principle["initial_molecule"] = self.neg_EC_40_principle["initial_molecule"].as_dict()
-        self.neg_EC_40_principle["final_molecule"] = self.neg_EC_40_principle["final_molecule"].as_dict()
+        self.neg_EC_40_principle["initial_molecule"] = self.neg_EC_40_principle["initial_molecule"].as_dict
+        self.neg_EC_40_principle["final_molecule"] = self.neg_EC_40_principle["final_molecule"].as_dict
         self.neg_EC_40_fragments = loadfn(os.path.join(module_dir, "neg_EC_40_fragments.json"))
         for entry in self.neg_EC_40_fragments:
-            entry["initial_molecule"] = entry["initial_molecule"].as_dict()
-            entry["final_molecule"] = entry["final_molecule"].as_dict()
+            entry["initial_molecule"] = entry["initial_molecule"].as_dict
+            entry["final_molecule"] = entry["final_molecule"].as_dict
         self.EC_correct = [
             [0.02488474745905478, [(0, 5)], 'O', 'C', 'O1CCO[C]1[O]', 'more_bonds', -1, 2, -342.440795051501],
             [0.06645176460301627, [(0, 3)], 'O', 'C', 'O=C(OC[CH2])[O]', 'no_change', -1, 2, -342.482362068645],
@@ -80,12 +80,12 @@ class BondDissociationTest(unittest.TestCase):
              'no_change', -1, 1, -0.6548861747],
             [-0.05485312948695764, [(3, 4)], 'C', 'C', 'O([CH2])C(=O)O[CH2]', 'no_change', -1, 2, -342.361057174555]]
         self.neg_TFSI_principle = loadfn(os.path.join(module_dir, "neg_TFSI_principle.json"))
-        self.neg_TFSI_principle["initial_molecule"] = self.neg_TFSI_principle["initial_molecule"].as_dict()
-        self.neg_TFSI_principle["final_molecule"] = self.neg_TFSI_principle["final_molecule"].as_dict()
+        self.neg_TFSI_principle["initial_molecule"] = self.neg_TFSI_principle["initial_molecule"].as_dict
+        self.neg_TFSI_principle["final_molecule"] = self.neg_TFSI_principle["final_molecule"].as_dict
         self.neg_TFSI_fragments = loadfn(os.path.join(module_dir, "neg_TFSI_fragments.json"))
         for entry in self.neg_TFSI_fragments:
-            entry["initial_molecule"] = entry["initial_molecule"].as_dict()
-            entry["final_molecule"] = entry["final_molecule"].as_dict()
+            entry["initial_molecule"] = entry["initial_molecule"].as_dict
+            entry["final_molecule"] = entry["final_molecule"].as_dict
         self.TFSI_correct = [
             [-0.15474507240992352, [(0, 2)], 'S', 'O', 'S(=O)(=O)(C(F)(F)F)[N][S@](=O)C(F)(F)F', 'no_change', -1, 1,
              -1752.01611801942, '[O]', 'no_change', 0, 3, -75.0626185157],
