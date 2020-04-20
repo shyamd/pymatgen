@@ -20,6 +20,9 @@
 import os
 import unittest
 import time
+
+from monty.json import MontyEncoder
+
 from pymatgen.core.structure import Molecule
 from pymatgen.analysis.graphs import MoleculeGraph
 from pymatgen.analysis.local_env import OpenBabelNN
@@ -287,22 +290,39 @@ from pymatgen.analysis.fragmenter import metal_edge_extender
 #
 # #entries_SB = loadfn("LiEC_reextended_entries.json")
 
-from pymatgen.analysis.reaction_network.reaction_network_HP import *
-PRs_HP = loadfn("PR_paths_actual_2.json")
-PR_paths_HP = loadfn("PR_paths_actual.json")
+# from pymatgen.analysis.reaction_network.reaction_network_HP import *
+# PRs_HP = loadfn("PR_paths_actual_2.json")
+# PR_paths_HP = loadfn("PR_paths_actual.json")
+#
+# for key in PRs_HP:
+#     for start in PRs_HP[key]:
+#         if PRs_HP[key][start].path_dict == PR_paths_HP[key][start].path_dict:
+#             if PRs_HP[key][start].path is not None:
+#                 pass
+#                 # if len(PRs_HP[key][start].path) >= 2 and PRs_HP[key][start].hardest_step == None:
+#                 #     print("WRONG")
+#                 #     print(key, start)
+#                 #     print(PRs_HP[key][start].path_dict)
+#                 #     print(PR_paths_HP[key][start].path_dict)
+#         else:
+#             print("MISMATCH")
+#             print(key, start)
+#             print(PRs_HP[key][start].path_dict)
+#             print(PR_paths_HP[key][start].path_dict)
 
-for key in PRs_HP:
-    for start in PRs_HP[key]:
-        if PRs_HP[key][start].path_dict == PR_paths_HP[key][start].path_dict:
-            if PRs_HP[key][start].path is not None:
-                pass
-                # if len(PRs_HP[key][start].path) >= 2 and PRs_HP[key][start].hardest_step == None:
-                #     print("WRONG")
-                #     print(key, start)
-                #     print(PRs_HP[key][start].path_dict)
-                #     print(PR_paths_HP[key][start].path_dict)
-        else:
-            print("MISMATCH")
-            print(key, start)
-            print(PRs_HP[key][start].path_dict)
-            print(PR_paths_HP[key][start].path_dict)
+from pymatgen.analysis.reaction_network.reaction_network_HP import ReactionPath
+
+x = ReactionPath(["1", "2"])
+ddd = {1: {2: x}}
+dd = x.as_dict
+print(dd)
+
+print("@module" in dd)
+# if "@module" not in d:
+#     d["@module"] = u"{}".format(o.__class__.__module__)
+
+
+
+dumpfn(ddd,"xxx.json", default=lambda o: o.as_dict)
+# print(x.toJSON())
+# dumpfn(x.toJSON(), "xxx.json")

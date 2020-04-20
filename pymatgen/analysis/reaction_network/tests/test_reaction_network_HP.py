@@ -1086,20 +1086,20 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(paths_loaded[0]["hardest_step_deltaG"],0.3710129384598986)
         self.assertEqual(paths_loaded[0]["all_prereqs"],[556,41,556])
 
-        PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind,Li1_ind],LEDC_ind,weight="softplus",num_paths=10, save=True)
-        self.assertEqual(paths_calculated[0]["byproducts"],[164])
-        self.assertEqual(paths_calculated[1]["all_prereqs"],[556,420,556])
-        self.assertEqual(paths_calculated[0]["cost"],2.313631862390461)
-        self.assertEqual(paths_calculated[0]["overall_free_energy_change"],-6.240179642711564)
-        self.assertEqual(paths_calculated[0]["hardest_step_deltaG"],0.3710129384598986)
-        self.assertEqual(paths_calculated[0]["all_prereqs"],[556,41,556])
+        # PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind,Li1_ind],LEDC_ind,weight="softplus",num_paths=10, save=True)
+        # self.assertEqual(paths_calculated[0]["byproducts"],[164])
+        # self.assertEqual(paths_calculated[1]["all_prereqs"],[556,420,556])
+        # self.assertEqual(paths_calculated[0]["cost"],2.313631862390461)
+        # self.assertEqual(paths_calculated[0]["overall_free_energy_change"],-6.240179642711564)
+        # self.assertEqual(paths_calculated[0]["hardest_step_deltaG"],0.3710129384598986)
+        # self.assertEqual(paths_calculated[0]["all_prereqs"],[556,41,556])
 
-        self.assertEqual(paths_loaded[0], paths_calculated[0])
-        self.assertEqual(paths_loaded[1], paths_calculated[1])
-        self.assertEqual(paths_loaded[3], paths_calculated[3])
-        self.assertEqual(paths_loaded[5], paths_calculated[5])
-        self.assertEqual(paths_loaded[7], paths_calculated[7])
-        self.assertEqual(paths_loaded[9], paths_calculated[9])
+        # self.assertEqual(paths_loaded[0], paths_calculated[0])
+        # self.assertEqual(paths_loaded[1], paths_calculated[1])
+        # self.assertEqual(paths_loaded[3], paths_calculated[3])
+        # self.assertEqual(paths_loaded[5], paths_calculated[5])
+        # self.assertEqual(paths_loaded[7], paths_calculated[7])
+        # self.assertEqual(paths_loaded[9], paths_calculated[9])
 
 
 if __name__ == "__main__":

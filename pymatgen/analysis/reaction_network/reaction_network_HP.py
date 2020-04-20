@@ -1,4 +1,6 @@
 import json
+from json import JSONEncoder
+
 from networkx.readwrite import json_graph
 
 import yaml
@@ -896,6 +898,7 @@ class ReactionPath(MSONable):
                           "pure_cost": self.pure_cost,
                           "hardest_step_deltaG": self.hardest_step_deltaG, "full_path": self.full_path}
 
+
     @property
     def as_dict(self) -> dict:
         """
@@ -1559,9 +1562,10 @@ class ReactionNetwork(MSONable):
             self.graph = self.build()
             PR_paths, min_cost, graph = self.solve_prerequisites(starts, target, weight)
             if save:
-                dumpfn(PR_paths, "PR_paths_HP.json")
                 dumpfn(min_cost, "min_cost_HP.json")
                 dumpfn(json_graph.adjacency_data(graph), "graph_HP.json")
+                dumpfn(PR_paths, "PR_paths_HP.json", default=lambda o: o.as_dict)
+
         else:
             self.graph = json_graph.adjacency_graph(updated_graph)
             self.min_cost = {}
@@ -1581,6 +1585,7 @@ class ReactionNetwork(MSONable):
                 if ind == num_paths:
                     break
                 else:
+                    ind += 1
                     path_dict_class2 = ReactionPath.characterize_path_final(path, self.weight, self.min_cost,self.graph, PR_paths)
                     heapq.heappush(my_heapq, (path_dict_class2.cost, next(c), path_dict_class2))
 
