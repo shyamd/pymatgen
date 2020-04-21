@@ -648,11 +648,12 @@ class TestReactionNetwork(PymatgenTest):
                     cls.LiEC_reextended_entries.append(mol_entry)
             else:
                 cls.LiEC_reextended_entries.append(mol_entry)
+        cls.RN_cls = loadfn("RN_HP.json")
 
     def test_add_reactions(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
 
         # set up input variables
         EC_0_entry = None
@@ -716,12 +717,10 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(len(RN.graph.edges),22890)
 
         #dumpfn(RN,"RN_HP.json")
-        loaded_RN = loadfn("RN_HP.json")
-        self.assertEqual(RN.as_dict(), loaded_RN.as_dict)
 
     def test_build_PR_record(self):
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
         RN.build()
 
         # run calc
@@ -737,7 +736,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_build_reactant_record(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
         RN.build()
 
         # run calc
@@ -745,7 +744,7 @@ class TestReactionNetwork(PymatgenTest):
 
         # assert
         self.assertEqual(len(reactant_record[0]), 43)
-        self.assertEqual(reactant_record[44], ['44+PR_165,434', '44,43', '44,40+556'])
+        self.assertCountEqual(reactant_record[44], ['44+PR_165,434', '44,43', '44,40+556'])
         self.assertEqual(len(reactant_record[529]), 0)
         self.assertEqual(len(reactant_record[556]), 104)
         self.assertEqual(len(reactant_record[564]), 167)
@@ -753,7 +752,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_solve_prerequisites(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
 
         # set up input variables
         EC_ind = None
@@ -781,7 +780,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(len(graph_calc.nodes), 10481)
         self.assertEqual(len(graph_calc.edges), 22890)
 
-        #dumpfn(PRs_calc,"PRs_HP.json")
+        #dumpfn(PRs_calc,"PRs_HP.json", default=lambda o: o.as_dict)
         loaded_PRs = loadfn("PRs_HP.json")
 
         PR_paths = {}
@@ -805,7 +804,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_find_path_cost(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
         RN.weight = "softplus"
         RN.graph = json_graph.adjacency_graph(loadfn("find_path_cost_self_graph_IN.json"))
         loaded_self_min_cost_str = loadfn("find_path_cost_self_min_cost_IN.json")
@@ -872,7 +871,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_identify_solved_PRs(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
         RN.num_starts = 2
         RN.weight = "softplus"
         RN.graph = json_graph.adjacency_graph(loadfn("identify_solved_PRs_self_graph_IN.json"))
@@ -915,7 +914,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_update_edge_weights(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
         RN.weight = "softplus"
         RN.graph = json_graph.adjacency_graph(loadfn("update_edge_weights_self_graph_IN.json"))
 
@@ -938,7 +937,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_final_PR_check(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
         RN.weight = "softplus"
         loaded_PRs = loadfn("finalPRcheck_PRs_HP_IN.json")
         loaded_self_min_cost_str = loadfn("finalPRcheck_self_min_cost.json")
@@ -971,9 +970,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_find_or_remove_bad_nodes(self):
 
         # set up RN
-        RN = ReactionNetwork(
-            self.LiEC_reextended_entries,
-            electron_free_energy=-2.15)
+        RN = self.RN_cls
 
         # set up input variables
         LEDC_ind = None
@@ -1012,7 +1009,7 @@ class TestReactionNetwork(PymatgenTest):
 
     def test_valid_shortest_simple_paths(self):
 
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
 
         RN.weight = "softplus"
         loaded_graph = loadfn("graph_HP.json")
@@ -1057,7 +1054,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_find_paths(self):
 
         # set up RN
-        RN = loadfn("RN_HP.json")
+        RN = self.RN_cls
 
         # set up input variables
         EC_ind = None
@@ -1086,20 +1083,20 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(paths_loaded[0]["hardest_step_deltaG"],0.3710129384598986)
         self.assertEqual(paths_loaded[0]["all_prereqs"],[556,41,556])
 
-        # PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind,Li1_ind],LEDC_ind,weight="softplus",num_paths=10, save=True)
-        # self.assertEqual(paths_calculated[0]["byproducts"],[164])
-        # self.assertEqual(paths_calculated[1]["all_prereqs"],[556,420,556])
-        # self.assertEqual(paths_calculated[0]["cost"],2.313631862390461)
-        # self.assertEqual(paths_calculated[0]["overall_free_energy_change"],-6.240179642711564)
-        # self.assertEqual(paths_calculated[0]["hardest_step_deltaG"],0.3710129384598986)
-        # self.assertEqual(paths_calculated[0]["all_prereqs"],[556,41,556])
+        PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind,Li1_ind],LEDC_ind,weight="softplus",num_paths=10, save=True)
+        self.assertEqual(paths_calculated[0]["byproducts"],[164])
+        self.assertEqual(paths_calculated[1]["all_prereqs"],[556,420,556])
+        self.assertEqual(paths_calculated[0]["cost"],2.313631862390461)
+        self.assertEqual(paths_calculated[0]["overall_free_energy_change"],-6.240179642711564)
+        self.assertEqual(paths_calculated[0]["hardest_step_deltaG"],0.3710129384598986)
+        self.assertEqual(paths_calculated[0]["all_prereqs"],[556,41,556])
 
-        # self.assertEqual(paths_loaded[0], paths_calculated[0])
-        # self.assertEqual(paths_loaded[1], paths_calculated[1])
-        # self.assertEqual(paths_loaded[3], paths_calculated[3])
-        # self.assertEqual(paths_loaded[5], paths_calculated[5])
-        # self.assertEqual(paths_loaded[7], paths_calculated[7])
-        # self.assertEqual(paths_loaded[9], paths_calculated[9])
+        self.assertEqual(paths_loaded[0], paths_calculated[0])
+        self.assertEqual(paths_loaded[1], paths_calculated[1])
+        self.assertEqual(paths_loaded[3], paths_calculated[3])
+        self.assertEqual(paths_loaded[5], paths_calculated[5])
+        self.assertEqual(paths_loaded[7], paths_calculated[7])
+        self.assertEqual(paths_loaded[9], paths_calculated[9])
 
 
 if __name__ == "__main__":

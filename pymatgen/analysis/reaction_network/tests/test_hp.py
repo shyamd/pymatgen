@@ -311,18 +311,63 @@ from pymatgen.analysis.fragmenter import metal_edge_extender
 #             print(PR_paths_HP[key][start].path_dict)
 
 from pymatgen.analysis.reaction_network.reaction_network_HP import ReactionPath
+min_cost = loadfn("min_cost_HP.json")
+graph = json_graph.adjacency_graph(loadfn("graph_HP.json"))
+PRs = loadfn("PR_paths_HP.json")
+RN = loadfn("RN_HP.json")
+RN.build()
+entries_list = RN.entries_list
+for entry in entries_list:
+    if entry.parameters["ind"] == 543:
+        entry_543 = entry
+    elif entry.parameters["ind"] == 0:
+        entry_0 = entry
+    elif entry.parameters["ind"] == 3:
+        entry_3 = entry
+print((-1050.1098960421389 - (-13.899716296436546-1032.7636883577645)))
+print(ReactionNetwork.softplus((-1050.1098960421389 - (-13.899716296436546-1032.7636883577645))))
+print(ReactionNetwork.softplus(-(-1050.1098960421389 - (-13.899716296436546-1032.7636883577645))))
 
-x = ReactionPath(["1", "2"])
-ddd = {1: {2: x}}
-dd = x.as_dict
-print(dd)
-
-print("@module" in dd)
-# if "@module" not in d:
-#     d["@module"] = u"{}".format(o.__class__.__module__)
-
+print(min_cost["0"])
+print("self",RN.graph.nodes['543+PR_0,3'])
+print("loaded",graph.nodes['543+PR_0,3'])
+print("self",RN.graph[543]['543+PR_0,3'])
+print("loaded",graph[543]['543+PR_0,3'])
+print("loaded",graph[3])
+PR_record = RN.build_PR_record()
 
 
-dumpfn(ddd,"xxx.json", default=lambda o: o.as_dict)
-# print(x.toJSON())
-# dumpfn(x.toJSON(), "xxx.json")
+
+graph_rep = graph_rep_1_2(IntermolecularReaction(entry_3, [entry_543, entry_0]))
+print(graph_rep.nodes)
+print(graph_rep.edges)
+print(graph_rep[543]['543+PR_0,3'])
+for edge in graph_rep.edges.data():
+    print(edge)
+
+built_min_cost = {}
+for key in PRs:
+    built_min_cost[key] = None
+    for start in PRs[key]:
+        if built_min_cost[key] is None:
+            built_min_cost[key] = PRs[key][start].cost
+        elif built_min_cost[key] > PRs[key][start].cost:
+            built_min_cost[key] = PRs[key][start].cost
+
+print(min_cost)
+print(built_min_cost)
+# PRs = loadfn("PRs_HP.json")
+# RN.weight = "softplus"
+# RN.final_PR_check(PRs)
+#ReactionNetwork.final_PR_check()
+
+
+# print(PR_record)
+# for key in PR_record:
+#     if PR_record[key] == 1:
+#         print(key, PR_record[key])
+#
+# for key in PRs:
+#     for start in PRs[key]:
+#         if PRs[key][start].pure_cost != 0.0:
+#             print(key, start, PRs[key][start].path_dict)

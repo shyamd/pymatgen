@@ -1103,6 +1103,7 @@ class ReactionPath(MSONable):
 
 Mapping_PR_Dict = Dict[int, Dict[int, ReactionPath]]
 
+
 class ReactionNetwork(MSONable):
     """
        Class to build a reaction network from entries
@@ -1352,7 +1353,7 @@ class ReactionNetwork(MSONable):
             new_attrs = copy.deepcopy(attrs)
 
             ii += 1
-
+        dumpfn(PRs, "PRs_beforefinalcheck_insolveprereq.json",  default=lambda o: o.as_dict)
         self.final_PR_check(PRs)
 
         return PRs, self.min_cost, self.graph
