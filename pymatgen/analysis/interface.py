@@ -16,6 +16,7 @@ from pymatgen.core.surface import Slab, SlabGenerator
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.analysis.elasticity.strain import Deformation
 from pymatgen.analysis.substrate_analyzer import fast_norm, ZSLGenerator
+from pymatgen.analysis.adsorption import AdsorbateSiteFinder
 
 
 """
@@ -241,6 +242,13 @@ class Interface(Structure):
         return sub_sites
 
     @property
+    def substrate_layers(self) -> int:
+        """
+        Total number of substrate unit slab layers in this interface
+        """
+        return self.sub_slab.lattice.c / self.sub_slab.oriented_unit_cell.lattice.c
+
+    @property
     def substrate(self) -> Structure:
         """
         A pymatgen Structure for just the substrate
@@ -314,6 +322,64 @@ class Interface(Structure):
         struct_copy = Structure.from_sites(self)
         struct_copy.sort(key=key, reverse=reverse)
         return struct_copy
+
+    def shifts_based_on_adsorbate_sites(self, tolerance=0.1):
+        """
+        Computes possible in-plane shifts based on adsorbate finding algorithm
+
+        Args:
+            tolerance: tolerance for "uniqueness" for shifts in Cartesian unit
+                This is usually Angstroms.
+        """
+        sub_slab = self.sub_slab.copy()
+        film_slab = self.film_slab.copy()
+
+        if isinstance(sub_slab, Slab):
+            sub_slab = sub_slab.get_orthogonal_c_slab()
+        if isinstance(film_slab, Slab):
+            film_slab = film_slab.get_orthogonal_c_slab()
+
+        substrate_surface_sites = np.dot(
+            list(
+                chain.from_iterable(
+                    AdsorbateSiteFinder(sub_slab).find_adsorption_sites().values()
+                )
+            ),
+            sub_slab.lattice.inv_matrix,
+        )
+
+        # Film gets forced into substrate lattice anyways, so shifts can be computed in fractional coords
+        film_surface_sites = np.dot(
+            list(
+                chain.from_iterable(
+                    AdsorbateSiteFinder(film_slab).find_adsorption_sites().values()
+                )
+            ),
+            film_slab.lattice.inv_matrix,
+        )
+        pos_shift = np.array(
+            [
+                np.add(np.multiply(-1, film_shift), sub_shift)
+                for film_shift, sub_shift in product(
+                    film_surface_sites, substrate_surface_sites
+                )
+            ]
+        )
+
+        def _base_round(x,base=0.05):
+            return (base * (np.array(x) / base).round())
+
+        # Round shifts to tolerance
+        pos_shift[:, 0] = _base_round(
+            pos_shift[:, 0], base=tolerance / sub_slab.lattice.a
+        )
+        pos_shift[:, 1] = _base_round(
+            pos_shift[:, 1], base=tolerance / sub_slab.lattice.b
+        )
+        # C-axis is not usefull
+        pos_shift = pos_shift[:, 0:2]
+
+        return np.unique(pos_shift, axis=0)
 
     def __update_c(self, new_c: float) -> None:
         """
