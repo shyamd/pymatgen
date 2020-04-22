@@ -2,9 +2,9 @@
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
 from __future__ import annotations
+from typing import List, Dict, Tuple, Optional, Generator, Union
+from itertools import product, combinations, chain
 import numpy as np
-from itertools import product, combinations
-from typing import List, Dict, Tuple, Optional, Generator
 
 from scipy.linalg import polar
 from scipy.spatial.transform import Rotation
