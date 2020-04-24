@@ -59,7 +59,7 @@ class HeaderTest(unittest.TestCase):
     def test_as_dict_and_from_dict(self):
         file_name = os.path.join(test_dir, 'HEADER')
         header = Header.from_file(file_name)
-        d = header.as_dict
+        d = header.as_dict()
         header2 = Header.from_dict(d)
         self.assertEqual(str(header), str(header2),
                          "Header failed to and from dict test")
@@ -172,7 +172,7 @@ class FeffTagsTest(unittest.TestCase):
     def test_as_dict_and_from_dict(self):
         file_name = os.path.join(test_dir, 'PARAMETERS')
         tags = Tags.from_file(file_name)
-        d = tags.as_dict
+        d = tags.as_dict()
         tags2 = Tags.from_dict(d)
         self.assertEqual(tags, tags2,
                          "Parameters do not match to and from dict")

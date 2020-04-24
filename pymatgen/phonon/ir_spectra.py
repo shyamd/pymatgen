@@ -74,7 +74,7 @@ class IRDielectricTensor(MSONable):
                 "@class": self.__class__.__name__,
                 "oscillator_strength": self.oscillator_strength.tolist(),
                 "ph_freqs_gamma": self.ph_freqs_gamma.tolist(),
-                "structure": self.structure.as_dict,
+                "structure": self.structure.as_dict(),
                 "epsilon_infinity": self.epsilon_infinity.tolist()}
 
     def write_json(self, filename):

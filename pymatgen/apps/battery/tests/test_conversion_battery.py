@@ -70,13 +70,13 @@ class ConversionElectrodeTest(unittest.TestCase):
             # Test pair to dict
 
             pair = c.voltage_pairs[0]
-            d = pair.as_dict
+            d = pair.as_dict()
             pair2 = ConversionVoltagePair.from_dict(d)
             for prop in ['voltage', 'mass_charge', 'mass_discharge']:
                 self.assertEqual(getattr(pair, prop), getattr(pair2, prop), 2)
 
             # Test
-            d = c.as_dict
+            d = c.as_dict()
             electrode = ConversionElectrode.from_dict(d)
             for k, v in p.items():
                 self.assertAlmostEqual(getattr(electrode,

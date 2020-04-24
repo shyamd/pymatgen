@@ -25,16 +25,16 @@ class DefectsCoreTest(PymatgenTest):
 
         # test generation and super cell
         vac_struc = vac.generate_defect_structure(1)
-        self.assertEqual(vac_struc.composition.as_dict, {"V": 1, "O": 4})
+        self.assertEqual(vac_struc.composition.as_dict(), {"V": 1, "O": 4})
 
         vac_struc = vac.generate_defect_structure(2)
-        self.assertEqual(vac_struc.composition.as_dict, {"V": 15, "O": 32})
+        self.assertEqual(vac_struc.composition.as_dict(), {"V": 15, "O": 32})
 
         vac_struc = vac.generate_defect_structure(3)
-        self.assertEqual(vac_struc.composition.as_dict, {"V": 53, "O": 108})
+        self.assertEqual(vac_struc.composition.as_dict(), {"V": 53, "O": 108})
 
         vac_struc = vac.generate_defect_structure([[2., 0, 0], [0, 0, -3.], [0, 2., 0]])
-        self.assertEqual(vac_struc.composition.as_dict, {"V": 23, "O": 48})
+        self.assertEqual(vac_struc.composition.as_dict(), {"V": 23, "O": 48})
 
         # test charge
         vac = Vacancy(struc, struc[V_index])
@@ -58,7 +58,7 @@ class DefectsCoreTest(PymatgenTest):
         self.assertEqual(vac.multiplicity, 4)
 
         # Test composition
-        self.assertEqual(dict(vac.defect_composition.as_dict), {"V": 2, "O": 3})
+        self.assertEqual(dict(vac.defect_composition.as_dict()), {"V": 2, "O": 3})
 
         # test lattice value error occurs for different lattices
         sc_scaled_struc = struc.copy()
@@ -79,18 +79,18 @@ class DefectsCoreTest(PymatgenTest):
 
         # test generation and super cell
         int_struc = interstitial.generate_defect_structure(1)
-        self.assertEqual(int_struc.composition.as_dict, {"V": 3, "O": 4})
+        self.assertEqual(int_struc.composition.as_dict(), {"V": 3, "O": 4})
         # Ensure the site is in the right place
         self.assertEqual(int_site, int_struc.get_sites_in_sphere(int_site.coords, 0.1)[0][0])
 
         int_struc = interstitial.generate_defect_structure(2)
-        self.assertEqual(int_struc.composition.as_dict, {"V": 17, "O": 32})
+        self.assertEqual(int_struc.composition.as_dict(), {"V": 17, "O": 32})
 
         int_struc = interstitial.generate_defect_structure(3)
-        self.assertEqual(int_struc.composition.as_dict, {"V": 55, "O": 108})
+        self.assertEqual(int_struc.composition.as_dict(), {"V": 55, "O": 108})
 
         int_struc = interstitial.generate_defect_structure([[2., 0, 0], [0, 0, -3.], [0, 2., 0]])
-        self.assertEqual(int_struc.composition.as_dict, {"V": 25, "O": 48})
+        self.assertEqual(int_struc.composition.as_dict(), {"V": 25, "O": 48})
 
         # test charge
         interstitial = Interstitial(struc, int_site)
@@ -114,7 +114,7 @@ class DefectsCoreTest(PymatgenTest):
         self.assertEqual(interstitial.multiplicity, 4.0)
 
         # Test composition
-        self.assertEqual(dict(interstitial.defect_composition.as_dict), {"V": 3, "O": 4})
+        self.assertEqual(dict(interstitial.defect_composition.as_dict()), {"V": 3, "O": 4})
 
         # test that structure generation doesn't break if velocities existed previously
         # (previously caused failures for structure printing)
@@ -133,16 +133,16 @@ class DefectsCoreTest(PymatgenTest):
 
         # test generation and super cell
         sub_struc = substitution.generate_defect_structure(1)
-        self.assertEqual(sub_struc.composition.as_dict, {"V": 1, "Sr": 1, "O": 4})
+        self.assertEqual(sub_struc.composition.as_dict(), {"V": 1, "Sr": 1, "O": 4})
 
         sub_struc = substitution.generate_defect_structure(2)
-        self.assertEqual(sub_struc.composition.as_dict, {"V": 15, "Sr": 1, "O": 32})
+        self.assertEqual(sub_struc.composition.as_dict(), {"V": 15, "Sr": 1, "O": 32})
 
         sub_struc = substitution.generate_defect_structure(3)
-        self.assertEqual(sub_struc.composition.as_dict, {"V": 53, "Sr": 1, "O": 108})
+        self.assertEqual(sub_struc.composition.as_dict(), {"V": 53, "Sr": 1, "O": 108})
 
         sub_struc = substitution.generate_defect_structure([[2., 0, 0], [0, 0, -3.], [0, 2., 0]])
-        self.assertEqual(sub_struc.composition.as_dict, {"V": 23, "O": 48, "Sr": 1})
+        self.assertEqual(sub_struc.composition.as_dict(), {"V": 23, "O": 48, "Sr": 1})
 
         # test charge
         substitution = Substitution(struc, sub_site)
@@ -167,7 +167,7 @@ class DefectsCoreTest(PymatgenTest):
         self.assertEqual(substitution.multiplicity, 4)
 
         # Test composition
-        self.assertEqual(dict(substitution.defect_composition.as_dict), {"V": 2, "Sr": 1, "O": 3})
+        self.assertEqual(dict(substitution.defect_composition.as_dict()), {"V": 2, "Sr": 1, "O": 3})
 
         # test that structure generation doesn't break if velocities existed previously
         # (previously caused failures for structure printing)

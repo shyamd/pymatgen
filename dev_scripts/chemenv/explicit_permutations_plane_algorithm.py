@@ -135,7 +135,7 @@ if __name__ == '__main__':
     test = input('Save it ? ("y" to confirm)')
     if test == 'y':
         cg._algorithms = newalgos
-        cg_dict = cg.as_dict
+        cg_dict = cg.as_dict()
         f = open('../coordination_geometries_files_new/{}.json'.format(cg_symbol), 'w')
         json.dump(cg_dict, f)
         f.close()

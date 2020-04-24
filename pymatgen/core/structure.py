@@ -1990,7 +1990,7 @@ class IStructure(SiteCollection, MSONable):
              "charge": self._charge,
              "lattice": latt_dict, "sites": []}
         for site in self:
-            site_dict = site.as_dict
+            site_dict = site.as_dict(verbosity=verbosity)
             del site_dict["lattice"]
             del site_dict["@module"]
             del site_dict["@class"]
@@ -2485,7 +2485,7 @@ class IMolecule(SiteCollection, MSONable):
              "spin_multiplicity": self._spin_multiplicity,
              "sites": []}
         for site in self:
-            site_dict = site.as_dict
+            site_dict = site.as_dict()
             del site_dict["@module"]
             del site_dict["@class"]
             d["sites"].append(site_dict)

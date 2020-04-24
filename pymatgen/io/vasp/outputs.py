@@ -995,7 +995,7 @@ class Vasprun(MSONable):
         vin["potcar_spec"] = self.potcar_spec
         vin["potcar_type"] = [s.split(" ")[0] for s in self.potcar_symbols]
         vin["parameters"] = {k: v for k, v in self.parameters.items()}
-        vin["lattice_rec"] = self.final_structure.lattice.reciprocal_lattice.as_dict
+        vin["lattice_rec"] = self.final_structure.lattice.reciprocal_lattice.as_dict()
         d["input"] = vin
 
         nsites = len(self.final_structure)
@@ -1373,7 +1373,7 @@ class BSVasprun(Vasprun):
         vin["potcar_spec"] = self.potcar_spec
         vin["potcar_type"] = [s.split(" ")[0] for s in self.potcar_symbols]
         vin["parameters"] = {k: v for k, v in self.parameters.items()}
-        vin["lattice_rec"] = self.final_structure.lattice.reciprocal_lattice.as_dict
+        vin["lattice_rec"] = self.final_structure.lattice.reciprocal_lattice.as_dict()
         d["input"] = vin
 
         vout = {"crystal": self.final_structure.as_dict(),
@@ -3247,7 +3247,7 @@ class VolumetricData(MSONable):
                 ds = grp.create_dataset(k, self.data[k].shape, dtype='float')
                 ds[...] = self.data[k]
             f.attrs["name"] = self.name
-            f.attrs["structure_json"] = json.dumps(self.structure.as_dict)
+            f.attrs["structure_json"] = json.dumps(self.structure.as_dict())
 
     @classmethod
     def from_hdf5(cls, filename):
@@ -4053,7 +4053,7 @@ def get_adjusted_fermi_level(efermi, cbm, band_structure):
         a new adjusted fermi level
     """
     # make a working copy of band_structure
-    bs_working = BandStructureSymmLine.from_dict(band_structure.as_dict)
+    bs_working = BandStructureSymmLine.from_dict(band_structure.as_dict())
     if bs_working.is_metal():
         e = efermi
         while e < cbm:

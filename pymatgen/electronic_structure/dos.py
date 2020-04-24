@@ -842,7 +842,7 @@ class CompleteDos(Dos):
         """
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__, "efermi": self.efermi,
-             "structure": self.structure.as_dict,
+             "structure": self.structure.as_dict(),
              "energies": list(self.energies),
              "densities": {str(spin): list(dens)
                            for spin, dens in self.densities.items()},
@@ -853,8 +853,8 @@ class CompleteDos(Dos):
                 for orb, pdos in self.pdos[at].items():
                     dd[str(orb)] = {"densities": {str(int(spin)): list(dens) for spin, dens in pdos.items()}}
                 d["pdos"].append(dd)
-            d["atom_dos"] = {str(at): dos.as_dict for at, dos in self.get_element_dos().items()}
-            d["spd_dos"] = {str(orb): dos.as_dict for orb, dos in self.get_spd_dos().items()}
+            d["atom_dos"] = {str(at): dos.as_dict() for at, dos in self.get_element_dos().items()}
+            d["spd_dos"] = {str(orb): dos.as_dict() for orb, dos in self.get_spd_dos().items()}
         return d
 
     def __str__(self):

@@ -125,7 +125,7 @@ class SlabEntry(ComputedStructureEntry):
         self.label = label
         self.adsorbates = [] if not adsorbates else adsorbates
         self.clean_entry = clean_entry
-        self.ads_entries_dict = {str(list(ads.composition.as_dict.keys())[0]): ads for ads in self.adsorbates}
+        self.ads_entries_dict = {str(list(ads.composition.as_dict().keys())[0]): ads for ads in self.adsorbates}
         self.mark = marker
         self.color = color
 
@@ -187,18 +187,18 @@ class SlabEntry(ComputedStructureEntry):
         # Check if appropriate ref_entries are present if the slab is non-stoichiometric
         # TODO: There should be a way to identify which specific species are
         # non-stoichiometric relative to the others in systems with more than 2 species
-        slab_comp = self.composition.as_dict
-        ucell_entry_comp = ucell_entry.composition.reduced_composition.as_dict
+        slab_comp = self.composition.as_dict()
+        ucell_entry_comp = ucell_entry.composition.reduced_composition.as_dict()
         slab_clean_comp = Composition({el: slab_comp[el] for el in ucell_entry_comp.keys()})
         if slab_clean_comp.reduced_composition != ucell_entry.composition.reduced_composition:
-            list_els = [list(entry.composition.as_dict.keys())[0] for entry in ref_entries]
-            if not any([el in list_els for el in ucell_entry.composition.as_dict.keys()]):
+            list_els = [list(entry.composition.as_dict().keys())[0] for entry in ref_entries]
+            if not any([el in list_els for el in ucell_entry.composition.as_dict().keys()]):
                 warnings.warn("Elemental references missing for the non-dopant species.")
 
         gamma = (Symbol("E_surf") - Symbol("Ebulk")) / (2 * Symbol("A"))
         ucell_comp = ucell_entry.composition
         ucell_reduced_comp = ucell_comp.reduced_composition
-        ref_entries_dict = {str(list(ref.composition.as_dict.keys())[0]): ref for ref in ref_entries}
+        ref_entries_dict = {str(list(ref.composition.as_dict().keys())[0]): ref for ref in ref_entries}
         ref_entries_dict.update(self.ads_entries_dict)
 
         # Calculate Gibbs free energy of the bulk per unit formula
@@ -208,19 +208,19 @@ class SlabEntry(ComputedStructureEntry):
         # from each element with an existing ref_entry.
         bulk_energy, gbulk_eqn = 0, 0
         for el, ref in ref_entries_dict.items():
-            N, delu = self.composition.as_dict[el], Symbol("delu_" + str(el))
-            if el in ucell_comp.as_dict.keys():
+            N, delu = self.composition.as_dict()[el], Symbol("delu_" + str(el))
+            if el in ucell_comp.as_dict().keys():
                 gbulk_eqn += ucell_reduced_comp[el] * (delu + ref.energy_per_atom)
             bulk_energy += N * (Symbol("delu_" + el) + ref.energy_per_atom)
 
         # Next, we add the contribution to the bulk energy from
         # the variable element (the element without a ref_entry),
         # as a function of the other elements
-        for ref_el in ucell_comp.as_dict.keys():
+        for ref_el in ucell_comp.as_dict().keys():
             if str(ref_el) not in ref_entries_dict.keys():
                 break
-        refEperA = (gbulk - gbulk_eqn) / ucell_reduced_comp.as_dict[ref_el]
-        bulk_energy += self.composition.as_dict[ref_el] * refEperA
+        refEperA = (gbulk - gbulk_eqn) / ucell_reduced_comp.as_dict()[ref_el]
+        bulk_energy += self.composition.as_dict()[ref_el] * refEperA
         se = gamma.subs({Symbol("E_surf"): self.energy, Symbol("Ebulk"): bulk_energy,
                          Symbol("A"): self.surface_area})
 
@@ -254,7 +254,7 @@ class SlabEntry(ComputedStructureEntry):
         """
         Returns the TOTAL number of adsorbates in the slab on BOTH sides
         """
-        return sum([self.composition.as_dict[a] for a in self.ads_entries_dict.keys()])
+        return sum([self.composition.as_dict()[a] for a in self.ads_entries_dict.keys()])
 
     @property
     def Nsurfs_ads_in_slab(self):

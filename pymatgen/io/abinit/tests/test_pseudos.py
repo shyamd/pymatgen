@@ -106,7 +106,7 @@ class PseudoTestCase(PymatgenTest):
         oxygen = Pseudo.from_file(ref_file("O.GGA_PBE-JTH-paw.xml"))
         assert repr(oxygen)
         assert str(oxygen)
-        assert isinstance(oxygen.as_dict, dict)
+        assert isinstance(oxygen.as_dict(), dict)
 
         self.assertTrue(oxygen.ispaw)
         self.assertTrue(oxygen.symbol == "O" and
@@ -140,7 +140,7 @@ class PseudoTestCase(PymatgenTest):
         ger = Pseudo.from_file(ref_file("ge.oncvpsp"))
         assert repr(ger)
         assert str(ger)
-        assert isinstance(ger.as_dict, dict)
+        assert isinstance(ger.as_dict(), dict)
         ger.as_tmpfile()
 
         self.assertTrue(ger.symbol == "Ge")

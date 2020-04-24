@@ -50,7 +50,7 @@ class ReadWriteChemenvTest(unittest.TestCase):
                                                      get_from_hints=True)
 
         f = open('tmp_dir/se.json', 'w')
-        json.dump(se.as_dict, f)
+        json.dump(se.as_dict(), f)
         f.close()
 
         f = open('tmp_dir/se.json', 'r')
@@ -66,7 +66,7 @@ class ReadWriteChemenvTest(unittest.TestCase):
                                                                      valences='undefined')
 
         f = open('tmp_dir/lse.json', 'w')
-        json.dump(lse.as_dict, f)
+        json.dump(lse.as_dict(), f)
         f.close()
 
         f = open('tmp_dir/lse.json', 'r')

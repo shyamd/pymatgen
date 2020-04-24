@@ -86,7 +86,7 @@ class DefectPhaseDiagram(MSONable):
         """
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "entries": [entry.as_dict for entry in self.entries],
+             "entries": [entry.as_dict() for entry in self.entries],
              "vbm": self.vbm,
              "band_gap": self.band_gap,
              "filter_compatible": self.filter_compatible,

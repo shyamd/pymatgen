@@ -79,8 +79,8 @@ class Test_GrainBoundary(PymatgenTest):
         self.assertAlmostEqual(self.Cu_GB2.num_sites / self.Cu_GB2.sigma, len(self.Cu_GB2.coincidents))
 
     def test_as_dict_and_from_dict(self):
-        d1 = self.Cu_GB1.as_dict
-        d2 = self.Cu_GB2.as_dict
+        d1 = self.Cu_GB1.as_dict()
+        d2 = self.Cu_GB2.as_dict()
         Cu_GB1_new = GrainBoundary.from_dict(d1)
         Cu_GB2_new = GrainBoundary.from_dict(d2)
         self.assertAlmostEqual(Cu_GB1_new.sigma, self.Cu_GB1.sigma)

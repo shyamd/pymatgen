@@ -219,7 +219,7 @@ class TestMultiDataset(PymatgenTest):
 
         for old_inp, new_inp in zip(multi, new_multi):
             assert old_inp is not new_inp
-            self.assertDictEqual(old_inp.as_dict, new_inp.as_dict)
+            self.assertDictEqual(old_inp.as_dict(), new_inp.as_dict())
 
         ref_input = multi[0]
         new_multi = BasicMultiDataset.replicate_input(input=ref_input, ndtset=4)
@@ -227,7 +227,7 @@ class TestMultiDataset(PymatgenTest):
         assert new_multi.ndtset == 4
         for inp in new_multi:
             assert ref_input is not inp
-            self.assertDictEqual(ref_input.as_dict, inp.as_dict)
+            self.assertDictEqual(ref_input.as_dict(), inp.as_dict())
 
         # Compatible with Pickle and MSONable?
         self.serialize_with_pickle(multi, test_eq=False)

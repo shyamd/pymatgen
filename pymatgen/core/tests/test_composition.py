@@ -272,7 +272,7 @@ class CompositionTest(PymatgenTest):
 
     def test_as_dict(self):
         c = Composition.from_dict({'Fe': 4, 'O': 6})
-        d = c.as_dict
+        d = c.as_dict()
         correct_dict = {'Fe': 4.0, 'O': 6.0}
         self.assertEqual(d['Fe'], correct_dict['Fe'])
         self.assertEqual(d['O'], correct_dict['O'])

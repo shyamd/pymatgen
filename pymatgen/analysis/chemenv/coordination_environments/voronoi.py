@@ -742,7 +742,7 @@ class DetailedVoronoiContainer(MSONable):
                 "@class": self.__class__.__name__,
                 "bson_nb_voro_list2": bson_nb_voro_list2,
                 # "neighbors_lists": self.neighbors_lists,
-                "structure": self.structure.as_dict,
+                "structure": self.structure.as_dict(),
                 "normalized_angle_tolerance": self.normalized_angle_tolerance,
                 "normalized_distance_tolerance": self.normalized_distance_tolerance,
                 "additional_conditions": self.additional_conditions,

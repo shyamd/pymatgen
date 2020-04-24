@@ -168,8 +168,8 @@ class AdsorbateSiteFinderTest(PymatgenTest):
 
                 self.assertTrue(adslabs[0].is_symmetric())
                 # Correctly dope the target species
-                self.assertEqual(adslabs[0].composition.as_dict["Mg"],
-                                 slab.composition.as_dict["Mg"] - 2)
+                self.assertEqual(adslabs[0].composition.as_dict()["Mg"],
+                                 slab.composition.as_dict()["Mg"] - 2)
                 # There should be one config (sub Mg)
                 self.assertEqual(len(adslabs), 1)
 

@@ -172,7 +172,7 @@ class QChemDictSetTest(PymatgenTest):
                                 pcm_dielectric=10.0,
                                 max_scf_cycles=35)
         dict_set.write("mol.qin")
-        test_dict = QCInput.from_file("mol.qin").as_dict
+        test_dict = QCInput.from_file("mol.qin").as_dict()
         rem = {
             "job_type": "opt",
             "basis": "6-31G*",
@@ -210,7 +210,7 @@ class QChemDictSetTest(PymatgenTest):
                                 smd_solvent="water",
                                 max_scf_cycles=35)
         dict_set.write("mol.qin")
-        test_dict = QCInput.from_file("mol.qin").as_dict
+        test_dict = QCInput.from_file("mol.qin").as_dict()
         rem = {
             "job_type": "opt",
             "basis": "6-31G*",
@@ -243,7 +243,7 @@ class QChemDictSetTest(PymatgenTest):
                                 custom_smd="90.00,1.415,0.00,0.735,20.2,0.00,0.00",
                                 max_scf_cycles=35)
         dict_set.write("mol.qin")
-        test_dict = QCInput.from_file("mol.qin").as_dict
+        test_dict = QCInput.from_file("mol.qin").as_dict()
         rem = {
             "job_type": "opt",
             "basis": "6-31G*",

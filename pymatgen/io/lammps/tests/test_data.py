@@ -489,7 +489,7 @@ class LammpsDataTest(unittest.TestCase):
         np.testing.assert_array_equal(ld.atoms["type"], [2] * 4 + [3] * 16)
 
     def test_json_dict(self):
-        encoded = json.dumps(self.ethane.as_dict)
+        encoded = json.dumps(self.ethane.as_dict())
         decoded = json.loads(encoded)
         c2h6 = LammpsData.from_dict(decoded)
         pd.testing.assert_frame_equal(c2h6.masses, self.ethane.masses)
@@ -595,7 +595,7 @@ class TopologyTest(unittest.TestCase):
                           [6, 0, 1, 2], [6, 0, 1, 7], [6, 0, 1, 8],
                           [0, 1, 2, 3], [7, 1, 2, 3], [8, 1, 2, 3]]
         np.testing.assert_array_equal(tp_etoh["Dihedrals"], etoh_dihedrals)
-        self.assertIsNotNone(json.dumps(topo_etoh.as_dict))
+        self.assertIsNotNone(json.dumps(topo_etoh.as_dict()))
         # bond flag to off
         topo_etoh0 = Topology.from_bonding(molecule=etoh, bond=False,
                                            angle=True, dihedral=True)
@@ -705,7 +705,7 @@ class ForceFieldTest(unittest.TestCase):
         self.assertIn("AngleAngle Coeffs", e_tc["Improper Coeffs"][0])
 
     def test_from_dict(self):
-        d = self.ethane.as_dict
+        d = self.ethane.as_dict()
         json_str = json.dumps(d)
         decoded = ForceField.from_dict(json.loads(json_str))
         self.assertListEqual(decoded.mass_info, self.ethane.mass_info)

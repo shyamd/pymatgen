@@ -108,7 +108,7 @@ direct
 0.750000 0.500000 0.750000 F F F O
 """
         poscar = Poscar.from_string(poscar_string)
-        d = poscar.as_dict
+        d = poscar.as_dict()
         poscar2 = Poscar.from_dict(d)
         self.assertEqual(poscar2.comment, "Test3")
         self.assertTrue(all(poscar2.selective_dynamics[0]))
@@ -419,7 +419,7 @@ class IncarTest(PymatgenTest):
                          'LORBIT': 11, 'SIGMA': 0.05}})
 
     def test_as_dict_and_from_dict(self):
-        d = self.incar.as_dict
+        d = self.incar.as_dict()
         incar2 = Incar.from_dict(d)
         self.assertEqual(self.incar, incar2)
         d["MAGMOM"] = [Magmom([1, 2, 3]).as_dict()]
@@ -667,7 +667,7 @@ G
 
     def test_as_dict_from_dict(self):
         k = Kpoints.monkhorst_automatic([2, 2, 2], [0, 0, 0])
-        d = k.as_dict
+        d = k.as_dict()
         k2 = Kpoints.from_dict(d)
         self.assertEqual(k.kpts, k2.kpts)
         self.assertEqual(k.style, k2.style)
@@ -676,7 +676,7 @@ G
     def test_kpt_bands_as_dict_from_dict(self):
         file_name = self.TEST_FILES_DIR / 'KPOINTS.band'
         k = Kpoints.from_file(file_name)
-        d = k.as_dict
+        d = k.as_dict()
         import json
         json.dumps(d)
         # This doesn't work
@@ -807,7 +807,7 @@ class PotcarTest(PymatgenTest):
                                                     "for POTCAR")
 
     def test_to_from_dict(self):
-        d = self.potcar.as_dict
+        d = self.potcar.as_dict()
         potcar = Potcar.from_dict(d)
         self.assertEqual(potcar.symbols, ["Fe", "P", "O"])
 
@@ -887,7 +887,7 @@ class VaspInputTest(PymatgenTest):
                                       optional_files={"CONTCAR.Li2O": Poscar})
         self.assertEqual(vi["INCAR"]["ALGO"], "Damped")
         self.assertIn("CONTCAR.Li2O", vi)
-        d = vi.as_dict
+        d = vi.as_dict()
         vinput = VaspInput.from_dict(d)
         self.assertIn("CONTCAR.Li2O", vinput)
 

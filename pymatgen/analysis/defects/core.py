@@ -139,7 +139,7 @@ class Vacancy(Defect):
 
     @property
     def defect_composition(self):
-        temp_comp = self.bulk_structure.composition.as_dict
+        temp_comp = self.bulk_structure.composition.as_dict()
         temp_comp[str(self.site.specie)] -= 1
         return Composition(temp_comp)
 
@@ -204,7 +204,7 @@ class Substitution(Defect):
             self.bulk_structure.get_sites_in_sphere(self.site.coords, 0.1, include_index=True), key=lambda x: x[1])
         defindex = poss_deflist[0][2]
 
-        temp_comp = self.bulk_structure.composition.as_dict
+        temp_comp = self.bulk_structure.composition.as_dict()
         temp_comp[str(self.site.specie)] += 1
         temp_comp[str(self.bulk_structure[defindex].specie)] -= 1
         return Composition(temp_comp)
@@ -309,7 +309,7 @@ class Interstitial(Defect):
 
     @property
     def defect_composition(self):
-        temp_comp = self.bulk_structure.composition.as_dict
+        temp_comp = self.bulk_structure.composition.as_dict()
         temp_comp[str(self.site.specie)] += 1
         return Composition(temp_comp)
 
@@ -470,7 +470,7 @@ class DefectEntry(MSONable):
         """
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "defect": self.defect.as_dict,
+             "defect": self.defect.as_dict(),
              "uncorrected_energy": self.uncorrected_energy,
              "corrections": self.corrections,
              "parameters": self.parameters,

@@ -499,7 +499,7 @@ class TensorCollectionTest(PymatgenTest):
         # Suppress vsym warnings and test voigt
         with warnings.catch_warnings(record=True):
             vsym = self.rand_tc.voigt_symmetrized
-            d = vsym.as_dict
+            d = vsym.as_dict(voigt=True)
             new_vsym = TensorCollection.from_dict(d)
             for t, t_new in zip(vsym, new_vsym):
                 self.assertArrayAlmostEqual(t, t_new)
@@ -624,7 +624,7 @@ class SquareTensorTest(PymatgenTest):
 
         with warnings.catch_warnings(record=True):
             vsym = self.rand_sqtensor.voigt_symmetrized
-            d_vsym = vsym.as_dict
+            d_vsym = vsym.as_dict(voigt=True)
             new_voigt = Tensor.from_dict(d_vsym)
             self.assertArrayAlmostEqual(vsym, new_voigt)
 

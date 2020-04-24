@@ -304,7 +304,7 @@ class NEBAnalysis(MSONable):
                 'r': jsanitize(self.r),
                 'energies': jsanitize(self.energies),
                 'forces': jsanitize(self.forces),
-                'structures': [s.as_dict for s in self.structures]}
+                'structures': [s.as_dict() for s in self.structures]}
 
 
 def combine_neb_plots(neb_analyses, arranged_neb_analyses=False,

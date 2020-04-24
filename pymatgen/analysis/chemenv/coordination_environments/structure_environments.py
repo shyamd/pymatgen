@@ -939,9 +939,9 @@ class StructureEnvironments(MSONable):
         Bson-serializable dict representation of the StructureEnvironments object.
         :return: Bson-serializable dict representation of the StructureEnvironments object.
         """
-        ce_list_dict = [{str(cn): [ce.as_dict if ce is not None else None for ce in ce_dict[cn]]
+        ce_list_dict = [{str(cn): [ce.as_dict() if ce is not None else None for ce in ce_dict[cn]]
                          for cn in ce_dict} if ce_dict is not None else None for ce_dict in self.ce_list]
-        nbs_sets_dict = [{str(cn): [nb_set.as_dict for nb_set in nb_sets]
+        nbs_sets_dict = [{str(cn): [nb_set.as_dict() for nb_set in nb_sets]
                           for cn, nb_sets in site_nbs_sets.items()}
                          if site_nbs_sets is not None else None
                          for site_nbs_sets in self.neighbors_sets]
@@ -954,12 +954,12 @@ class StructureEnvironments(MSONable):
 
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "voronoi": self.voronoi.as_dict,
+                "voronoi": self.voronoi.as_dict(),
                 "valences": self.valences,
                 "sites_map": self.sites_map,
-                "equivalent_sites": [[ps.as_dict for ps in psl] for psl in self.equivalent_sites],
+                "equivalent_sites": [[ps.as_dict() for ps in psl] for psl in self.equivalent_sites],
                 "ce_list": ce_list_dict,
-                "structure": self.structure.as_dict,
+                "structure": self.structure.as_dict(),
                 "neighbors_sets": nbs_sets_dict,
                 "info": info_dict}
 
@@ -1468,14 +1468,14 @@ class LightStructureEnvironments(MSONable):
         """
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "strategy": self.strategy.as_dict,
-                "structure": self.structure.as_dict,
+                "strategy": self.strategy.as_dict(),
+                "structure": self.structure.as_dict(),
                 "coordination_environments": self.coordination_environments,
-                "all_nbs_sites": [{'site': nb_site['site'].as_dict,
+                "all_nbs_sites": [{'site': nb_site['site'].as_dict(),
                                    'index': nb_site['index'],
                                    'image_cell': [int(ii) for ii in nb_site['image_cell']]}
                                   for nb_site in self._all_nbs_sites],
-                "neighbors_sets": [[nb_set.as_dict for nb_set in site_nb_sets] if site_nb_sets is not None else None
+                "neighbors_sets": [[nb_set.as_dict() for nb_set in site_nb_sets] if site_nb_sets is not None else None
                                    for site_nb_sets in self.neighbors_sets],
                 "valences": self.valences}
 

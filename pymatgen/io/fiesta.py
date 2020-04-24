@@ -540,7 +540,7 @@ $geometry
         :return: MSONable dict
         """
         return {
-            "mol": self._mol.as_dict,
+            "mol": self._mol.as_dict(),
             "correlation_grid": self.correlation_grid,
             "Exc_DFT_option": self.Exc_DFT_option,
             "COHSEX_options": self.COHSEX_options,

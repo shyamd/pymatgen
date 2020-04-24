@@ -408,7 +408,7 @@ class VasprunTest(PymatgenTest):
                         copyfileobj(f_in, f_out)
                 bs_kpts_gzip = vasprun.get_band_structure()
                 self.assertEqual(bs.efermi, bs_kpts_gzip.efermi)
-                self.assertEqual(bs.as_dict, bs_kpts_gzip.as_dict)
+                self.assertEqual(bs.as_dict(), bs_kpts_gzip.as_dict())
 
             # Test compressed files case 2: compressed vasprun in another dir
             with ScratchDir("./"):
@@ -423,7 +423,7 @@ class VasprunTest(PymatgenTest):
                                   parse_potcar_file=False)
                 bs_vasprun_gzip = vasprun.get_band_structure(line_mode=True)
                 self.assertEqual(bs.efermi, bs_vasprun_gzip.efermi)
-                self.assertEqual(bs.as_dict, bs_vasprun_gzip.as_dict)
+                self.assertEqual(bs.as_dict(), bs_vasprun_gzip.as_dict())
 
             # test hybrid band structures
             vasprun.actual_kpoints_weights[-1] = 0.
@@ -1146,7 +1146,7 @@ class ChgcarTest(PymatgenTest):
         self.assertRaises(ValueError, self.chgcar_spin.__add__, self.chgcar_no_spin)
 
     def test_as_dict_and_from_dict(self):
-        d = self.chgcar_NiO_SOC.as_dict
+        d = self.chgcar_NiO_SOC.as_dict()
         chgcar_from_dict = Chgcar.from_dict(d)
         self.assertArrayAlmostEqual(self.chgcar_NiO_SOC.data['total'], chgcar_from_dict.data['total'])
         self.assertArrayAlmostEqual(self.chgcar_NiO_SOC.structure.lattice.matrix,

@@ -508,7 +508,7 @@ class Electrons(AbivarAble, MSONable):
         d["@class"] = self.__class__.__name__
         d["spin_mode"] = self.spin_mode.as_dict()
         d["smearing"] = self.smearing.as_dict()
-        d["algorithm"] = self.algorithm.as_dict if self.algorithm else None
+        d["algorithm"] = self.algorithm.as_dict() if self.algorithm else None
         d["nband"] = self.nband
         d["fband"] = self.fband
         d["charge"] = self.charge

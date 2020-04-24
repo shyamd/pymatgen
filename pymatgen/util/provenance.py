@@ -265,7 +265,7 @@ class StructureNL:
             else datetime.datetime.utcnow()
 
     def as_dict(self):
-        d = self.structure.as_dict
+        d = self.structure.as_dict()
         d["@module"] = self.__class__.__module__
         d["@class"] = self.__class__.__name__
         d["about"] = {"authors": [a.as_dict() for a in self.authors],

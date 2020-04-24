@@ -243,7 +243,7 @@ class PhononBandStructure(MSONable):
         """
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "lattice_rec": self.lattice_rec.as_dict,
+             "lattice_rec": self.lattice_rec.as_dict(),
              "qpoints": []}
         # qpoints are not Kpoint objects dicts but are frac coords.Tthis makes
         # the dict smaller and avoids the repetition of the lattice
@@ -261,7 +261,7 @@ class PhononBandStructure(MSONable):
         d['nac_frequencies'] = [(direction, f.tolist()) for direction, f in self.nac_frequencies]
 
         if self.structure:
-            d['structure'] = self.structure.as_dict
+            d['structure'] = self.structure.as_dict()
 
         return d
 

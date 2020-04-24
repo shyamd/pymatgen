@@ -121,7 +121,7 @@ class SymmOpTestCase(PymatgenTest):
         self.assertTrue(self.op.are_symmetrically_related(newcoord, point))
 
     def test_to_from_dict(self):
-        d = self.op.as_dict
+        d = self.op.as_dict()
         op = SymmOp.from_dict(d)
         point = np.random.rand(3)
         newcoord = self.op.operate(point)
@@ -198,7 +198,7 @@ class MagSymmOpTestCase(PymatgenTest):
         op = SymmOp([[3, -2, -1, 0.5], [-1, 0, 0, 12. / 13],
                      [0, 0, 1, 0.5 + 1e-7], [0, 0, 0, 1]])
         magop = MagSymmOp.from_symmop(op, -1)
-        magop2 = MagSymmOp.from_dict(magop.as_dict)
+        magop2 = MagSymmOp.from_dict(magop.as_dict())
         self.assertEqual(magop2.time_reversal, -1)
         self.assertEqual(magop2.as_xyzt_string(), '3x-2y-z+1/2, -x+12/13, z+1/2, -1')
 

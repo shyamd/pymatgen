@@ -394,5 +394,5 @@ if __name__ == '__main__':
             if not os.path.exists(newgeom_dir):
                 os.makedirs(newgeom_dir)
             f = open('{}/{}.json'.format(newgeom_dir, cg_symbol), 'w')
-            json.dump(cg.as_dict, f)
+            json.dump(cg.as_dict(), f)
             f.close()

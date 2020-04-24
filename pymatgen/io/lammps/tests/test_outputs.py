@@ -50,7 +50,7 @@ class LammpsDumpTest(unittest.TestCase):
         np.testing.assert_array_almost_equal(tatb_data, tatb_data_target)
 
     def test_json_dict(self):
-        encoded = json.dumps(self.rdx.as_dict)
+        encoded = json.dumps(self.rdx.as_dict())
         decoded = json.loads(encoded)
         rdx = LammpsDump.from_dict(decoded)
         self.assertEqual(rdx.timestep, 100)

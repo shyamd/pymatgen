@@ -242,9 +242,9 @@ class ConversionElectrode(AbstractElectrode):
     def as_dict(self):
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "voltage_pairs": [v.as_dict for v in self._vpairs],
-                "working_ion_entry": self.working_ion_entry.as_dict,
-                "initial_comp": self._composition.as_dict}
+                "voltage_pairs": [v.as_dict() for v in self._vpairs],
+                "working_ion_entry": self.working_ion_entry.as_dict(),
+                "initial_comp": self._composition.as_dict()}
 
     def get_summary_dict(self, print_subelectrodes=True):
         """
@@ -290,7 +290,7 @@ class ConversionElectrode(AbstractElectrode):
                 if abs(rxn.coeffs[i]) > 1e-5 and \
                         rxn.all_comp[i].reduced_formula != d["working_ion"]:
                     reduced_comp = rxn.all_comp[i].reduced_composition
-                    comp_dict = reduced_comp.as_dict
+                    comp_dict = reduced_comp.as_dict()
                     d["reactant_compositions"].append(comp_dict)
         d["fracA_charge"] = min(frac)
         d["fracA_discharge"] = max(frac)
@@ -503,7 +503,7 @@ class ConversionVoltagePair(AbstractVoltagePair):
     def as_dict(self):
         return {"@module": self.__class__.__module__,
                 "@class": self.__class__.__name__,
-                "working_ion_entry": self._working_ion_entry.as_dict,
+                "working_ion_entry": self._working_ion_entry.as_dict(),
                 "voltage": self._voltage, "mAh": self._mAh,
                 "vol_charge": self._vol_charge,
                 "mass_charge": self._mass_charge,
@@ -512,6 +512,6 @@ class ConversionVoltagePair(AbstractVoltagePair):
                 "frac_charge": self._frac_charge,
                 "frac_discharge": self._frac_discharge,
                 "balanced_rxn": self._rxn.as_dict(),
-                "entries_charge": [e.as_dict for e in self._entries_charge],
-                "entries_discharge": [e.as_dict for e in
+                "entries_charge": [e.as_dict() for e in self._entries_charge],
+                "entries_discharge": [e.as_dict() for e in
                                       self._entries_discharge]}

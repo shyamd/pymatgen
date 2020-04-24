@@ -37,7 +37,7 @@ class XANESTest(PymatgenTest):
                                self.xanes.get_interpolated_value(24374.509))
 
     def test_to_from_dict(self):
-        s = XANES.from_dict(self.xanes.as_dict)
+        s = XANES.from_dict(self.xanes.as_dict())
         self.assertArrayAlmostEqual(s.y, self.xanes.y)
 
     def test_attributes(self):

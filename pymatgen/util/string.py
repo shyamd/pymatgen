@@ -295,7 +295,7 @@ def disordered_formula(disordered_struct, symbols=('x', 'y', 'z'), fmt='plain'):
                                  if str(sp) in disordered_species])
 
     # composition to get common factor
-    factor_comp = disordered_struct.composition.as_dict
+    factor_comp = disordered_struct.composition.as_dict()
     factor_comp['X'] = total_disordered_occu
     for sp in disordered_species:
         del factor_comp[str(sp)]

@@ -123,7 +123,7 @@ class Kpoint(MSONable):
         """
         Json-serializable dict representation of a kpoint
         """
-        return {"lattice": self.lattice.as_dict,
+        return {"lattice": self.lattice.as_dict(),
                 "fcoords": list(self.frac_coords),
                 "ccoords": list(self.cart_coords), "label": self.label,
                 "@module": self.__class__.__module__,
@@ -544,7 +544,7 @@ class BandStructure:
         """
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "lattice_rec": self.lattice_rec.as_dict, "efermi": self.efermi,
+             "lattice_rec": self.lattice_rec.as_dict(), "efermi": self.efermi,
              "kpoints": []}
         # kpoints are not kpoint objects dicts but are frac coords (this makes
         # the dict smaller and avoids the repetition of the lattice
@@ -574,7 +574,7 @@ class BandStructure:
             d['labels_dict'][c] = self.labels_dict[c].as_dict()['fcoords']
         d['projections'] = {}
         if len(self.projections) != 0:
-            d['structure'] = self.structure.as_dict
+            d['structure'] = self.structure.as_dict()
             d['projections'] = {str(int(spin)): np.array(v).tolist()
                                 for spin, v in self.projections.items()}
         return d
@@ -847,7 +847,7 @@ class BandStructureSymmLine(BandStructure, MSONable):
 
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "lattice_rec": self.lattice_rec.as_dict, "efermi": self.efermi,
+             "lattice_rec": self.lattice_rec.as_dict(), "efermi": self.efermi,
              "kpoints": []}
         # kpoints are not kpoint objects dicts but are frac coords (this makes
         # the dict smaller and avoids the repetition of the lattice
@@ -880,7 +880,7 @@ class BandStructureSymmLine(BandStructure, MSONable):
             d['labels_dict'][mongo_key] = self.labels_dict[c].as_dict()[
                 'fcoords']
         if len(self.projections) != 0:
-            d['structure'] = self.structure.as_dict
+            d['structure'] = self.structure.as_dict()
             d['projections'] = {str(int(spin)): np.array(v).tolist()
                                 for spin, v in self.projections.items()}
         return d
@@ -972,7 +972,7 @@ class LobsterBandStructureSymmLine(BandStructureSymmLine):
 
         d = {"@module": self.__class__.__module__,
              "@class": self.__class__.__name__,
-             "lattice_rec": self.lattice_rec.as_dict, "efermi": self.efermi,
+             "lattice_rec": self.lattice_rec.as_dict(), "efermi": self.efermi,
              "kpoints": []}
         # kpoints are not kpoint objects dicts but are frac coords (this makes
         # the dict smaller and avoids the repetition of the lattice
@@ -1005,7 +1005,7 @@ class LobsterBandStructureSymmLine(BandStructureSymmLine):
             d['labels_dict'][mongo_key] = self.labels_dict[c].as_dict()[
                 'fcoords']
         if len(self.projections) != 0:
-            d['structure'] = self.structure.as_dict
+            d['structure'] = self.structure.as_dict()
             d['projections'] = {str(int(spin)): np.array(v).tolist()
                                 for spin, v in self.projections.items()}
         return d

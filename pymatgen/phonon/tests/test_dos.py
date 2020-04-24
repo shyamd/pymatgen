@@ -32,7 +32,7 @@ class DosTest(PymatgenTest):
         self.assertAlmostEqual(sum(dens), sum(smeared))
 
     def test_dict_methods(self):
-        s = json.dumps(self.dos.as_dict)
+        s = json.dumps(self.dos.as_dict())
         self.assertIsNotNone(s)
         self.assertMSONable(self.dos)
 
@@ -67,7 +67,7 @@ class CompleteDosTest(PymatgenTest):
         self.assertArrayAlmostEqual(sum_dos.densities, self.cdos.densities)
 
     def test_dict_methods(self):
-        s = json.dumps(self.cdos.as_dict)
+        s = json.dumps(self.cdos.as_dict())
         self.assertIsNotNone(s)
         self.assertMSONable(self.cdos)
 

@@ -57,7 +57,7 @@ class CoordinationGeometriesTest(PymatgenTest):
 
     def test_coordination_geometry(self):
         cg_oct = allcg['O:6']
-        cg_oct2 = CoordinationGeometry.from_dict(cg_oct.as_dict)
+        cg_oct2 = CoordinationGeometry.from_dict(cg_oct.as_dict())
 
         self.assertArrayAlmostEqual(cg_oct.central_site, cg_oct2.central_site)
         self.assertArrayAlmostEqual(cg_oct.points, cg_oct2.points)
