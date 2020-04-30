@@ -2,7 +2,7 @@ import json
 from json import JSONEncoder
 
 from networkx.readwrite import json_graph
-
+import time
 import yaml
 from networkx.readwrite import json_graph
 import networkx.algorithms.isomorphism as iso
@@ -249,7 +249,7 @@ def graph_rep_1_1(reaction: Reaction) -> nx.DiGraph:
                    softplus=0.0,
                    exponent=0.0,
                    weight=1.0)
-    graph.add_node(node_name_B, rxn_type=rxn_type_B, bipartite=1, energy_B=energy_B, free_energy=free_energy_B,
+    graph.add_node(node_name_B, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
                    entry_ids=entry_ids_B)
     graph.add_edge(product_0.parameters["ind"],
                    node_name_B,
@@ -722,7 +722,6 @@ class CoordinationBondChangeReaction(Reaction):
         self.product_1 = product[1]
         super().__init__([self.reactant], [self.product_0, self.product_1])
 
-
     def graph_representation(self) -> nx.DiGraph:
         """
             A method to convert a CoordinationBondChangeReaction class object into graph representation (nx.Digraph object).
@@ -872,7 +871,6 @@ class ReactionPath(MSONable):
         :param path - a list of nodes that defines a path from node A to B within a graph built using ReactionNetwork.build()
     """
 
-
     def __init__(self, path):
         """
         initializes the ReactionPath object attributes for a given path
@@ -897,7 +895,6 @@ class ReactionPath(MSONable):
                           "hardest_step": self.hardest_step, "description": self.description,
                           "pure_cost": self.pure_cost,
                           "hardest_step_deltaG": self.hardest_step_deltaG, "full_path": self.full_path}
-
 
     @property
     def as_dict(self) -> dict:
@@ -1026,7 +1023,6 @@ class ReactionPath(MSONable):
         :return: ReactionPath object
         """
 
-
         class_instance = cls.characterize_path(path, weight, min_cost, graph, PR_paths)
         if path is None:
             class_instance = cls(None)
@@ -1043,8 +1039,8 @@ class ReactionPath(MSONable):
                     PR_min_cost = 1000000000000000.0
                     for start in PR_paths[PR]:
                         if PR_paths[PR][start].path != None:
-                            #print(PR_paths[PR][start].path_dict)
-                            #print(PR_paths[PR][start].cost, PR_paths[PR][start].overall_free_energy_change, PR_paths[PR][start].path)
+                            # print(PR_paths[PR][start].path_dict)
+                            # print(PR_paths[PR][start].cost, PR_paths[PR][start].overall_free_energy_change, PR_paths[PR][start].path)
                             if PR_paths[PR][start].cost < PR_min_cost:
                                 PR_min_cost = PR_paths[PR][start].cost
                                 PR_path = PR_paths[PR][start]
@@ -1194,22 +1190,22 @@ class ReactionNetwork(MSONable):
         self.entries_list = sorted(self.entries_list, key=lambda x: x.parameters["ind"])
 
     @staticmethod
-    def softplus(free_energy: int) -> int:
+    def softplus(free_energy: float) -> float:
         """
             Method to determine edge weight using softplus cost function
         :param free_energy: float
         :return: float
         """
-        return np.log(1 + (273.0 / 500.0) * np.exp(free_energy))
+        return float(np.log(1 + (273.0 / 500.0) * np.exp(free_energy)))
 
     @staticmethod
-    def exponent(free_energy: int) -> int:
+    def exponent(free_energy: float) -> float:
         """
             Method to determine edge weight using exponent cost function
         :param free_energy: float
         :return: float
         """
-        return np.exp(free_energy)
+        return float(np.exp(free_energy))
 
     def build(self, reaction_types={"RedoxReaction", "IntramolSingleBondChangeReaction", "IntermolecularReaction",
                                     "CoordinationBondChangeReaction"}) -> nx.DiGraph:
@@ -1274,7 +1270,8 @@ class ReactionNetwork(MSONable):
                 Reactant_record[int(non_PR_reactant)].append(node)
         return Reactant_record
 
-    def solve_prerequisites(self, starts: List[int], target: int, weight: str, max_iter=20):# -> Tuple[Union[Dict[Union[int, Any], dict], Any], Any]:
+    def solve_prerequisites(self, starts: List[int], target: int, weight: str, max_iter=20, save=False,
+                            filename=None):  # -> Tuple[Union[Dict[Union[int, Any], dict], Any], Any]:
         """
             A method to solve the all the prerequisites found in ReactionNetwork.graph. By solving all PRs, it gives
             information on whether 1. if a path exist from any of the starts to all other molecule nodes, 2. if so what
@@ -1353,10 +1350,13 @@ class ReactionNetwork(MSONable):
             new_attrs = copy.deepcopy(attrs)
 
             ii += 1
-        dumpfn(PRs, "PRs_beforefinalcheck_insolveprereq.json",  default=lambda o: o.as_dict)
         self.final_PR_check(PRs)
-
-        return PRs, self.min_cost, self.graph
+        if save:
+            if filename is None:
+                print("Provide filename to save the PRs, for now saving as PRs.json")
+                filename = "PRs.json"
+            dumpfn(PRs, filename, default=lambda o: o.as_dict)
+        return PRs
 
     def find_path_cost(self, starts, target, weight, old_solved_PRs, cost_from_start, min_cost, PRs):
         """
@@ -1386,7 +1386,7 @@ class ReactionNetwork(MSONable):
                                 self.graph,
                                 source=hash(start),
                                 target=hash(node),
-                                ignore_nodes=self.find_or_remove_bad_nodes([target, node]),
+                                ignore_nodes=self.find_or_remove_bad_nodes([node, target]),
                                 weight=self.weight)
                         except nx.exception.NetworkXNoPath:
                             PRs[node][start] = ReactionPath(None)
@@ -1400,7 +1400,6 @@ class ReactionNetwork(MSONable):
                                 PRs[node][start] = path_class
                             if path_class.cost < min_cost[node]:
                                 min_cost[node] = path_class.cost
-
 
         return PRs, cost_from_start, min_cost
 
@@ -1444,7 +1443,8 @@ class ReactionNetwork(MSONable):
 
         return solved_PRs, new_solved_PRs, cost_from_start
 
-    def update_edge_weights(self, min_cost: Dict[int, float], orig_graph: nx.DiGraph) -> Dict[Tuple[int, str], Dict[str, float]]:  # , solved_PRs: List[int], new_attrs:Dict[Tuple[int, str],Dict[str,float]]):
+    def update_edge_weights(self, min_cost: Dict[int, float], orig_graph: nx.DiGraph) -> Dict[Tuple[int, str], Dict[
+        str, float]]:  # , solved_PRs: List[int], new_attrs:Dict[Tuple[int, str],Dict[str,float]]):
         """
             A method to update the ReactionNetwork.graph edge weights based on the new cost of solving PRs
         :param min_cost: dict with minimum cost from path start to a node, of from {node: float},
@@ -1532,7 +1532,7 @@ class ReactionNetwork(MSONable):
         valid_graph = self.find_or_remove_bad_nodes(bad_nodes, remove_nodes=True)
         return nx.shortest_simple_paths(valid_graph, hash(start), hash(target), weight=self.weight)
 
-    def find_paths(self, starts, target, weight, num_paths=10, solved_PRs_path=None, solved_min_cost=None, updated_graph=None, save=False):  # -> ??
+    def find_paths(self, starts, target, weight, num_paths=10, solved_PRs_path=None):  # -> ??
         """
             A method to find the shorted parth from given starts to a target
         :param starts: starts: List(molecular nodes), list of molecular nodes of type int found in the ReactionNetwork.graph
@@ -1558,27 +1558,35 @@ class ReactionNetwork(MSONable):
         c = itertools.count()
         my_heapq = []
         print("Solving prerequisites...")
-        if solved_PRs_path is None or solved_min_cost is None or updated_graph is None:
+        if solved_PRs_path is None:
             self.min_cost = {}
             self.graph = self.build()
-            PR_paths, min_cost, graph = self.solve_prerequisites(starts, target, weight)
-            if save:
-                dumpfn(min_cost, "min_cost_HP.json")
-                dumpfn(json_graph.adjacency_data(graph), "graph_HP.json")
-                dumpfn(PR_paths, "PR_paths_HP.json", default=lambda o: o.as_dict)
+            PR_paths = self.solve_prerequisites(starts, target, weight)
 
         else:
-            self.graph = json_graph.adjacency_graph(updated_graph)
-            self.min_cost = {}
-            for key in solved_min_cost:
-                self.min_cost[int(key)] = float(solved_min_cost[key])
-
             PR_paths = {}
             for key in solved_PRs_path:
                 PR_paths[int(key)] = {}
                 for start in solved_PRs_path[key]:
                     PR_paths[int(key)][int(start)] = copy.deepcopy(solved_PRs_path[key][start])
 
+            self.min_cost = {}
+            for key in PR_paths:
+                self.min_cost[int(key)] = None
+                for start in PR_paths[key]:
+                    if self.min_cost[int(key)] is None:
+                        self.min_cost[int(key)] = PR_paths[key][start].cost
+                    elif self.min_cost[int(key)] > PR_paths[key][start].cost:
+                        self.min_cost[int(key)] = PR_paths[key][start].cost
+
+            self.build()
+            self.build_PR_record()
+            self.weight = weight
+            for PR in self.PR_record:
+                for rxn_node in self.PR_record[PR]:
+                    non_PR_reactant_node = int(rxn_node.split(",")[0].split("+PR_")[0])
+                    self.graph[non_PR_reactant_node][rxn_node][self.weight] = self.graph[non_PR_reactant_node][rxn_node][
+                                                                              self.weight] + self.min_cost[PR]
         print("Finding paths...")
         for start in starts:
             ind = 0
@@ -1587,14 +1595,16 @@ class ReactionNetwork(MSONable):
                     break
                 else:
                     ind += 1
-                    path_dict_class2 = ReactionPath.characterize_path_final(path, self.weight, self.min_cost,self.graph, PR_paths)
+                    path_dict_class2 = ReactionPath.characterize_path_final(path, self.weight, self.min_cost,
+                                                                            self.graph, PR_paths)
                     heapq.heappush(my_heapq, (path_dict_class2.cost, next(c), path_dict_class2))
 
         while len(paths) < num_paths and my_heapq:
             # Check if any byproduct could yield a prereq cheaper than from starting molecule(s)?
             (cost_HP, _x, path_dict_HP_class) = heapq.heappop(my_heapq)
             print(len(paths), cost_HP, len(my_heapq), path_dict_HP_class.path_dict)
-            paths.append(path_dict_HP_class.path_dict)  ### ideally just append the class, but for now dict for easy printing
+            paths.append(
+                path_dict_HP_class.path_dict)  ### ideally just append the class, but for now dict for easy printing
 
         print(PR_paths)
         print(paths)
