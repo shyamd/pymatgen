@@ -1,15 +1,16 @@
 import json
 from json import JSONEncoder
 
+import time as time
+t1 = time.time()
+print(t1)
 from networkx.readwrite import json_graph
-import time
 import yaml
 from networkx.readwrite import json_graph
 import networkx.algorithms.isomorphism as iso
 
 from abc import ABCMeta, abstractproperty, abstractmethod, abstractclassmethod
 from abc import ABC, abstractmethod
-from time import time
 from gunicorn.util import load_class
 from monty.json import MSONable
 import logging
@@ -30,6 +31,7 @@ from networkx.algorithms import bipartite
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.core.composition import CompositionError
 from typing import List, Dict, Tuple, Generator
+from graph_tool.all import *
 
 MappingDict = Dict[str, Dict[int, Dict[int, List[MoleculeEntry]]]]
 Mapping_Energy_Dict = Dict[str, float]
@@ -111,6 +113,161 @@ class Reaction(MSONable, metaclass=ABCMeta):
 # 			Dictionary value is a dictionary with key of the weight function(s)
 # 				and value of the new weight in new/delta cost
 # # 		"""
+
+
+def graph_rep_2_2(reaction: Reaction) -> nx.DiGraph:
+    """
+    A method to convert a reaction type object into graph representation. Reaction much be of type 2 reactants -> 2
+    products
+    Args:
+       :param reaction: (any of the reaction class object, ex. RedoxReaction, IntramolSingleBondChangeReaction, Concerted)
+    """
+
+    if len(reaction.reactants) != 2 or len(reaction.products) != 2:
+        raise ValueError("Must provide reaction with 2 reactants and 2 products for graph_rep_2_2")
+
+    reactant_0 = reaction.reactants[0]
+    reactant_1 = reaction.reactants[1]
+    product_0 = reaction.products[0]
+    product_1 = reaction.products[1]
+    graph = nx.DiGraph()
+
+    if product_0.parameters["ind"] <= product_1.parameters["ind"]:
+        two_prod_name = str(product_0.parameters["ind"]) + "+" + str(product_1.parameters["ind"])
+        two_prod_name_entry_ids = str(product_0.entry_id) + "+" + str(product_1.entry_id)
+    else:
+        two_prod_name = str(product_1.parameters["ind"]) + "+" + str(product_0.parameters["ind"])
+        two_prod_name_entry_ids = str(product_1.entry_id) + "+" + str(product_0.entry_id)
+
+    if reactant_0.parameters["ind"] <= reactant_1.parameters["ind"]:
+        two_reac_name = str(reactant_0.parameters["ind"]) + "+" + str(reactant_1.parameters["ind"])
+        two_reac_name_entry_ids = str(reactant_0.entry_id) + "+" + str(reactant_1.entry_id)
+    else:
+        two_reac_name = str(reactant_1.parameters["ind"]) + "+" + str(reactant_0.parameters["ind"])
+        two_reac_name_entry_ids = str(reactant_1.entry_id) + "+" + str(reactant_0.entry_id)
+
+    two_prod_name0 = str(product_0.parameters["ind"]) + "+PR_" + str(product_1.parameters["ind"])
+    two_prod_name1 = str(product_1.parameters["ind"]) + "+PR_" + str(product_0.parameters["ind"])
+
+    two_reac_name0 = str(reactant_0.parameters["ind"]) + "+PR_" + str(reactant_1.parameters["ind"])
+    two_reac_name1 = str(reactant_1.parameters["ind"]) + "+PR_" + str(reactant_0.parameters["ind"])
+
+    node_name_A0 = two_reac_name0 + "," + two_prod_name
+    node_name_A1 = two_reac_name1 + "," + two_prod_name
+    node_name_B0 = two_prod_name0 + "," + two_reac_name
+    node_name_B1 = two_prod_name1 + "," + two_reac_name
+
+    two_prod_entry_ids0 = str(product_0.entry_id) + "+PR_" + str(product_1.entry_id)
+    two_prod_entry_ids1 = str(product_1.entry_id) + "+PR_" + str(product_0.entry_id)
+
+    two_reac_entry_ids0 = str(reactant_0.entry_id) + "+PR_" + str(reactant_1.entry_id)
+    two_reac_entry_ids1 = str(reactant_1.entry_id) + "+PR_" + str(reactant_0.entry_id)
+
+    entry_ids_name_A0 = two_reac_entry_ids0 + "," + two_prod_name_entry_ids
+    entry_ids_name_A1 = two_reac_entry_ids1 + "," + two_prod_name_entry_ids
+    entry_ids_name_B0 = two_prod_entry_ids0 + "," + two_reac_name_entry_ids
+    entry_ids_name_B1 = two_prod_entry_ids1 + "," + two_reac_name_entry_ids
+
+    rxn_type_A = reaction.reaction_type()["rxn_type_A"]
+    rxn_type_B = reaction.reaction_type()["rxn_type_B"]
+    energy_A = reaction.energy()["energy_A"]
+    energy_B = reaction.energy()["energy_B"]
+    free_energy_A = reaction.free_energy()["free_energy_A"]
+    free_energy_B = reaction.free_energy()["free_energy_B"]
+
+    graph.add_node(node_name_A0, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
+                   entry_ids=entry_ids_name_A0)
+
+    graph.add_edge(reactant_0.parameters["ind"],
+                   node_name_A0,
+                   softplus=ReactionNetwork.softplus(free_energy_A),
+                   exponent=ReactionNetwork.exponent(free_energy_A),
+                   weight=1.0
+                   )
+
+    graph.add_edge(node_name_A0,
+                   product_0.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+    graph.add_edge(node_name_A0,
+                   product_1.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+
+    graph.add_node(node_name_A1, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
+                   entry_ids=entry_ids_name_A1)
+
+    graph.add_edge(reactant_1.parameters["ind"],
+                   node_name_A1,
+                   softplus=ReactionNetwork.softplus(free_energy_A),
+                   exponent=ReactionNetwork.exponent(free_energy_A),
+                   weight=1.0
+                   )
+
+    graph.add_edge(node_name_A1,
+                   product_0.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+    graph.add_edge(node_name_A1,
+                   product_1.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+
+    graph.add_node(node_name_B0, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
+                   entry_ids=entry_ids_name_B0)
+
+    graph.add_edge(product_0.parameters["ind"],
+                   node_name_B0,
+                   softplus=ReactionNetwork.softplus(free_energy_B),
+                   exponent=ReactionNetwork.exponent(free_energy_B),
+                   weight=1.0
+                   )
+
+    graph.add_edge(node_name_B0,
+                   reactant_0.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+    graph.add_edge(node_name_B0,
+                   reactant_1.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+
+    graph.add_node(node_name_B1, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
+                   entry_ids=entry_ids_name_B1)
+
+    graph.add_edge(product_1.parameters["ind"],
+                   node_name_B1,
+                   softplus=ReactionNetwork.softplus(free_energy_B),
+                   exponent=ReactionNetwork.exponent(free_energy_B),
+                   weight=1.0
+                   )
+
+    graph.add_edge(node_name_B1,
+                   reactant_0.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+    graph.add_edge(node_name_B1,
+                   reactant_1.parameters["ind"],
+                   softplus=0.0,
+                   exponent=0.0,
+                   weight=1.0
+                   )
+
+    return graph
 
 
 def graph_rep_1_2(reaction: Reaction) -> nx.DiGraph:
@@ -261,7 +418,6 @@ def graph_rep_1_1(reaction: Reaction) -> nx.DiGraph:
                    softplus=0.0,
                    exponent=0.0,
                    weight=1.0)
-
     return graph
 
 
@@ -864,6 +1020,161 @@ class CoordinationBondChangeReaction(Reaction):
         pass
 
 
+class ConcertedReaction(Reaction):
+    """
+        A class to define concerted reactions.
+        User can specify either allowing <=1 bond breakage + <=1 bond formation OR <=2 bond breakage + <=2 bond formation.
+        User can also specify how many electrons are allowed to involve in a reaction.
+        Can only deal with <= 2 reactants and <=2 products for now.
+        For 1 reactant -> 1 product reactions, a maximum 1 bond breakage and 1 bond formation is allowed,
+        even when the user specify "<=2 bond breakage + <=2 bond formation".
+        Args:
+           reactant([MolecularEntry]): list of 1-2 molecular entries
+           product([MoleculeEntry]): list of 1-2 molecular entries
+    """
+
+    def __init__(self, reactant: List[MoleculeEntry], product: List[MoleculeEntry]):
+        """
+            Initilizes IntermolecularReaction.reactant to be in the form of a MolecularEntry,
+            IntermolecularReaction.product to be in the form of [MolecularEntry_0, MolecularEntry_1],
+            Reaction.reactant to be in the form of a of a list of MolecularEntry of length 1
+            Reaction.products to be in the form of a of a list of MolecularEntry of length 2
+          Args:
+            :param reactant MolecularEntry object
+            :param product list of MolecularEntry object of length 2
+        """
+
+        self.reactants = reactant
+        self.products = product
+        self.electron_free_energy = None
+        self.electron_energy = None
+        super().__init__(reactant, product)
+
+    def graph_representation(self) -> nx.DiGraph:  # temp here, use graph_rep_1_2 instead
+
+        """
+            A method to convert a Concerted class object into graph representation (nx.Digraph object).
+            IntermolecularReaction must be of type 1 reactant -> 2 products
+            :return nx.Digraph object of a single IntermolecularReaction object
+        """
+        if len(self.reactants) == len(self.products) == 1:
+            return graph_rep_1_1(self)
+        elif len(self.reactants) == 1 and len(self.products) == 2:
+            return graph_rep_1_2(self)
+        elif len(self.reactants) == 2 and len(self.products) == 1:
+            self.reactants, self.products = self.products, self.reactants
+            return graph_rep_1_2(self)
+        elif len(self.reactants) == len(self.products) == 2:
+            return graph_rep_2_2(self)
+
+    @classmethod
+    def generate(cls, entries_list: [MoleculeEntry], name="nothing", read_file=False, num_processors=16, reaction_type="break2_form2", allowed_charge_change=0) -> List[Reaction]:
+
+        """
+           A method to generate all the possible concerted reactions from given entries_list.
+           Args:
+              :param entries_list, entries_list = [MoleculeEntry]
+              :param name(str): The name to put in FindConcertedReactions class. For reading in the files generated from that class.
+              :param read_file(bool): whether to read in the file generated from the FindConcertedReactions class.
+                                     If true, name+'_concerted_rxns.json' has to be present in the running directory.
+                                     If False, will find concerted reactions on the fly.
+                                     Note that this will take a couple hours when running on 16 CPU with < 100 entries.
+              :param num_processors:
+              :param reaction_type: Can choose from "break2_form2" and "break1_form1"
+              :param allowed_charge_change: How many charge changes are allowed in a concerted reaction.
+                          If zero, sum(reactant total charges) = sun(product total charges). If n(non-zero), allow n-electron redox reactions.
+              :return list of IntermolecularReaction class objects
+        """
+        if read_file:
+            all_concerted_reactions = loadfn(name+'_concerted_rxns.json')
+        else:
+            from pymatgen.analysis.reaction_network.extract_reactions import FindConcertedReactions
+            FCR = FindConcertedReactions(entries_list, name)
+            all_concerted_reactions = FCR.get_final_concerted_reactions(name, num_processors, reaction_type)
+
+        reactions = []
+        for reaction in all_concerted_reactions:
+            reactants = reaction[0].split("_")
+            products = reaction[1].split("_")
+            entries0 = [entries_list[int(item)] for item in reactants]
+            entries1 = [entries_list[int(item)] for item in products]
+            reactant_total_charge = np.sum([item.charge for item in entries0])
+            product_total_charge = np.sum([item.charge for item in entries1])
+            total_charge_change = product_total_charge - reactant_total_charge
+            if abs(total_charge_change) <= allowed_charge_change:
+                r = cls(entries0,entries1)
+                reactions.append(r)
+
+        return reactions
+
+    def reaction_type(self) -> Mapping_ReactionType_Dict:
+
+        """
+           A method to identify type of intermoleular reaction (bond decomposition from one to two or formation from two to one molecules)
+           Args:
+              :return dictionary of the form {"class": "IntermolecularReaction", "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
+              where rnx_type_A is the primary type of the reaction based on the reactant and product of the IntermolecularReaction
+              object, and the backwards of this reaction would be rnx_type_B
+        """
+
+        rxn_type_A = "Concerted"
+        rxn_type_B = "Concerted"
+
+        reaction_type = {"class": "ConcertedReaction", "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
+        return reaction_type
+
+    def free_energy(self) -> Mapping_Energy_Dict:
+        """
+          A method to determine the free energy of the concerted reaction
+          Args:
+             :return dictionary of the form {"free_energy_A": energy_A, "free_energy_B": energy_B}
+             where free_energy_A is the primary type of the reaction based on the reactant and product of the ConcertedReaction
+             object, and the backwards of this reaction would be free_energy_B.
+         """
+        if all(reactant.free_energy != None for reactant in self.reactants) and all(product.free_energy != None for product in self.products):
+            reactant_total_charge = np.sum([item.charge for item in self.reactants])
+            product_total_charge = np.sum([item.charge for item in self.products])
+            reactant_total_free_energy = np.sum([item.free_energy for item in self.reactants])
+            product_total_free_energy = np.sum([item.free_energy for item in self.products])
+            total_charge_change = product_total_charge - reactant_total_charge
+            free_energy_A = product_total_free_energy - reactant_total_free_energy + total_charge_change * self.electron_free_energy
+            free_energy_B = reactant_total_free_energy - product_total_free_energy - total_charge_change * self.electron_free_energy
+
+        else:
+            free_energy_A = None
+            free_energy_B = None
+
+        return {"free_energy_A": free_energy_A, "free_energy_B": free_energy_B}
+
+    def energy(self) -> Mapping_Energy_Dict:
+        """
+          A method to determine the energy of the concerted reaction
+          Args:
+             :return dictionary of the form {"energy_A": energy_A, "energy_B": energy_B}
+             where energy_A is the primary type of the reaction based on the reactant and product of the ConcertedReaction
+             object, and the backwards of this reaction would be energy_B.
+             Electron electronic energy set to 0 for now.
+        """
+        if all(reactant.energy != None for reactant in self.reactants) and all(
+                product.energy != None for product in self.products):
+            reactant_total_charge = np.sum([item.charge for item in self.reactants])
+            product_total_charge = np.sum([item.charge for item in self.products])
+            reactant_total_energy = np.sum([item.energy for item in self.reactants])
+            product_total_energy = np.sum([item.energy for item in self.products])
+            total_charge_change = product_total_charge - reactant_total_charge
+            energy_A = product_total_energy - reactant_total_energy #+ total_charge_change * self.electron_energy
+            energy_B = reactant_total_energy - product_total_energy #- total_charge_change * self.electron_energy
+
+        else:
+            energy_A = None
+            energy_B = None
+
+        return {"energy_A": energy_A, "energy_B": energy_B}
+
+    def rate(self):
+        pass
+
+
 class ReactionPath(MSONable):
     """
         A class to define path object within the reaction network which constains all the associated characteristic attributes of a given path
@@ -961,6 +1272,7 @@ class ReactionPath(MSONable):
             class_instance = cls(None)
         else:
             class_instance = cls(path)
+
             for ii, step in enumerate(path):
                 if ii != len(path) - 1:
                     class_instance.cost += graph[step][path[ii + 1]][weight]
@@ -1038,12 +1350,15 @@ class ReactionPath(MSONable):
                     PR_path = None
                     PR_min_cost = 1000000000000000.0
                     for start in PR_paths[PR]:
+                        print(PR, start, PR_paths[PR][start].path_dict)
                         if PR_paths[PR][start].path != None:
                             # print(PR_paths[PR][start].path_dict)
-                            # print(PR_paths[PR][start].cost, PR_paths[PR][start].overall_free_energy_change, PR_paths[PR][start].path)
+                            print("!!",PR_paths[PR][start].cost, PR_paths[PR][start].overall_free_energy_change, PR_paths[PR][start].path)
                             if PR_paths[PR][start].cost < PR_min_cost:
                                 PR_min_cost = PR_paths[PR][start].cost
                                 PR_path = PR_paths[PR][start]
+                                #print("@@", PR, start)
+                    print("^^",PR, start)
                     assert (len(PR_path.solved_prereqs) == len(PR_path.all_prereqs))
                     for new_PR in PR_path.all_prereqs:
                         new_PRs.append(new_PR)
@@ -1114,6 +1429,8 @@ class ReactionNetwork(MSONable):
 
         """
 
+        self.reachable_nodes = []
+        self.unsolvable_PRs = []
         self.graph = nx.DiGraph()
         self.reactions = []
         self.input_entries = input_entries
@@ -1126,8 +1443,10 @@ class ReactionNetwork(MSONable):
         self.PR_record = None
         self.Reactant_record = None
         self.min_cost = {}
+        self.not_reachable_nodes = []
 
         print(len(self.input_entries), "input entries")
+
 
         connected_entries = []
         for entry in self.input_entries:
@@ -1182,10 +1501,10 @@ class ReactionNetwork(MSONable):
 
         print(len(self.entries_list), "unique entries")
         for ii, entry in enumerate(self.entries_list):
-            if "ind" in entry.parameters.keys():
-                pass
-            else:
-                entry.parameters["ind"] = ii
+            # if "ind" in entry.parameters.keys():
+            #     pass
+            # else:
+            entry.parameters["ind"] = ii
 
         self.entries_list = sorted(self.entries_list, key=lambda x: x.parameters["ind"])
 
@@ -1207,8 +1526,8 @@ class ReactionNetwork(MSONable):
         """
         return float(np.exp(free_energy))
 
-    def build(self, reaction_types={"RedoxReaction", "IntramolSingleBondChangeReaction", "IntermolecularReaction",
-                                    "CoordinationBondChangeReaction"}) -> nx.DiGraph:
+    def build(self, reaction_types={"RedoxReaction","IntramolSingleBondChangeReaction", "IntermolecularReaction",
+                                   "CoordinationBondChangeReaction"}) -> nx.DiGraph:
         """
             A method to build the reaction network graph
         :param reaction_types: set of all the reactions class to include while building the graph
@@ -1217,15 +1536,29 @@ class ReactionNetwork(MSONable):
 
         self.graph.add_nodes_from(range(len(self.entries_list)), bipartite=0)
         reaction_types = [load_class(str(self.__module__) + "." + s) for s in reaction_types]
-        self.reactions = [r.generate(self.entries) for r in reaction_types]
+        for r in reaction_types:
+            if r.__name__ == "ConcertedReaction":
+                self.reactions = self.reactions+[r.generate(self.entries_list)]
+            else:
+                self.reactions = self.reactions+[r.generate(self.entries)]
         self.reactions = [i for i in self.reactions if i]
         self.reactions = list(itertools.chain.from_iterable(self.reactions))
-
+        redox_c = 0
+        inter_c = 0
+        intra_c = 0
+        coord_c = 0
         for r in self.reactions:
             if r.reaction_type()["class"] == "RedoxReaction":
+                redox_c = redox_c + 1
                 r.electron_free_energy = self.electron_free_energy
+            elif r.reaction_type()["class"] == "IntramolSingleBondChangeReaction":
+                intra_c = intra_c+1
+            elif r.reaction_type()["class"] == "IntermolecularReaction":
+                inter_c = inter_c+1
+            elif r.reaction_type()["class"] == "CoordinationBondChangeReaction":
+                coord_c = coord_c+1
             self.add_reaction(r.graph_representation())
-
+        print("redox: ", redox_c, "inter: ", inter_c, "intra: ", intra_c, "coord: ", coord_c)
         self.PR_record = self.build_PR_record()
         self.Reactant_record = self.build_reactant_record()
 
@@ -1270,7 +1603,8 @@ class ReactionNetwork(MSONable):
                 Reactant_record[int(non_PR_reactant)].append(node)
         return Reactant_record
 
-    def solve_prerequisites(self, starts: List[int], target: int, weight: str, max_iter=20, save=False,
+
+    def solve_prerequisites(self, starts: List[int], weight: str, max_iter=20, save=False,
                             filename=None):  # -> Tuple[Union[Dict[Union[int, Any], dict], Any], Any]:
         """
             A method to solve the all the prerequisites found in ReactionNetwork.graph. By solving all PRs, it gives
@@ -1312,7 +1646,7 @@ class ReactionNetwork(MSONable):
             old_solved_PRs.append(PR)
             self.min_cost[PR] = PRs[PR][PR].cost
         for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 0 and node != target:
+            if self.graph.nodes[node]["bipartite"] == 0:# and node != target:
                 if node not in PRs:
                     PRs[node] = {}
 
@@ -1334,31 +1668,70 @@ class ReactionNetwork(MSONable):
                 for start in starts:
                     if start not in cost_from_start[PR]:
                         cost_from_start[PR][start] = "unsolved"
-
-            PRs, cost_from_start, min_cost = self.find_path_cost(starts, target, weight, old_solved_PRs,
+            t2 = time.time()
+            PRs, cost_from_start, min_cost = self.find_path_cost(starts, weight, old_solved_PRs,
                                                                  cost_from_start, min_cost, PRs)
+            #print(time.time()-t2)
             solved_PRs = copy.deepcopy(old_solved_PRs)
             solved_PRs, new_solved_PRs, cost_from_start = self.identify_solved_PRs(PRs, solved_PRs, cost_from_start)
 
             print(ii, len(old_solved_PRs), len(new_solved_PRs))
-
+            # print(time.time()-t2)
+            # print("old: ",old_solved_PRs)
+            # print("new: ", new_solved_PRs)
             attrs = self.update_edge_weights(min_cost, orig_graph)
 
             self.min_cost = copy.deepcopy(min_cost)
             old_solved_PRs = copy.deepcopy(solved_PRs)
             old_attrs = copy.deepcopy(new_attrs)
             new_attrs = copy.deepcopy(attrs)
-
+            # print(ii, PRs)
+            # print(self.min_cost)
+            # print(old_solved_PRs)
+            # print(new_attrs)
+            # PRs_new = {}
+            # for node in PRs:
+            #     PRs_new[node] = {}
+            #     if PRs[node] == {}:
+            #         pass
+            #     else:
+            #         for start in PRs[node]:
+            #             if isinstance(PRs[node][start], ReactionPath):
+            #                 PRs_new[node][start] = PRs[node][start].path_dict
+            # print(PRs_new)
             ii += 1
+        #dumpfn(PRs, "finalPRcheck_PRs_IN_TEST.json", default=lambda o: o.as_dict)
+
         self.final_PR_check(PRs)
         if save:
             if filename is None:
                 print("Provide filename to save the PRs, for now saving as PRs.json")
                 filename = "PRs.json"
             dumpfn(PRs, filename, default=lambda o: o.as_dict)
+        print('not reachable nodes:', self.not_reachable_nodes)
         return PRs
 
-    def find_path_cost(self, starts, target, weight, old_solved_PRs, cost_from_start, min_cost, PRs):
+
+    def parse_path(self, path):
+        nodes = []
+        PR = []
+        Reactants = []
+        for step in path:
+            if isinstance(step, int):
+                nodes.append(step)
+            elif "PR_" in step:
+                nodes = nodes + [step.split("+")[0]]
+                Reactants.append(int(step.split("+")[0]))
+                PR.append(int(step.split("+")[1].split("PR_")[1].split(",")[0]))
+                nodes = nodes + step.split("+")[1].split("PR_")[1].split(",")
+            else:
+                assert (("," in step), True)
+                nodes = nodes + step.split(",")
+        nodes.pop(0)
+        if len(nodes) != 0:
+            nodes.pop(-1)
+        return nodes, PR, Reactants
+    def find_path_cost(self, starts, weight, old_solved_PRs, cost_from_start, min_cost, PRs):
         """
             A method to characterize the path to all the PRs. Characterize by determining if the path exist or not, and
             if so, is it a minimum cost path, and if so set PRs[node][start] = ReactionPath(path)
@@ -1375,31 +1748,180 @@ class ReactionNetwork(MSONable):
         :return: cost_from_start: updated cost_from_start based on new PRs solved
         :return: min_cost: updated min_cost based on new PRs solved
         """
+        #print("@@@", PRs)
+        #print("!!",min_cost)
+        # print("START",old_solved_PRs)
+        # print("START", cost_from_start)
+        # print("START", min_cost)
+        # print("START",PRs)
+        # old_solved_PRs_mine = copy.deepcopy(old_solved_PRs)
+        # cost_from_start_mine = copy.deepcopy(cost_from_start)
+        # min_cost_mine = copy.deepcopy(min_cost)
+        # PRs_mine = copy.deepcopy(PRs)
+
+
+        ##START OF MY CODE
+        wrong_paths = {}
+        dist_and_path = {}
         self.num_starts = len(starts)
+        for start in starts:
+            dist, paths = nx.algorithms.single_source_dijkstra(self.graph, start, weight=self.weight)
+            dist_and_path[start] = {}
+            wrong_paths[start] = []
+            for node in paths:
+                if self.graph.nodes[node]["bipartite"] == 0:
+                    if node not in self.reachable_nodes:
+                        self.reachable_nodes.append(int(node))
+                    dist_and_path[start][int(node)] = {}
+                    dist_and_path[start][node]["cost"] = dist[node]
+                    dist_and_path[start][node]["path"] = paths[node]
+                    nodes = []
+                    PR = []
+                    Reactants = []
+                    for step in paths[node]:
+                        if isinstance(step, int):
+                            nodes.append(step)
+                        elif "PR_" in step:
+                            nodes = nodes + [step.split("+")[0]]
+                            Reactants.append(int(step.split("+")[0]))
+                            PR.append(int(step.split("+")[1].split("PR_")[1].split(",")[0]))
+                            if node in PR:
+                                if node not in wrong_paths[start]:
+                                    wrong_paths[start].append(int(node))
+                            if PR not in old_solved_PRs:
+                                if node not in wrong_paths[start]:
+                                    wrong_paths[start].append(int(node))
+                            nodes = nodes + step.split("+")[1].split("PR_")[1].split(",")
+                        else:
+                            assert(("," in step), True)
+                            nodes = nodes+step.split(",")
+                    nodes.pop(0)
+                    if len(nodes) != 0:
+                        nodes.pop(-1)
+                    dist_and_path[start][node]["all_nodes"] = nodes
+                    dist_and_path[start][node]["PRs"] = PR
+                    dist_and_path[start][node]["reactant"] = Reactants
+
         for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 0 and node not in old_solved_PRs and node != target:
-                for start in starts:
-                    if start not in PRs[node]:
-                        path_exists = True
-                        try:
-                            length, dij_path = nx.algorithms.simple_paths._bidirectional_dijkstra(
-                                self.graph,
-                                source=hash(start),
-                                target=hash(node),
-                                ignore_nodes=self.find_or_remove_bad_nodes([node, target]),
-                                weight=self.weight)
-                        except nx.exception.NetworkXNoPath:
-                            PRs[node][start] = ReactionPath(None)
-                            path_exists = False
-                            cost_from_start[node][start] = "no_path"
-                        if path_exists:
-                            path_class = ReactionPath.characterize_path(dij_path, weight, self.min_cost, self.graph,
-                                                                        old_solved_PRs)
-                            cost_from_start[node][start] = path_class.cost
-                            if len(path_class.unsolved_prereqs) == 0:
-                                PRs[node][start] = path_class
-                            if path_class.cost < min_cost[node]:
-                                min_cost[node] = path_class.cost
+            if self.graph.nodes[node]["bipartite"] == 0:
+                if node not in self.reachable_nodes:
+                    self.not_reachable_nodes.append(node)
+
+
+        for start in starts:
+            for node in self.not_reachable_nodes:
+                PR[int(start)][int(node)] = ReactionPath(None)
+
+        fixed_paths = {}
+        for start in wrong_paths:
+            fixed_paths[start] = {}
+            for node in wrong_paths[start]:
+                fixed_paths[start][node] = {}
+                try:
+                    length, dij_path = nx.algorithms.simple_paths._bidirectional_dijkstra(
+                        self.graph,
+                        source=hash(start),
+                        target=hash(node),
+                        ignore_nodes=self.find_or_remove_bad_nodes([node] + self.not_reachable_nodes),
+                        weight=self.weight)
+                    fixed_paths[start][node]["cost"] = length
+                    fixed_paths[start][node]["path"] = dij_path
+                except nx.exception.NetworkXNoPath:
+                    fixed_paths[start][node]["cost"] = "no_cost"
+                    fixed_paths[start][node]["path"] = "no_path"
+                    print("@@",start, node)
+
+        for start in starts:
+            for node in fixed_paths[start]:
+                if fixed_paths[start][node]["path"] == "no_path":
+                    dist_and_path[start][node] = {}
+                    pass
+                else:
+                    dist_and_path[start][node]["cost"] = fixed_paths[start][node]["cost"]
+                    dist_and_path[start][node]["path"] = fixed_paths[start][node]["path"]
+                    nodes, PR, reactant = self.parse_path(dist_and_path[start][node]["path"])
+                    dist_and_path[start][node]["all_nodes"] = nodes
+                    dist_and_path[start][node]["PRs"] = PR
+                    dist_and_path[start][node]["reactant"] = reactant
+            dist_and_path[start] = {key: value for key, value in
+                                    sorted(dist_and_path[start].items(), key=lambda item: int(item[0]))}
+        for start in starts:
+            for node in dist_and_path[start]:
+
+                if node not in old_solved_PRs:
+                    if dist_and_path[start][node] == {}:
+                        PRs[node][start] = ReactionPath(None)
+                        cost_from_start[node][start] = "no_path"
+                    else:
+                        path_class = ReactionPath.characterize_path(dist_and_path[start][node]["path"], weight, self.min_cost, self.graph,
+                                                                    old_solved_PRs)
+                        cost_from_start[node][start] = path_class.cost
+                        if len(path_class.unsolved_prereqs) == 0:
+                            PRs[node][start] = path_class
+                        if path_class.cost < min_cost[node]:
+                            min_cost[node] = path_class.cost
+
+
+        ##### MY CODE END
+
+
+        ###### OG CODE START
+        # for PR in PRs:
+        #     reachable = False
+        #     if all(start in PRs[PR].keys() for start in starts):
+        #         for start in starts:
+        #             if PRs[PR][start].path is not None:
+        #                 reachable = True
+        #     else:
+        #         reachable = True
+        #     if not reachable:
+        #         if PR not in self.not_reachable_nodes:
+        #             self.not_reachable_nodes.append(PR)
+        # self.num_starts = len(starts)
+        # for node in self.graph.nodes():
+        #     if self.graph.nodes[node]["bipartite"] == 0 and node not in old_solved_PRs:# and node != target:
+        #         for start in starts:
+        #             if start not in PRs[node]:
+        #                 path_exists = True
+        #                 try:
+        #                     length, dij_path = nx.algorithms.simple_paths._bidirectional_dijkstra(
+        #                         self.graph,
+        #                         source=hash(start),
+        #                         target=hash(node),
+        #                         ignore_nodes=self.find_or_remove_bad_nodes([node]+self.not_reachable_nodes),
+        #                         weight=self.weight)
+        #                 except nx.exception.NetworkXNoPath:
+        #                     PRs[node][start] = ReactionPath(None)
+        #                     path_exists = False
+        #                     cost_from_start[node][start] = "no_path"
+        #                 if path_exists:
+        #                     path_class = ReactionPath.characterize_path(dij_path, weight, self.min_cost, self.graph,
+        #                                                                 old_solved_PRs)
+        #                     cost_from_start[node][start] = path_class.cost
+        #
+        #                     if len(path_class.unsolved_prereqs) == 0:
+        #                         PRs[node][start] = path_class
+        #                     if path_class.cost < min_cost[node]:
+        #                         min_cost[node] = path_class.cost
+        ### OG CODE END
+        #print("!!",min_cost)
+
+        #print("@@@", PRs)
+        # print("END",old_solved_PRs)
+        # print("MINE", old_solved_PRs_mine)
+        # print("END", cost_from_start)
+        # print("MINE", cost_from_start_mine)
+        # print("END", min_cost)
+        # print("MINE", min_cost_mine)
+        # print("END",PRs)
+        # print("MINE", PRs_mine)
+        # for start in starts:
+        #     value = {k: cost_from_start_mine[start][k] for k in set(cost_from_start_mine[start]) - set(cost_from_start[start])}
+        #     print(value)
+        # assert(old_solved_PRs == old_solved_PRs_mine)
+        # assert(cost_from_start == cost_from_start_mine)
+        # assert (min_cost == min_cost_mine)
+        # assert (PRs == PRs_mine)
 
         return PRs, cost_from_start, min_cost
 
@@ -1423,7 +1945,7 @@ class ReactionNetwork(MSONable):
                 else:
                     best_start_so_far = [None, 10000000000000000.0]
                     for start in PRs[PR]:
-                        if PRs[PR][start] is not None:  # ALWAYS TRUE
+                        if PRs[PR][start] is not None:  # ALWAYS TRUE shoudl be != {}
                             # if PRs[PR][start] == "unsolved": #### DOES THIS EVER HAPPEN ---- NEED TO FIX
                             #     print("ERROR: unsolved should never be encountered here!")
                             if PRs[PR][start].cost < best_start_so_far[1]:
@@ -1462,10 +1984,11 @@ class ReactionNetwork(MSONable):
         for PR_ind in min_cost:
             for rxn_node in self.PR_record[PR_ind]:
                 non_PR_reactant_node = int(rxn_node.split(",")[0].split("+PR_")[0])
+
                 attrs[(non_PR_reactant_node, rxn_node)] = {
                     self.weight: orig_graph[non_PR_reactant_node][rxn_node][self.weight] + min_cost[PR_ind]}
         nx.set_edge_attributes(self.graph, attrs)
-
+        #print(attrs)
         return attrs
 
     def final_PR_check(self, PRs: Mapping_PR_Dict):
@@ -1474,12 +1997,20 @@ class ReactionNetwork(MSONable):
         :param PRs: dict that defines a path from each node to a start, of the form {int(node1):
                 {int(start1}: {ReactionPath object}, int(start2): {ReactionPath object}}, int(node2):...}
         """
+
+
+
+
         for PR in PRs:
             path_found = False
             if PRs[PR] != {}:
                 for start in PRs[PR]:
+                    print("##",PR, start, PRs[PR][start].path_dict)
+                    if PRs[PR][start].cost >= 1000000000000000.0:
+                        PRs[PR][start] = ReactionPath(None)
                     if PRs[PR][start].path != None:
                         path_found = True
+                        print("%%", PR, start, PRs[PR][start].path_dict)
                         path_dict_class = ReactionPath.characterize_path_final(PRs[PR][start].path, self.weight,
                                                                                self.min_cost, self.graph, PRs)
                         if abs(path_dict_class.cost - path_dict_class.pure_cost) > 0.0001:
@@ -1488,6 +2019,7 @@ class ReactionNetwork(MSONable):
                 if not path_found:
                     print("No path found from any start to PR", PR)
             else:
+                self.unsolvable_PRs.append(PR)
                 print("Unsolvable path from any start to PR", PR)
 
     def find_or_remove_bad_nodes(self, nodes: List[str], remove_nodes=False) -> List[str] or nx.DiGraph:
@@ -1527,12 +2059,17 @@ class ReactionNetwork(MSONable):
         :param PRs: not used currently?
         :return: nx.path_generator of type generator
         """
-        bad_nodes = PRs
-        bad_nodes.append(target)
-        valid_graph = self.find_or_remove_bad_nodes(bad_nodes, remove_nodes=True)
+        #PRs = [41]
+        #bad_nodes = PRs
+        #bad_nodes.append(target)
+        valid_graph = self.find_or_remove_bad_nodes([target], remove_nodes=True)
+        valid_graph.remove_nodes_from(PRs)
+        #print(type(valid_graph))
+        #valid_graph = valid_graph_target.remove_nodes_from(PRs)
+        #valid_graph = self.find_or_remove_bad_nodes(bad_nodes, remove_nodes=True)
         return nx.shortest_simple_paths(valid_graph, hash(start), hash(target), weight=self.weight)
 
-    def find_paths(self, starts, target, weight, num_paths=10, solved_PRs_path=None):  # -> ??
+    def find_paths(self, starts, target, weight, num_paths=10, solved_PRs_path=None, ignorenode=[]):  # -> ??
         """
             A method to find the shorted parth from given starts to a target
         :param starts: starts: List(molecular nodes), list of molecular nodes of type int found in the ReactionNetwork.graph
@@ -1560,9 +2097,11 @@ class ReactionNetwork(MSONable):
         print("Solving prerequisites...")
         if solved_PRs_path is None:
             self.min_cost = {}
-            self.graph = self.build()
-            PR_paths = self.solve_prerequisites(starts, target, weight)
-
+            if len(self.graph.nodes) == 0:
+                self.build()
+            t1 = time.time()
+            PR_paths = self.solve_prerequisites(starts, weight)
+            print("PR Solving Time: ", time.time()-t1)
         else:
             PR_paths = {}
             for key in solved_PRs_path:
@@ -1570,15 +2109,13 @@ class ReactionNetwork(MSONable):
                 for start in solved_PRs_path[key]:
                     PR_paths[int(key)][int(start)] = copy.deepcopy(solved_PRs_path[key][start])
 
-            self.min_cost = {}
             for key in PR_paths:
-                self.min_cost[int(key)] = None
+                self.min_cost[int(key)] = 10000000000000000.0
                 for start in PR_paths[key]:
-                    if self.min_cost[int(key)] is None:
+                    if self.min_cost[int(key)] == 10000000000000000.0:
                         self.min_cost[int(key)] = PR_paths[key][start].cost
                     elif self.min_cost[int(key)] > PR_paths[key][start].cost:
                         self.min_cost[int(key)] = PR_paths[key][start].cost
-
             self.build()
             self.build_PR_record()
             self.weight = weight
@@ -1588,13 +2125,20 @@ class ReactionNetwork(MSONable):
                     self.graph[non_PR_reactant_node][rxn_node][self.weight] = self.graph[non_PR_reactant_node][rxn_node][
                                                                               self.weight] + self.min_cost[PR]
         print("Finding paths...")
+        remove_node = []
+        for PR in self.unsolvable_PRs:
+            remove_node = remove_node + self.PR_record[PR]
+        ignorenode = ignorenode + remove_node
+        #print(self.PR_record[109])
         for start in starts:
             ind = 0
-            for path in self.valid_shortest_simple_paths(start, target):
+
+            for path in self.valid_shortest_simple_paths(start, target, ignorenode):
                 if ind == num_paths:
                     break
                 else:
                     ind += 1
+                    print(path)
                     path_dict_class2 = ReactionPath.characterize_path_final(path, self.weight, self.min_cost,
                                                                             self.graph, PR_paths)
                     heapq.heappush(my_heapq, (path_dict_class2.cost, next(c), path_dict_class2))
@@ -1606,7 +2150,7 @@ class ReactionNetwork(MSONable):
             paths.append(
                 path_dict_HP_class.path_dict)  ### ideally just append the class, but for now dict for easy printing
 
-        print(PR_paths)
+        #print(PR_paths)
         print(paths)
 
         return PR_paths, paths
