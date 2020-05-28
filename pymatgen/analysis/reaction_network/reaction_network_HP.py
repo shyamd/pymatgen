@@ -2091,6 +2091,7 @@ class ReactionNetwork(MSONable):
                     self.graph[non_PR_reactant_node][rxn_node][self.weight] = self.graph[non_PR_reactant_node][rxn_node][
                                                                               self.weight] + self.min_cost[PR]
         print("Finding paths...")
+
         remove_node = []
         for PR in self.unsolvable_PRs:
             remove_node = remove_node + self.PR_record[PR]
