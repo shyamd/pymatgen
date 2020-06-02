@@ -8,6 +8,7 @@ import os
 import numpy as np
 from scipy.constants import h, k
 
+from pymatgen.core.structure import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.io.qchem.inputs import QCInput
 from pymatgen.io.qchem.outputs import QCOutput
@@ -26,32 +27,29 @@ __date__ = "September 2019"
 
 module_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 
-fsm_outfile = os.path.join(module_dir, "..", "..", "..", "test_files", "molecules",
-                           "new_qchem_files", "fsm", "da", "fsm.qout")
-fsm_infile = os.path.join(module_dir, "..", "..", "..", "test_files", "molecules",
-                           "new_qchem_files", "fsm", "da", "fsm.qin")
+# Not real molecules; just place-holders
+# We're only interested in the math
+mol_placeholder = Molecule(["H"], [[0., 0., 0.]])
 
 
 class ReactionRateCalculatorTest(unittest.TestCase):
 
     def setUp(self) -> None:
-        infile = QCInput.from_file(fsm_infile)
-        outfile = QCOutput(fsm_outfile)
 
         self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
         self.enthalpies = [13.917, 34.596, 49.515]
         self.entropies = [67.357, 55.047, 84.265]
 
-        self.rct_1 = MoleculeEntry(infile.molecule["reactants"][0], self.energies[0],
+        self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
                                    enthalpy=self.enthalpies[0], entropy=self.entropies[0])
-        self.rct_2 = MoleculeEntry(infile.molecule["reactants"][1], self.energies[1],
+        self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
                                    enthalpy=self.enthalpies[1],
                                    entropy=self.entropies[1])
-        self.pro = MoleculeEntry(infile.molecule["products"][0], self.energies[2],
+        self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
                                  enthalpy=self.enthalpies[2],
                                  entropy=self.entropies[2])
 
-        self.ts = MoleculeEntry(outfile.data["string_ts_guess"], -350.099875862606,
+        self.ts = MoleculeEntry(mol_placeholder, -350.099875862606,
                                 enthalpy=48.560, entropy=83.607)
 
         self.calc = ReactionRateCalculator([self.rct_1, self.rct_2], [self.pro], self.ts)
@@ -165,18 +163,17 @@ class ReactionRateCalculatorTest(unittest.TestCase):
 
 class BEPReactionRateCalculatorTest(unittest.TestCase):
     def setUp(self) -> None:
-        infile = QCInput.from_file(fsm_infile)
 
         self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
         self.enthalpies = [13.917, 34.596, 49.515]
         self.entropies = [67.357, 55.047, 84.265]
 
-        self.rct_1 = MoleculeEntry(infile.molecule["reactants"][0], self.energies[0],
+        self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
                                    enthalpy=self.enthalpies[0], entropy=self.entropies[0])
-        self.rct_2 = MoleculeEntry(infile.molecule["reactants"][1], self.energies[1],
+        self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
                                    enthalpy=self.enthalpies[1],
                                    entropy=self.entropies[1])
-        self.pro = MoleculeEntry(infile.molecule["products"][0], self.energies[2],
+        self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
                                  enthalpy=self.enthalpies[2],
                                  entropy=self.entropies[2])
 
@@ -226,18 +223,17 @@ class BEPReactionRateCalculatorTest(unittest.TestCase):
 
 class ExpandedBEPReactionRateCalculatorTest(unittest.TestCase):
     def setUp(self) -> None:
-        infile = QCInput.from_file(fsm_infile)
 
         self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
         self.enthalpies = [13.917, 34.596, 49.515]
         self.entropies = [67.357, 55.047, 84.265]
 
-        self.rct_1 = MoleculeEntry(infile.molecule["reactants"][0], self.energies[0],
+        self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
                                    enthalpy=self.enthalpies[0], entropy=self.entropies[0])
-        self.rct_2 = MoleculeEntry(infile.molecule["reactants"][1], self.energies[1],
+        self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
                                    enthalpy=self.enthalpies[1],
                                    entropy=self.entropies[1])
-        self.pro = MoleculeEntry(infile.molecule["products"][0], self.energies[2],
+        self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
                                  enthalpy=self.enthalpies[2],
                                  entropy=self.entropies[2])
 

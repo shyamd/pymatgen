@@ -89,7 +89,6 @@ class MoleculeEntry(MSONable):
         """
         return self.uncorrected_energy + self.correction
 
-    @property
     def free_energy(self, temp=298.0):
         if self.enthalpy is not None and self.entropy is not None:
             return self.energy * 27.21139 + 0.0433641 * self.enthalpy - temp * self.entropy * 0.0000433641

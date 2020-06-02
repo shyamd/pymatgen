@@ -2,7 +2,7 @@ import numpy as np
 import random
 from scipy.constants import N_A
 from pymatgen.util.testing import PymatgenTest
-from pymatgen.reactions.reaction_network import ReactionNetwork
+from pymatgen.reaction_network.reaction_network import ReactionNetwork
 from pymatgen.core import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.reaction_network.reaction_propagator import KineticMonteCarloSimulator

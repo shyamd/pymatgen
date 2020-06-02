@@ -413,6 +413,9 @@ class BEPRateCalculator(ReactionRateCalculator):
 
         # Convert from Angstrom to m
         radius_factor = pi * sum([(np.max(mol.distance_matrix) * (10 ** -10) / 2) for mol in mols]) ** 2
+        # Radius factor will be 0 for single atoms
+        if radius_factor == 0:
+            radius_factor = 1
 
         total_exponent = sum(exponents)
         number_prefactor = (1000 * N_A) ** total_exponent

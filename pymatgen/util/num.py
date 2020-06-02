@@ -8,6 +8,8 @@ This module provides utilities for basic math operations.
 """
 
 import collections
+from functools import reduce
+import operator
 
 import numpy as np
 
