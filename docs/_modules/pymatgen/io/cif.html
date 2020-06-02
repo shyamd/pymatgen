@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta charset="utf-8" />
-    <title>pymatgen.io.cif &#8212; pymatgen 2019.11.11 documentation</title>
+    <title>pymatgen.io.cif &#8212; pymatgen 2020.3.2 documentation</title>
     <link rel="stylesheet" href="../../../_static/proBlue.css" type="text/css" />
     <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
     <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
@@ -13,6 +13,7 @@
     <script type="text/javascript" src="../../../_static/doctools.js"></script>
     <script type="text/javascript" src="../../../_static/language_data.js"></script>
     <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="shortcut icon" href="../../../_static/favicon.ico"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
  
@@ -32,7 +33,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 2019.11.11 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 2020.3.2 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
           <li class="nav-item nav-item-2"><a href="../../pymatgen.html" accesskey="U">pymatgen</a> &#187;</li> 
       </ul>
@@ -853,16 +854,18 @@
                 <span class="nb">id</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="p">(</span>
                     <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_space_group_magn.number_BNS&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">))))</span>
 
-            <span class="n">msg</span> <span class="o">=</span> <span class="n">MagneticSpaceGroup</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
-
             <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_space_group_magn.transform_BNS_Pp_abc&quot;</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                         <span class="s2">&quot;_space_group_magn.transform_BNS_Pp_abc&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;a,b,c;0,0,0&quot;</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-                        <span class="s2">&quot;Non-standard settings not currently supported.&quot;</span><span class="p">)</span>
+
+                    <span class="n">jf</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_space_group_magn.transform_BNS_Pp_abc&quot;</span><span class="p">)</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="n">MagneticSpaceGroup</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="n">jf</span><span class="p">)</span>
+
             <span class="k">elif</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;_space_group_magn.transform_BNS_Pp&quot;</span><span class="p">):</span>
                 <span class="k">return</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
                     <span class="s2">&quot;Incomplete specification to implement.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">MagneticSpaceGroup</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
 
             <span class="n">magsymmops</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">symmetry_ops</span>
 
@@ -1225,7 +1228,7 @@
                 <span class="n">bibtex_entry</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;page_last&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
             <span class="c1"># cite keys are given as cif-reference-idx in order they are found</span>
-            <span class="n">entries</span><span class="p">[</span><span class="s1">&#39;cif-reference-</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idx</span><span class="p">)]</span> <span class="o">=</span> <span class="n">Entry</span><span class="p">(</span><span class="s1">&#39;article&#39;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">bibtex_entry</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+            <span class="n">entries</span><span class="p">[</span><span class="s1">&#39;cifref</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">idx</span><span class="p">)]</span> <span class="o">=</span> <span class="n">Entry</span><span class="p">(</span><span class="s1">&#39;article&#39;</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">bibtex_entry</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
 
         <span class="k">return</span> <span class="n">BibliographyData</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span><span class="o">.</span><span class="n">to_string</span><span class="p">(</span><span class="n">bib_format</span><span class="o">=</span><span class="s1">&#39;bibtex&#39;</span><span class="p">)</span></div>
 
@@ -1480,7 +1483,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 2019.11.11 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">pymatgen 2020.3.2 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
           <li class="nav-item nav-item-2"><a href="../../pymatgen.html" >pymatgen</a> &#187;</li> 
       </ul>
@@ -1488,7 +1491,7 @@
 
     <div class="footer" role="contentinfo">
         &#169; Copyright 2011, Pymatgen Development Team.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.2.1.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.1.2.
     </div>
 <div class="footer">This page uses <a href="http://analytics.google.com/">
 Google Analytics</a> to collect statistics. You can disable it by blocking
