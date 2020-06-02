@@ -1,15 +1,15 @@
 import json
 from json import JSONEncoder
 
-import time as time
-
 from networkx.readwrite import json_graph
+import time
 import yaml
 from networkx.readwrite import json_graph
 import networkx.algorithms.isomorphism as iso
 
 from abc import ABCMeta, abstractproperty, abstractmethod, abstractclassmethod
 from abc import ABC, abstractmethod
+from time import time
 from gunicorn.util import load_class
 from monty.json import MSONable
 import logging
@@ -64,7 +64,7 @@ class Reaction(MSONable, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def graph_representation(self) -> nx.DiGraph:
+    def graph_representation(self, input_graph) -> nx.DiGraph:
         pass
 
     @abstractmethod
@@ -112,176 +112,206 @@ class Reaction(MSONable, metaclass=ABCMeta):
 # 			Dictionary value is a dictionary with key of the weight function(s)
 # 				and value of the new weight in new/delta cost
 # # 		"""
+class GraphTool(MSONable):
+    def __init__(self):
+        self.graph = Graph(directed=True)
+        self.node_label = self.graph.new_vertex_property("string")
+        self.bipartite = self.graph.new_vertex_property("int32_t")
+        self.energy = self.graph.new_vertex_property("double")
+        self.entry_ids = self.graph.new_vertex_property("string")
+        self.free_energy = self.graph.new_vertex_property("double")
+        self.rxn_type = self.graph.new_vertex_property("string")
+        self.exponent = self.graph.new_edge_property("double")
+        self.softplus = self.graph.new_edge_property("double")
+        self.weight = self.graph.new_edge_property("double")
+        self.vfilter = self.graph.new_vertex_property("boolean")
+        self.efilter = self.graph.new_edge_property("boolean")
+        self.vind_to_vlabel_dict = {int(n): self.graph.vp["node_label"][n] for n in self.graph.vertices()}
+        self.vlabel_to_vind_dict = {self.graph.vp["node_label"][n]:int(n) for n in self.graph.vertices()}
+
+        self.graph.vertex_properties["node_label"] = self.node_label
+        self.graph.vertex_properties["bipartite"] = self.bipartite
+        self.graph.vertex_properties["energy"] = self.energy
+        self.graph.vertex_properties["entry_ids"] = self.entry_ids
+        self.graph.vertex_properties["free_energy"] = self.free_energy
+        self.graph.vertex_properties["rxn_type"] = self.rxn_type
+        self.graph.edge_properties["exponent"] = self.exponent
+        self.graph.edge_properties["softplus"] = self.softplus
+        self.graph.edge_properties["weight"] = self.weight
+        self.graph.vertex_properties["vfliter"] = self.vfilter
+        self.graph.edge_properties["efliter"] = self.efilter
 
 
-def graph_rep_2_2(reaction: Reaction) -> nx.DiGraph:
-    """
-    A method to convert a reaction type object into graph representation. Reaction much be of type 2 reactants -> 2
-    products
-    Args:
-       :param reaction: (any of the reaction class object, ex. RedoxReaction, IntramolSingleBondChangeReaction, Concerted)
-    """
-
-    if len(reaction.reactants) != 2 or len(reaction.products) != 2:
-        raise ValueError("Must provide reaction with 2 reactants and 2 products for graph_rep_2_2")
-
-    reactant_0 = reaction.reactants[0]
-    reactant_1 = reaction.reactants[1]
-    product_0 = reaction.products[0]
-    product_1 = reaction.products[1]
-    graph = nx.DiGraph()
-
-    if product_0.parameters["ind"] <= product_1.parameters["ind"]:
-        two_prod_name = str(product_0.parameters["ind"]) + "+" + str(product_1.parameters["ind"])
-        two_prod_name_entry_ids = str(product_0.entry_id) + "+" + str(product_1.entry_id)
-    else:
-        two_prod_name = str(product_1.parameters["ind"]) + "+" + str(product_0.parameters["ind"])
-        two_prod_name_entry_ids = str(product_1.entry_id) + "+" + str(product_0.entry_id)
-
-    if reactant_0.parameters["ind"] <= reactant_1.parameters["ind"]:
-        two_reac_name = str(reactant_0.parameters["ind"]) + "+" + str(reactant_1.parameters["ind"])
-        two_reac_name_entry_ids = str(reactant_0.entry_id) + "+" + str(reactant_1.entry_id)
-    else:
-        two_reac_name = str(reactant_1.parameters["ind"]) + "+" + str(reactant_0.parameters["ind"])
-        two_reac_name_entry_ids = str(reactant_1.entry_id) + "+" + str(reactant_0.entry_id)
-
-    two_prod_name0 = str(product_0.parameters["ind"]) + "+PR_" + str(product_1.parameters["ind"])
-    two_prod_name1 = str(product_1.parameters["ind"]) + "+PR_" + str(product_0.parameters["ind"])
-
-    two_reac_name0 = str(reactant_0.parameters["ind"]) + "+PR_" + str(reactant_1.parameters["ind"])
-    two_reac_name1 = str(reactant_1.parameters["ind"]) + "+PR_" + str(reactant_0.parameters["ind"])
-
-    node_name_A0 = two_reac_name0 + "," + two_prod_name
-    node_name_A1 = two_reac_name1 + "," + two_prod_name
-    node_name_B0 = two_prod_name0 + "," + two_reac_name
-    node_name_B1 = two_prod_name1 + "," + two_reac_name
-
-    two_prod_entry_ids0 = str(product_0.entry_id) + "+PR_" + str(product_1.entry_id)
-    two_prod_entry_ids1 = str(product_1.entry_id) + "+PR_" + str(product_0.entry_id)
-
-    two_reac_entry_ids0 = str(reactant_0.entry_id) + "+PR_" + str(reactant_1.entry_id)
-    two_reac_entry_ids1 = str(reactant_1.entry_id) + "+PR_" + str(reactant_0.entry_id)
-
-    entry_ids_name_A0 = two_reac_entry_ids0 + "," + two_prod_name_entry_ids
-    entry_ids_name_A1 = two_reac_entry_ids1 + "," + two_prod_name_entry_ids
-    entry_ids_name_B0 = two_prod_entry_ids0 + "," + two_reac_name_entry_ids
-    entry_ids_name_B1 = two_prod_entry_ids1 + "," + two_reac_name_entry_ids
-
-    rxn_type_A = reaction.reaction_type()["rxn_type_A"]
-    rxn_type_B = reaction.reaction_type()["rxn_type_B"]
-    energy_A = reaction.energy()["energy_A"]
-    energy_B = reaction.energy()["energy_B"]
-    free_energy_A = reaction.free_energy()["free_energy_A"]
-    free_energy_B = reaction.free_energy()["free_energy_B"]
-
-    graph.add_node(node_name_A0, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
-                   entry_ids=entry_ids_name_A0)
-
-    graph.add_edge(reactant_0.parameters["ind"],
-                   node_name_A0,
-                   softplus=ReactionNetwork.softplus(free_energy_A),
-                   exponent=ReactionNetwork.exponent(free_energy_A),
-                   rexp=ReactionNetwork.rexp(free_energy_A),
-                   weight=1.0
-                   )
-
-    graph.add_edge(node_name_A0,
-                   product_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-    graph.add_edge(node_name_A0,
-                   product_1.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-
-    graph.add_node(node_name_A1, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
-                   entry_ids=entry_ids_name_A1)
-
-    graph.add_edge(reactant_1.parameters["ind"],
-                   node_name_A1,
-                   softplus=ReactionNetwork.softplus(free_energy_A),
-                   exponent=ReactionNetwork.exponent(free_energy_A),
-                   rexp=ReactionNetwork.rexp(free_energy_A),
-                   weight=1.0
-                   )
-
-    graph.add_edge(node_name_A1,
-                   product_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-    graph.add_edge(node_name_A1,
-                   product_1.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-
-    graph.add_node(node_name_B0, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
-                   entry_ids=entry_ids_name_B0)
-
-    graph.add_edge(product_0.parameters["ind"],
-                   node_name_B0,
-                   softplus=ReactionNetwork.softplus(free_energy_B),
-                   exponent=ReactionNetwork.exponent(free_energy_B),
-                   rexp=ReactionNetwork.rexp(free_energy_B),
-                   weight=1.0
-                   )
-
-    graph.add_edge(node_name_B0,
-                   reactant_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-    graph.add_edge(node_name_B0,
-                   reactant_1.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-
-    graph.add_node(node_name_B1, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
-                   entry_ids=entry_ids_name_B1)
-
-    graph.add_edge(product_1.parameters["ind"],
-                   node_name_B1,
-                   softplus=ReactionNetwork.softplus(free_energy_B),
-                   exponent=ReactionNetwork.exponent(free_energy_B),
-                   rexp=ReactionNetwork.rexp(free_energy_B),
-                   weight=1.0
-                   )
-
-    graph.add_edge(node_name_B1,
-                   reactant_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-    graph.add_edge(node_name_B1,
-                   reactant_1.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-
-    return graph
 
 
-def graph_rep_1_2(reaction: Reaction) -> nx.DiGraph:
+    def ignorenodes(self, node_list):
+        v_toremove = []
+        for n in node_list:
+            find_v = graph_tool.util.find_vertex(self.graph, self.node_label, n)
+            v_toremove.append(int(find_v[0]))
+        for v in self.graph.vertices():
+            self.vfilter[v] = True
+        for v in v_toremove:
+            self.vfilter[v] = False
+        gv = GraphView(self.graph, vfilt=self.vfilter)
+        return gv
+
+# def graph_rep_2_2(reaction: Reaction) -> nx.DiGraph:
+#     """
+#     A method to convert a reaction type object into graph representation. Reaction much be of type 2 reactants -> 2
+#     products
+#     Args:
+#        :param reaction: (any of the reaction class object, ex. RedoxReaction, IntramolSingleBondChangeReaction, Concerted)
+#     """
+#
+#     if len(reaction.reactants) != 2 or len(reaction.products) != 2:
+#         raise ValueError("Must provide reaction with 2 reactants and 2 products for graph_rep_2_2")
+#
+#     reactant_0 = reaction.reactants[0]
+#     reactant_1 = reaction.reactants[1]
+#     product_0 = reaction.products[0]
+#     product_1 = reaction.products[1]
+#     graph = nx.DiGraph()
+#
+#     if product_0.parameters["ind"] <= product_1.parameters["ind"]:
+#         two_prod_name = str(product_0.parameters["ind"]) + "+" + str(product_1.parameters["ind"])
+#         two_prod_name_entry_ids = str(product_0.entry_id) + "+" + str(product_1.entry_id)
+#     else:
+#         two_prod_name = str(product_1.parameters["ind"]) + "+" + str(product_0.parameters["ind"])
+#         two_prod_name_entry_ids = str(product_1.entry_id) + "+" + str(product_0.entry_id)
+#
+#     if reactant_0.parameters["ind"] <= reactant_1.parameters["ind"]:
+#         two_reac_name = str(reactant_0.parameters["ind"]) + "+" + str(reactant_1.parameters["ind"])
+#         two_reac_name_entry_ids = str(reactant_0.entry_id) + "+" + str(reactant_1.entry_id)
+#     else:
+#         two_reac_name = str(reactant_1.parameters["ind"]) + "+" + str(reactant_0.parameters["ind"])
+#         two_reac_name_entry_ids = str(reactant_1.entry_id) + "+" + str(reactant_0.entry_id)
+#
+#     two_prod_name0 = str(product_0.parameters["ind"]) + "+PR_" + str(product_1.parameters["ind"])
+#     two_prod_name1 = str(product_1.parameters["ind"]) + "+PR_" + str(product_0.parameters["ind"])
+#
+#     two_reac_name0 = str(reactant_0.parameters["ind"]) + "+PR_" + str(reactant_1.parameters["ind"])
+#     two_reac_name1 = str(reactant_1.parameters["ind"]) + "+PR_" + str(reactant_0.parameters["ind"])
+#
+#     node_name_A0 = two_reac_name0 + "," + two_prod_name
+#     node_name_A1 = two_reac_name1 + "," + two_prod_name
+#     node_name_B0 = two_prod_name0 + "," + two_reac_name
+#     node_name_B1 = two_prod_name1 + "," + two_reac_name
+#
+#     two_prod_entry_ids0 = str(product_0.entry_id) + "+PR_" + str(product_1.entry_id)
+#     two_prod_entry_ids1 = str(product_1.entry_id) + "+PR_" + str(product_0.entry_id)
+#
+#     two_reac_entry_ids0 = str(reactant_0.entry_id) + "+PR_" + str(reactant_1.entry_id)
+#     two_reac_entry_ids1 = str(reactant_1.entry_id) + "+PR_" + str(reactant_0.entry_id)
+#
+#     entry_ids_name_A0 = two_reac_entry_ids0 + "," + two_prod_name_entry_ids
+#     entry_ids_name_A1 = two_reac_entry_ids1 + "," + two_prod_name_entry_ids
+#     entry_ids_name_B0 = two_prod_entry_ids0 + "," + two_reac_name_entry_ids
+#     entry_ids_name_B1 = two_prod_entry_ids1 + "," + two_reac_name_entry_ids
+#
+#     rxn_type_A = reaction.reaction_type()["rxn_type_A"]
+#     rxn_type_B = reaction.reaction_type()["rxn_type_B"]
+#     energy_A = reaction.energy()["energy_A"]
+#     energy_B = reaction.energy()["energy_B"]
+#     free_energy_A = reaction.free_energy()["free_energy_A"]
+#     free_energy_B = reaction.free_energy()["free_energy_B"]
+#
+#     graph.add_node(node_name_A0, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
+#                    entry_ids=entry_ids_name_A0)
+#
+#     graph.add_edge(reactant_0.parameters["ind"],
+#                    node_name_A0,
+#                    softplus=ReactionNetwork.softplus(free_energy_A),
+#                    exponent=ReactionNetwork.exponent(free_energy_A),
+#                    weight=1.0
+#                    )
+#
+#     graph.add_edge(node_name_A0,
+#                    product_0.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#     graph.add_edge(node_name_A0,
+#                    product_1.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#
+#     graph.add_node(node_name_A1, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
+#                    entry_ids=entry_ids_name_A1)
+#
+#     graph.add_edge(reactant_1.parameters["ind"],
+#                    node_name_A1,
+#                    softplus=ReactionNetwork.softplus(free_energy_A),
+#                    exponent=ReactionNetwork.exponent(free_energy_A),
+#                    weight=1.0
+#                    )
+#
+#     graph.add_edge(node_name_A1,
+#                    product_0.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#     graph.add_edge(node_name_A1,
+#                    product_1.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#
+#     graph.add_node(node_name_B0, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
+#                    entry_ids=entry_ids_name_B0)
+#
+#     graph.add_edge(product_0.parameters["ind"],
+#                    node_name_B0,
+#                    softplus=ReactionNetwork.softplus(free_energy_B),
+#                    exponent=ReactionNetwork.exponent(free_energy_B),
+#                    weight=1.0
+#                    )
+#
+#     graph.add_edge(node_name_B0,
+#                    reactant_0.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#     graph.add_edge(node_name_B0,
+#                    reactant_1.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#
+#     graph.add_node(node_name_B1, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
+#                    entry_ids=entry_ids_name_B1)
+#
+#     graph.add_edge(product_1.parameters["ind"],
+#                    node_name_B1,
+#                    softplus=ReactionNetwork.softplus(free_energy_B),
+#                    exponent=ReactionNetwork.exponent(free_energy_B),
+#                    weight=1.0
+#                    )
+#
+#     graph.add_edge(node_name_B1,
+#                    reactant_0.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#     graph.add_edge(node_name_B1,
+#                    reactant_1.parameters["ind"],
+#                    softplus=0.0,
+#                    exponent=0.0,
+#                    weight=1.0
+#                    )
+#
+#     return graph
+
+
+def graph_rep_1_2(reaction: Reaction, input_graph) -> nx.DiGraph:
     """
     A method to convert a reaction type object into graph representation. Reaction much be of type 1 reactant -> 2
     products
@@ -296,7 +326,7 @@ def graph_rep_1_2(reaction: Reaction) -> nx.DiGraph:
     reactant_0 = reaction.reactants[0]
     product_0 = reaction.products[0]
     product_1 = reaction.products[1]
-    graph = nx.DiGraph()
+    #graph = nx.DiGraph()
 
     if product_0.parameters["ind"] <= product_1.parameters["ind"]:
         two_mol_name = str(product_0.parameters["ind"]) + "+" + str(product_1.parameters["ind"])
@@ -323,70 +353,144 @@ def graph_rep_1_2(reaction: Reaction) -> nx.DiGraph:
     energy_B = reaction.energy()["energy_B"]
     free_energy_A = reaction.free_energy()["free_energy_A"]
     free_energy_B = reaction.free_energy()["free_energy_B"]
-
-    graph.add_node(node_name_A, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
-                   entry_ids=entry_ids_name_A)
-
-    graph.add_edge(reactant_0.parameters["ind"],
-                   node_name_A,
-                   softplus=ReactionNetwork.softplus(free_energy_A),
-                   exponent=ReactionNetwork.exponent(free_energy_A),
-                   rexp=ReactionNetwork.rexp(free_energy_A),
-                   weight=1.0
-                   )
-
-    graph.add_edge(node_name_A,
-                   product_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-    graph.add_edge(node_name_A,
-                   product_1.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-
-    graph.add_node(node_name_B0, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
-                   entry_ids=entry_ids_name_B0)
-    graph.add_node(node_name_B1, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
-                   entry_ids=entry_ids_name_B1)
-
-    graph.add_edge(node_name_B0,
-                   reactant_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-    graph.add_edge(node_name_B1,
-                   reactant_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0
-                   )
-
-    graph.add_edge(product_0.parameters["ind"],
-                   node_name_B0,
-                   softplus=ReactionNetwork.softplus(free_energy_B),
-                   exponent=ReactionNetwork.exponent(free_energy_B),
-                   rexp=ReactionNetwork.rexp(free_energy_B),
-                   weight=1.0
-                   )
-    graph.add_edge(product_1.parameters["ind"],
-                   node_name_B1,
-                   softplus=ReactionNetwork.softplus(free_energy_B),
-                   exponent=ReactionNetwork.exponent(free_energy_B),
-                   rexp=ReactionNetwork.rexp(free_energy_B),
-                   weight=1.0)
-    return graph
+    # graph.add_node(node_name_A, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
+    #                entry_ids=entry_ids_name_A)
+    #
+    # graph.add_edge(reactant_0.parameters["ind"],
+    #                node_name_A,
+    #                softplus=ReactionNetwork.softplus(free_energy_A),
+    #                exponent=ReactionNetwork.exponent(free_energy_A),
+    #                weight=1.0
+    #                )
+    #
+    # graph.add_edge(node_name_A,
+    #                product_0.parameters["ind"],
+    #                softplus=0.0,
+    #                exponent=0.0,
+    #                weight=1.0
+    #                )
+    # graph.add_edge(node_name_A,
+    #                product_1.parameters["ind"],
+    #                softplus=0.0,
+    #                exponent=0.0,
+    #                weight=1.0
+    #                )
+    #
+    # graph.add_node(node_name_B0, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
+    #                entry_ids=entry_ids_name_B0)
+    # graph.add_node(node_name_B1, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
+    #                entry_ids=entry_ids_name_B1)
+    #
+    # graph.add_edge(node_name_B0,
+    #                reactant_0.parameters["ind"],
+    #                softplus=0.0,
+    #                exponent=0.0,
+    #                weight=1.0
+    #                )
+    # graph.add_edge(node_name_B1,
+    #                reactant_0.parameters["ind"],
+    #                softplus=0.0,
+    #                exponent=0.0,
+    #                weight=1.0
+    #                )
+    #
+    # graph.add_edge(product_0.parameters["ind"],
+    #                node_name_B0,
+    #                softplus=ReactionNetwork.softplus(free_energy_B),
+    #                exponent=ReactionNetwork.exponent(free_energy_B),
+    #                weight=1.0
+    #                )
+    # graph.add_edge(product_1.parameters["ind"],
+    #                node_name_B1,
+    #                softplus=ReactionNetwork.softplus(free_energy_B),
+    #                exponent=ReactionNetwork.exponent(free_energy_B),
+    #                weight=1.0)
 
 
-def graph_rep_1_1(reaction: Reaction) -> nx.DiGraph:
+    ########
+    if graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_A) == []:
+
+        v_a = input_graph.graph.add_vertex()
+        input_graph.node_label[v_a] = node_name_A
+        input_graph.rxn_type[v_a] = rxn_type_A
+        input_graph.bipartite[v_a] = 1
+        input_graph.energy[v_a] = energy_A
+        input_graph.free_energy[v_a] = free_energy_A
+        input_graph.entry_ids[v_a] = entry_ids_name_A
+    else:
+        v_a = graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_A)[0]
+
+
+
+    if input_graph.graph.edge(int(reactant_0.parameters["ind"]), int(v_a)) is None:
+        eg_a_1 = input_graph.graph.add_edge(int(reactant_0.parameters["ind"]), int(v_a), add_missing=False)
+        input_graph.softplus[eg_a_1] = ReactionNetwork.softplus(free_energy_A)
+        input_graph.exponent[eg_a_1] = ReactionNetwork.softplus(free_energy_A)
+        input_graph.weight[eg_a_1] = 1
+
+    if input_graph.graph.edge(int(v_a), int(product_0.parameters["ind"])) is None:
+        eg_a_2 = input_graph.graph.add_edge(int(v_a), int(product_0.parameters["ind"]), add_missing=False)
+        input_graph.softplus[eg_a_2] = 0
+        input_graph.exponent[eg_a_2] = 0
+        input_graph.weight[eg_a_2] = 1
+    if input_graph.graph.edge(int(v_a), int(product_1.parameters["ind"])) is None:
+        eg_a_3 = input_graph.graph.add_edge(int(v_a), int(product_1.parameters["ind"]), add_missing=False)
+        input_graph.softplus[eg_a_3] = 0
+        input_graph.exponent[eg_a_3] = 0
+        input_graph.weight[eg_a_3] = 1
+
+    if graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_B0) == []:
+        v_b0 = input_graph.graph.add_vertex()
+        input_graph.node_label[v_b0] = node_name_B0
+        input_graph.rxn_type[v_b0] = rxn_type_B
+        input_graph.bipartite[v_b0] = 1
+        input_graph.energy[v_b0] = energy_B
+        input_graph.free_energy[v_b0] = free_energy_B
+        input_graph.entry_ids[v_b0] = entry_ids_name_B0
+    else:
+        v_b0 = graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_B0)[0]
+
+    if graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_B1) == []:
+        v_b1 = input_graph.graph.add_vertex()
+        input_graph.node_label[v_b1] = node_name_B1
+        input_graph.rxn_type[v_b1] = rxn_type_B
+        input_graph.bipartite[v_b1] = 1
+        input_graph.energy[v_b1] = energy_B
+        input_graph.free_energy[v_b1] = free_energy_B
+        input_graph.entry_ids[v_b1] = entry_ids_name_B1
+
+    else:
+        v_b1 = graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_B1)[0]
+
+
+
+    if input_graph.graph.edge(int(v_b0),int(reactant_0.parameters["ind"])) is None:
+        eg_b_0 = input_graph.graph.add_edge(int(v_b0),int(reactant_0.parameters["ind"]), add_missing=False)
+        input_graph.softplus[eg_b_0] = 0
+        input_graph.exponent[eg_b_0] = 0
+        input_graph.weight[eg_b_0] = 1
+
+    if input_graph.graph.edge(int(v_b1),int(reactant_0.parameters["ind"])) is None:
+        eg_b_1 = input_graph.graph.add_edge(int(v_b1),int(reactant_0.parameters["ind"]), add_missing=False)
+        input_graph.softplus[eg_b_1] = 0
+        input_graph.exponent[eg_b_1] = 0
+        input_graph.weight[eg_b_1] = 1
+
+    if input_graph.graph.edge(int(product_0.parameters["ind"]), int(v_b0)) is None:
+        eg_b_2 = input_graph.graph.add_edge(int(product_0.parameters["ind"]), int(v_b0), add_missing=False)
+        input_graph.softplus[eg_b_2] = ReactionNetwork.softplus(free_energy_B)
+        input_graph.exponent[eg_b_2] = ReactionNetwork.softplus(free_energy_B)
+        input_graph.weight[eg_b_2] = 1
+
+    if input_graph.graph.edge(int(product_1.parameters["ind"]), int(v_b1)) is None:
+        eg_b_3 = input_graph.graph.add_edge(int(product_1.parameters["ind"]), int(v_b1), add_missing=False)
+        input_graph.softplus[eg_b_3] = ReactionNetwork.softplus(free_energy_B)
+        input_graph.exponent[eg_b_3] = ReactionNetwork.softplus(free_energy_B)
+        input_graph.weight[eg_b_3] = 1
+    return input_graph
+
+
+def graph_rep_1_1(reaction: Reaction, input_graph) -> nx.DiGraph:
     """
     A method to convert a reaction type object into graph representation. Reaction much be of type 1 reactant -> 1
     product
@@ -412,35 +516,94 @@ def graph_rep_1_1(reaction: Reaction) -> nx.DiGraph:
     entry_ids_A = str(reactant_0.entry_id) + "," + str(product_0.entry_id)
     entry_ids_B = str(product_0.entry_id) + "," + str(reactant_0.entry_id)
 
-    graph.add_node(node_name_A, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
-                   entry_ids=entry_ids_A)
-    graph.add_edge(reactant_0.parameters["ind"],
-                   node_name_A,
-                   softplus=ReactionNetwork.softplus(free_energy_A),
-                   exponent=ReactionNetwork.exponent(free_energy_A),
-                   rexp=ReactionNetwork.rexp(free_energy_A),
-                   weight=1.0)
-    graph.add_edge(node_name_A,
-                   product_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0)
-    graph.add_node(node_name_B, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
-                   entry_ids=entry_ids_B)
-    graph.add_edge(product_0.parameters["ind"],
-                   node_name_B,
-                   softplus=ReactionNetwork.softplus(free_energy_B),
-                   exponent=ReactionNetwork.exponent(free_energy_B),
-                   rexp=ReactionNetwork.rexp(free_energy_B),
-                   weight=1.0)
-    graph.add_edge(node_name_B,
-                   reactant_0.parameters["ind"],
-                   softplus=0.0,
-                   exponent=0.0,
-                   rexp=0.0,
-                   weight=1.0)
-    return graph
+    # graph.add_node(node_name_A, rxn_type=rxn_type_A, bipartite=1, energy=energy_A, free_energy=free_energy_A,
+    #                entry_ids=entry_ids_A)
+    # graph.add_edge(reactant_0.parameters["ind"],
+    #                node_name_A,
+    #                softplus=ReactionNetwork.softplus(free_energy_A),
+    #                exponent=ReactionNetwork.exponent(free_energy_A),
+    #                weight=1.0)
+    # graph.add_edge(node_name_A,
+    #                product_0.parameters["ind"],
+    #                softplus=0.0,
+    #                exponent=0.0,
+    #                weight=1.0)
+    # graph.add_node(node_name_B, rxn_type=rxn_type_B, bipartite=1, energy=energy_B, free_energy=free_energy_B,
+    #                entry_ids=entry_ids_B)
+    # graph.add_edge(product_0.parameters["ind"],
+    #                node_name_B,
+    #                softplus=ReactionNetwork.softplus(free_energy_B),
+    #                exponent=ReactionNetwork.exponent(free_energy_B),
+    #                weight=1.0)
+    # graph.add_edge(node_name_B,
+    #                reactant_0.parameters["ind"],
+    #                softplus=0.0,
+    #                exponent=0.0,
+    #                weight=1.0)
+    #### graph tool stuff
+    #gt_graph = GraphTool()
+    #gt_graph = copy.deepcopy(input_graph)
+    if graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_A) == []:
+        v_a = input_graph.graph.add_vertex()
+        input_graph.node_label[v_a] = node_name_A
+        input_graph.rxn_type[v_a] = rxn_type_A
+        input_graph.bipartite[v_a] = 1
+        input_graph.energy[v_a] = energy_A
+        input_graph.free_energy[v_a] = free_energy_A
+        input_graph.entry_ids[v_a] = entry_ids_A
+    else:
+        v_a = graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_A)[0]
+
+    # input_graph.vind_to_vlabel_dict = {int(n): input_graph.node_label[n] for n in input_graph.graph.vertices()}
+    # input_graph.vlabel_to_vind_dict = {input_graph.node_label[n]: int(n) for n in input_graph.graph.vertices()}
+    # print("@#", input_graph.vind_to_vlabel_dict)
+    # print("$%", input_graph.vlabel_to_vind_dict)
+    if input_graph.graph.edge(int(reactant_0.parameters["ind"]), int(v_a)) is None:
+        eg_a_1 = input_graph.graph.add_edge(int(reactant_0.parameters["ind"]), int(v_a), add_missing=False)
+        input_graph.softplus[eg_a_1] = ReactionNetwork.softplus(free_energy_A)
+        input_graph.exponent[eg_a_1] = ReactionNetwork.softplus(free_energy_A)
+        input_graph.weight[eg_a_1] = 1
+    if input_graph.graph.edge(int(v_a),int(product_0.parameters["ind"])) is None:
+        eg_a_2 = input_graph.graph.add_edge(int(v_a),int(product_0.parameters["ind"]), add_missing=False)
+        input_graph.softplus[eg_a_2] = 0
+        input_graph.exponent[eg_a_2] = 0
+        input_graph.weight[eg_a_2] = 1
+
+    if graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_B) == []:
+        v_b = input_graph.graph.add_vertex()
+        input_graph.node_label[v_b] = node_name_B
+        input_graph.rxn_type[v_b] = rxn_type_B
+        input_graph.bipartite[v_b] = 1
+        input_graph.energy[v_b] = energy_B
+        input_graph.free_energy[v_b] = free_energy_B
+        input_graph.entry_ids[v_b] = entry_ids_B
+    else:
+        v_b = graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, node_name_B)[0]
+
+
+
+    if input_graph.graph.edge(int(product_0.parameters["ind"]), int(v_b)) is None:
+        eg_b_1 = input_graph.graph.add_edge(int(product_0.parameters["ind"]), int(v_b), add_missing=False)
+        input_graph.softplus[eg_b_1] = ReactionNetwork.softplus(free_energy_B)
+        input_graph.exponent[eg_b_1] = ReactionNetwork.softplus(free_energy_B)
+        input_graph.weight[eg_b_1] = 1
+    if input_graph.graph.edge(int(v_b),int(reactant_0.parameters["ind"])) is None:
+        eg_b_2 = input_graph.graph.add_edge(int(v_b),int(reactant_0.parameters["ind"]), add_missing=False)
+        input_graph.softplus[eg_b_2] = 0
+        input_graph.exponent[eg_b_2] = 0
+        input_graph.weight[eg_b_2] = 1
+
+
+    #print(graph_tool.util.find_vertex(input_graph.graph, input_graph.node_label, str(reactant_0.parameters["ind"])))
+    # print(list(input_graph.graph.vertices()))
+    # print(list(input_graph.graph.edges()))
+    # for n in gt_graph.graph.vertices():
+    #     print(gt_graph.graph.vp["bipartite"][n])
+    #bipartite_dict = {n: gt_graph.graph.vp["bipartite"][n] for n in gt_graph.graph.vertices()}
+    #print(bipartite_dict)
+    # print("@@")
+    #print()
+    return input_graph
 
 
 class RedoxReaction(Reaction):
@@ -476,7 +639,7 @@ class RedoxReaction(Reaction):
         self.electron_free_energy = None
         super().__init__([self.reactant], [self.product])
 
-    def graph_representation(self) -> nx.DiGraph:
+    def graph_representation(self, input_graph) -> nx.DiGraph:
         """
             A method to convert a RedoxReaction class object into graph representation (nx.Digraph object).
             Redox Reaction must be of type 1 reactant -> 1 product
@@ -484,7 +647,7 @@ class RedoxReaction(Reaction):
             :return nx.Digraph object of a single Redox Reaction
         """
 
-        return graph_rep_1_1(self)
+        return graph_rep_1_1(self, input_graph)
 
     @classmethod
     def generate(cls, entries: MappingDict) -> List[Reaction]:
@@ -615,7 +778,7 @@ class IntramolSingleBondChangeReaction(Reaction):
         self.product = product
         super().__init__([self.reactant], [self.product])
 
-    def graph_representation(self) -> nx.DiGraph:
+    def graph_representation(self, input_graph) -> nx.DiGraph:
         """
             A method to convert a IntramolSingleBondChangeReaction class object into graph representation (nx.Digraph object).
            IntramolSingleBondChangeReaction must be of type 1 reactant -> 1 product
@@ -623,7 +786,7 @@ class IntramolSingleBondChangeReaction(Reaction):
             :return nx.Digraph object of a single IntramolSingleBondChangeReaction object
         """
 
-        return graph_rep_1_1(self)
+        return graph_rep_1_1(self, input_graph)
 
     @classmethod
     def generate(cls, entries: MappingDict) -> List[Reaction]:
@@ -754,7 +917,7 @@ class IntermolecularReaction(Reaction):
         self.product_1 = product[1]
         super().__init__([self.reactant], [self.product_0, self.product_1])
 
-    def graph_representation(self) -> nx.DiGraph:  # temp here, use graph_rep_1_2 instead
+    def graph_representation(self, input_graph) -> nx.DiGraph:
 
         """
             A method to convert a IntermolecularReaction class object into graph representation (nx.Digraph object).
@@ -763,7 +926,7 @@ class IntermolecularReaction(Reaction):
             :return nx.Digraph object of a single IntermolecularReaction object
         """
 
-        return graph_rep_1_2(self)
+        return graph_rep_1_2(self, input_graph)
 
     @classmethod
     def generate(cls, entries: MappingDict) -> List[Reaction]:
@@ -900,7 +1063,7 @@ class CoordinationBondChangeReaction(Reaction):
         self.product_1 = product[1]
         super().__init__([self.reactant], [self.product_0, self.product_1])
 
-    def graph_representation(self) -> nx.DiGraph:
+    def graph_representation(self, input_graph) -> nx.DiGraph:
         """
             A method to convert a CoordinationBondChangeReaction class object into graph representation (nx.Digraph object).
             CoordinationBondChangeReaction must be of type 1 reactant -> 2 products
@@ -908,7 +1071,7 @@ class CoordinationBondChangeReaction(Reaction):
             :return nx.Digraph object of a single CoordinationBondChangeReaction object
         """
 
-        return graph_rep_1_2(self)
+        return graph_rep_1_2(self, input_graph)
 
     @classmethod
     def generate(cls, entries: MappingDict) -> List[Reaction]:
@@ -1278,8 +1441,8 @@ class ReactionPath(MSONable):
         return x
 
     @classmethod
-    def characterize_path(cls, path: List[str], weight: str, min_cost: Dict[str, float], graph: nx.DiGraph,
-                          old_solved_PRs=[], PR_byproduct_dict = {}, actualPRs = {}):  # -> ReactionPath
+    def characterize_path(cls, vlist, elist, weight: str, min_cost: Dict[str, float], input_graph: GraphTool,
+                          PR_paths=[]):  # -> ReactionPath
         """
             A method to define ReactionPath attributes based on the inputs
         :param path: a list of nodes that defines a path from node A to B within a graph built using ReactionNetwork.build()
@@ -1289,68 +1452,61 @@ class ReactionPath(MSONable):
         :param PR_paths: list of already solved PRs
         :return: ReactionPath object
         """
-        if path is None:
+
+
+        if vlist is None:
             class_instance = cls(None)
         else:
+            path = []
+            for v in vlist:
+                v_label = input_graph.node_label[int(v)]
+                if v_label.isdigit():
+                    path.append(int(input_graph.node_label[int(v)]))
+                else:
+                    path.append(input_graph.node_label[int(v)])
+            cost = 0.0
+            #w = weight
+            w = eval("input_graph."+weight)
+            for e in elist:
+                cost = cost + w[e]
             class_instance = cls(path)
-            pool = []
-            pool.append(path[0])
+            class_instance.cost = cost
+            # if path[-1] == 9:
+            #     print("^^", path, class_instance.cost)
             for ii, step in enumerate(path):
                 if ii != len(path) - 1:
-                    class_instance.cost += graph[step][path[ii + 1]][weight]
+                    #class_instance.cost += graph[step][path[ii + 1]][weight]
                     if ii % 2 == 1:
                         rxn = step.split(",")
                         if "+PR_" in rxn[0]:
-                            a = int(rxn[0].split("+PR_")[0])
-                            PR_b = int(rxn[0].split("+PR_")[1])
-                            c = int(rxn[1])
-                            pool_modified = copy.deepcopy(pool)
-                            pool_modified.remove(a)
-                            if PR_b in pool_modified:
-                                class_instance.cost = class_instance.cost - min_cost[PR_b]
-                                pool.remove(a)
-                                pool.remove(PR_b)
-                                pool.append(c)
-                            elif PR_b not in pool_modified:
-                                if PR_b in old_solved_PRs:
-                                    # if PR is solved
-                                    class_instance.solved_prereqs.append(PR_b)
-                                    class_instance.all_prereqs.append(PR_b)
-                                    PR_b_byproducts = PR_byproduct_dict[PR_b]["byproducts"]
-                                    start = int(PR_byproduct_dict[PR_b]["start"])
-                                    if a in PR_b_byproducts:
-                                        new_path_piece1 = actualPRs[PR_b][start].path
-                                        new_path_piece2 = [str(PR_b)+"+"+"PR_"+str(a)+","+str(c)]
-                                        new_path_piece3 = path[ii+1::]
-                                        new_path = new_path_piece1+new_path_piece2+new_path_piece3
-                                        assert(c == path[ii+1])
-                                        return ReactionPath.characterize_path(new_path, weight, min_cost, graph, old_solved_PRs, PR_byproduct_dict, actualPRs)
-                                    elif a not in PR_b_byproducts:
-                                        pool.remove(a)
-                                        pool = pool+PR_b_byproducts
-                                        pool.append(c)
-                                elif PR_b not in old_solved_PRs:
-                                    class_instance.unsolved_prereqs.append(PR_b)
-                                    class_instance.all_prereqs.append(PR_b)
-                                    pool.remove(a)
-                                    pool.append(c)
-                        elif "+" in rxn[1]:
-                            # node = A,B+C
-                            a = int(rxn[0])
-                            b = int(rxn[1].split("+")[0])
-                            c = int(rxn[1].split("+")[1])
-                            pool.remove(a)
-                            pool.append(b)
-                            pool.append(c)
-                        else:
-                            # node = A,B
-                            a = int(rxn[0])
-                            b = int(rxn[1])
-                            pool.remove(a)
-                            pool.append(b)
+                            PR = int(rxn[0].split("+PR_")[1])
+                            class_instance.all_prereqs.append(PR)
+                        if "+" in rxn[1]:
+                            desired_prod_satisfied = False
+                            prods = rxn[1].split("+")
+                            for prod in prods:
+                                if int(prod) != path[ii + 1]:
+                                    class_instance.byproducts.append(int(prod))
+                                elif desired_prod_satisfied:
+                                    class_instance.byproducts.append(int(prod))
+                                else:
+                                    desired_prod_satisfied = True
+            for PR in class_instance.all_prereqs:
+                if PR in class_instance.byproducts:
+                    # Note that we're ignoring the order in which BPs are made vs they come up as PRs...
+                    class_instance.all_prereqs.remove(PR)
+                    class_instance.byproducts.remove(PR)
 
-            pool.remove(path[-1])
-            class_instance.byproducts = pool
+                    if PR in min_cost:
+                        class_instance.cost -= min_cost[PR]
+                    else:
+                        print("Missing PR cost to remove:", PR)
+            for PR in class_instance.all_prereqs:
+                if PR in PR_paths:
+                    class_instance.solved_prereqs.append(PR)
+                else:
+                    class_instance.unsolved_prereqs.append(PR)
+
             class_instance.path_dict = {"byproducts": class_instance.byproducts,
                                         "unsolved_prereqs": class_instance.unsolved_prereqs,
                                         "solved_prereqs": class_instance.solved_prereqs,
@@ -1362,12 +1518,11 @@ class ReactionPath(MSONable):
                                         "pure_cost": class_instance.pure_cost,
                                         "hardest_step_deltaG": class_instance.hardest_step_deltaG,
                                         "full_path": class_instance.full_path}
-        #print(class_instance.path_dict)
         return class_instance
 
     @classmethod
-    def characterize_path_final(cls, path: List[str], weight: str, min_cost: Dict[str, float], graph: nx.DiGraph,
-                                old_solved_PRs=[], PR_byproduct_dict = {}, PR_paths = {}):  # Mapping_PR_Dict): -> ReactionPath
+    def characterize_path_final(cls, vlist, elist, weight: str, min_cost: Dict[str, float], input_graph: GraphTool,
+                                PR_paths):  # Mapping_PR_Dict): -> ReactionPath
         """
             A method to define all the attributes of a given path once all the PRs are solved
         :param path: a list of nodes that defines a path from node A to B within a graph built using ReactionNetwork.build()
@@ -1379,16 +1534,18 @@ class ReactionPath(MSONable):
                of the form {int(node1): {int(start1}: {ReactionPath object}, int(start2): {ReactionPath object}}, int(node2):...}
         :return: ReactionPath object
         """
+        vind_to_vlabel_dict = {int(n): input_graph.node_label[n] for n in input_graph.graph.vertices()}
+        vlabel_to_vind_dict = {input_graph.node_label[n]:int(n) for n in input_graph.graph.vertices()}
 
-        class_instance = cls.characterize_path(path, weight, min_cost, graph, old_solved_PRs, PR_byproduct_dict, PR_paths)
-        if path is None:
+        class_instance = cls.characterize_path(vlist, elist, weight, min_cost, input_graph, PR_paths)
+        if vlist is None:
             class_instance = cls(None)
         else:
             assert (len(class_instance.solved_prereqs) == len(class_instance.all_prereqs))
             assert (len(class_instance.unsolved_prereqs) == 0)
 
             PRs_to_join = copy.deepcopy(class_instance.all_prereqs)
-            full_path = copy.deepcopy(path)
+            full_path = copy.deepcopy(class_instance.path)
             while len(PRs_to_join) > 0:
                 new_PRs = []
                 for PR in PRs_to_join:
@@ -1396,10 +1553,12 @@ class ReactionPath(MSONable):
                     PR_min_cost = 1000000000000000.0
                     for start in PR_paths[PR]:
                         if PR_paths[PR][start].path != None:
+                            # print(PR_paths[PR][start].path_dict)
+                            # print(PR_paths[PR][start].cost, PR_paths[PR][start].overall_free_energy_change, PR_paths[PR][start].path)
                             if PR_paths[PR][start].cost < PR_min_cost:
                                 PR_min_cost = PR_paths[PR][start].cost
                                 PR_path = PR_paths[PR][start]
-                    assert (len(PR_path.solved_prereqs) == len(PR_path.all_prereqs))
+                                assert (len(PR_path.solved_prereqs) == len(PR_path.all_prereqs))
                     for new_PR in PR_path.all_prereqs:
                         new_PRs.append(new_PR)
                         class_instance.all_prereqs.append(new_PR)
@@ -1412,31 +1571,39 @@ class ReactionPath(MSONable):
                 if PR in class_instance.byproducts:
                     print("WARNING: Matching prereq and byproduct found!", PR)
 
-            for ii, step in enumerate(full_path):
-                if graph.nodes[step]["bipartite"] == 1:
-                    if weight == "softplus":
-                        class_instance.pure_cost += ReactionNetwork.softplus(graph.nodes[step]["free_energy"])
-                    elif weight == "exponent":
-                        class_instance.pure_cost += ReactionNetwork.exponent(graph.nodes[step]["free_energy"])
 
-                    class_instance.overall_free_energy_change += graph.nodes[step]["free_energy"]
+            #indices_0 = [i for i, x in enumerate(input_graph.bipartite.a) if x == 1]
+
+            full_path_ind = []
+            for node in full_path:
+                full_path_ind.append(vlabel_to_vind_dict[str(node)])
+            for ii, step in enumerate(full_path_ind):
+                if input_graph.bipartite[step] == 1:
+                #if graph.nodes[step]["bipartite"] == 1:
+                    if weight == "softplus":
+                        class_instance.pure_cost += ReactionNetwork.softplus(input_graph.free_energy[step])#   graph.nodes[step]["free_energy"])
+                    elif weight == "exponent":
+                        class_instance.pure_cost += ReactionNetwork.exponent(input_graph.free_energy[step])
+
+                    class_instance.overall_free_energy_change += input_graph.free_energy[step]
 
                     if class_instance.description == "":
-                        class_instance.description += graph.nodes[step]["rxn_type"]
+                        class_instance.description += input_graph.rxn_type[step]
                     else:
-                        class_instance.description += ", " + graph.nodes[step]["rxn_type"]
+                        class_instance.description += ", " + input_graph.rxn_type[step]
 
                     if class_instance.hardest_step is None:
-                        class_instance.hardest_step = step
-                    elif graph.nodes[step]["free_energy"] > graph.nodes[class_instance.hardest_step]["free_energy"]:
-                        class_instance.hardest_step = step
+                        class_instance.hardest_step = vind_to_vlabel_dict[step]
+                    elif input_graph.free_energy[step] > input_graph.free_energy[vlabel_to_vind_dict[class_instance.hardest_step]]: # graph.nodes[class_instance.hardest_step]["free_energy"]:
+                        class_instance.hardest_step = vind_to_vlabel_dict[step]
 
             class_instance.full_path = full_path
 
             if class_instance.hardest_step is None:
                 class_instance.hardest_step_deltaG = None
             else:
-                class_instance.hardest_step_deltaG = graph.nodes[class_instance.hardest_step]["free_energy"]
+                class_instance.hardest_step_deltaG = input_graph.free_energy[vlabel_to_vind_dict[class_instance.hardest_step]]
+                #graph.nodes[class_instance.hardest_step]["free_energy"]
 
         class_instance.path_dict = {"byproducts": class_instance.byproducts,
                                     "unsolved_prereqs": class_instance.unsolved_prereqs,
@@ -1469,9 +1636,8 @@ class ReactionNetwork(MSONable):
 
         """
 
-        self.reachable_nodes = []
-        self.unsolvable_PRs = []
-        self.graph = nx.DiGraph()
+        #self.graph = nx.DiGraph()
+        self.graph = GraphTool()
         self.reactions = []
         self.input_entries = input_entries
         self.entry_ids = {e.entry_id for e in self.input_entries}
@@ -1566,31 +1732,26 @@ class ReactionNetwork(MSONable):
         """
         return float(np.exp(free_energy))
 
-    @staticmethod
-    def rexp(free_energy: float) -> float:
-        """
-                  Method to determine edge weight using custom cost function
-                  in which cost is 0 if dG <= 0, otherwise cost is exp(dG/kt)
-              :param free_energy: float
-              :return: float
-        """
-        if free_energy <= 0:
-            cost = 0
-        else:
-            k = 0.00008617333262145 #(eV)
-            cost = np.exp(free_energy/(k*298.0))
-        return float(cost)
-
-
     def build(self, reaction_types={"RedoxReaction","IntramolSingleBondChangeReaction", "IntermolecularReaction",
-                                   "CoordinationBondChangeReaction"}) -> nx.DiGraph:
+                                    "CoordinationBondChangeReaction"}) -> nx.DiGraph:
         """
             A method to build the reaction network graph
         :param reaction_types: set of all the reactions class to include while building the graph
         :return: nx.DiGraph
         """
 
-        self.graph.add_nodes_from(range(len(self.entries_list)), bipartite=0)
+        #self.graph.add_nodes_from(range(len(self.entries_list)), bipartite=0)
+        self.graph.graph.add_vertex(len(self.entries_list))
+        self.graph.bipartite.a = [0]*len(self.entries_list)
+        for v in self.graph.graph.vertices():
+            self.graph.node_label[v] = str(int(v))
+        self.graph.vind_to_vlabel_dict = {int(n): self.graph.node_label[n] for n in self.graph.graph.vertices()}
+        self.graph.vlabel_to_vind_dict = {self.graph.node_label[n]: int(n) for n in self.graph.graph.vertices()}
+
+
+        # node_label_dict = {n: self.graph.node_label[n] for n in self.graph.graph.vertices()}
+        # print("@@", node_label_dict)
+
         reaction_types = [load_class(str(self.__module__) + "." + s) for s in reaction_types]
         for r in reaction_types:
             if r.__name__ == "ConcertedReaction":
@@ -1613,11 +1774,17 @@ class ReactionNetwork(MSONable):
                 inter_c = inter_c+1
             elif r.reaction_type()["class"] == "CoordinationBondChangeReaction":
                 coord_c = coord_c+1
-            self.add_reaction(r.graph_representation())
+            r.graph_representation(self.graph)
+            #self.add_reaction(r.graph_representation(self.graph))
         print("redox: ", redox_c, "inter: ", inter_c, "intra: ", intra_c, "coord: ", coord_c)
         self.PR_record = self.build_PR_record()
         self.Reactant_record = self.build_reactant_record()
-
+        print(self.graph.graph.num_vertices(ignore_filter=True))
+        print(self.graph.graph.num_edges(ignore_filter=True))
+        for v in self.graph.graph.vertices():
+            self.graph.vfilter[v] = True
+        for e in self.graph.graph.edges():
+            self.graph.efilter[e] = True
         return self.graph
 
     def add_reaction(self, graph_representation: nx.DiGraph):
@@ -1625,23 +1792,28 @@ class ReactionNetwork(MSONable):
             A method to add a single reaction to the ReactionNetwork.graph attribute
         :param graph_representation: Graph representation of a reaction, obtained from ReactionClass.graph_representation
         """
-        self.graph.add_nodes_from(graph_representation.nodes(data=True))
-        self.graph.add_edges_from(graph_representation.edges(data=True))
+        self.graph.graph.add_vertex(list(graph_representation.graph.vertices())[0])
+        #self.graph.add_nodes_from(graph_representation.nodes(data=True))
+        #self.graph.add_edges_from(graph_representation.edges(data=True))
 
     def build_PR_record(self) -> Mapping_Record_Dict:
         """
             A method to determine all the reaction nodes that have a the same PR in the ReactionNetwork.graph
         :return: a dict of the form {int(node1): [all the reaction nodes with PR of node1, ex "2+PR_node1, 3"]}
         """
+
         PR_record = {}
-        for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 0:
-                PR_record[node] = []
-        for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 1:
-                if "+PR_" in node.split(",")[0]:
-                    PR = int(node.split(",")[0].split("+PR_")[1])
-                    PR_record[PR].append(node)
+        indices_0 = [i for i, x in enumerate(self.graph.bipartite.a) if x == 0]
+        indices_1 = [i for i, x in enumerate(self.graph.bipartite.a) if x == 1]
+
+        for i in indices_0:
+            PR_record[i] = []
+
+        for i in indices_1:
+            if "+PR" in self.graph.node_label[i]:
+                PR = int(self.graph.node_label[i].split(",")[0].split("+PR_")[1])
+                PR_record[PR].append(self.graph.node_label[i])
+
         return PR_record
 
     def build_reactant_record(self) -> Mapping_Record_Dict:
@@ -1650,15 +1822,25 @@ class ReactionNetwork(MSONable):
         :return: a dict of the form {int(node1): [all the reaction nodes with non PR reactant of node1, ex "node1+PR_2, 3"]}
         """
         Reactant_record = {}
-        for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 0:
-                Reactant_record[node] = []
-        for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 1:
-                non_PR_reactant = node.split(",")[0].split("+PR_")[0]
-                Reactant_record[int(non_PR_reactant)].append(node)
-        return Reactant_record
+        indices_0 = [i for i, x in enumerate(self.graph.bipartite.a) if x == 0]
+        indices_1 = [i for i, x in enumerate(self.graph.bipartite.a) if x == 1]
 
+        for i in indices_0:
+            Reactant_record[i] = []
+
+        for i in indices_1:
+            if "+PR" in self.graph.node_label[i]:
+                non_PR_reactant = int(self.graph.node_label[i].split(",")[0].split("+PR_")[0])
+                Reactant_record[non_PR_reactant].append(self.graph.node_label[i])
+
+        # for node in self.graph.nodes():
+        #     if self.graph.nodes[node]["bipartite"] == 0:
+        #         Reactant_record[node] = []
+        # for node in self.graph.nodes():
+        #     if self.graph.nodes[node]["bipartite"] == 1:
+        #         non_PR_reactant = node.split(",")[0].split("+PR_")[0]
+        #         Reactant_record[int(non_PR_reactant)].append(node)
+        return Reactant_record
 
     def solve_prerequisites(self, starts: List[int], weight: str, max_iter=20, save=False,
                             filename=None):  # -> Tuple[Union[Dict[Union[int, Any], dict], Any], Any]:
@@ -1678,47 +1860,52 @@ class ReactionNetwork(MSONable):
         :return: graph: ReactionNetwork.graph of type nx.DiGraph with updated edge weights based on solved PRs
         """
 
-
         PRs = {}
         old_solved_PRs = []
         new_solved_PRs = ["placeholder"]
         old_attrs = {}
         new_attrs = {}
-        self.weight = weight
+        #self.weight = weight
+        self.weight = eval('self.graph.'+weight)
         self.num_starts = len(starts)
-        self.PR_byproducts = {}
 
-        if len(self.graph.nodes) == 0:
+        if self.graph.graph.num_vertices(ignore_filter=True) == 0:
             self.build()
+        # v = graph_tool.util.find_vertex(self.graph.graph, self.graph.node_label, '127+PR_0,10')
+        # print(v)
+        # eg = self.graph.graph.edge(127, int(v[0]))
+        # print(eg)
+        # print("ooooo",self.graph.softplus[eg])
         orig_graph = copy.deepcopy(self.graph)
-
         for start in starts:
             PRs[start] = {}
 
         for PR in PRs:
             for start in starts:
                 if start == PR:
-                    PRs[PR][start] = ReactionPath.characterize_path([start], weight, self.min_cost, self.graph)
+                    PRs[PR][start] = ReactionPath.characterize_path([start], [], weight, self.min_cost, self.graph)
                 else:
                     PRs[PR][start] = ReactionPath(None)
-
             old_solved_PRs.append(PR)
             self.min_cost[PR] = PRs[PR][PR].cost
-        for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 0:# and node != target:
-                if node not in PRs:
-                    PRs[node] = {}
+
+        indices_0 = [i for i, x in enumerate(self.graph.bipartite.a) if x == 0]
+        for i in indices_0:
+            if i not in PRs:
+                PRs[i] = {}
+        # for node in self.graph.nodes():
+        #     if self.graph.nodes[node]["bipartite"] == 0:# and node != target:
+        #         if node not in PRs:
+        #             PRs[node] = {}
 
         ii = 0
 
         while (len(new_solved_PRs) > 0 or old_attrs != new_attrs) and ii < max_iter:
-
             min_cost = {}
             cost_from_start = {}
             for PR in PRs:
                 cost_from_start[PR] = {}
                 min_cost[PR] = 10000000000000000.0
-                self.PR_byproducts[PR] = {}
                 for start in PRs[PR]:
                     if PRs[PR][start].path == None:
                         cost_from_start[PR][start] = "no_path"
@@ -1726,11 +1913,10 @@ class ReactionNetwork(MSONable):
                         cost_from_start[PR][start] = PRs[PR][start].cost
                         if PRs[PR][start].cost < min_cost[PR]:
                             min_cost[PR] = PRs[PR][start].cost
-                            self.PR_byproducts[PR]["byproducts"] = PRs[PR][start].byproducts
-                            self.PR_byproducts[PR]["start"] = start
                 for start in starts:
                     if start not in cost_from_start[PR]:
                         cost_from_start[PR][start] = "unsolved"
+
             PRs, cost_from_start, min_cost = self.find_path_cost(starts, weight, old_solved_PRs,
                                                                  cost_from_start, min_cost, PRs)
             solved_PRs = copy.deepcopy(old_solved_PRs)
@@ -1738,45 +1924,37 @@ class ReactionNetwork(MSONable):
 
             print(ii, len(old_solved_PRs), len(new_solved_PRs))
 
-            attrs = self.update_edge_weights(min_cost, orig_graph)
+            attrs = self.update_edge_weights(min_cost, orig_graph, weight)
 
             self.min_cost = copy.deepcopy(min_cost)
             old_solved_PRs = copy.deepcopy(solved_PRs)
             old_attrs = copy.deepcopy(new_attrs)
             new_attrs = copy.deepcopy(attrs)
-
+            # print(ii, PRs)
+            # print(self.min_cost)
+            # print(old_solved_PRs)
+            # print(new_attrs)
+            # PRs_new = {}
+            # for node in PRs:
+            #     PRs_new[node] = {}
+            #     if PRs[node] == {}:
+            #         pass
+            #     else:
+            #         for start in PRs[node]:
+            #             if isinstance(PRs[node][start], ReactionPath):
+            #                 PRs_new[node][start] = PRs[node][start].path_dict
+            # print(PRs_new)
             ii += 1
-        self.solved_PRs = copy.deepcopy(old_solved_PRs)
-        print(self.solved_PRs)
-        self.final_PR_check(PRs)
+        #dumpfn(PRs, "finalPRcheck_PRs_IN_TEST.json", default=lambda o: o.as_dict)
+
+        self.final_PR_check(weight, PRs)
         if save:
             if filename is None:
                 print("Provide filename to save the PRs, for now saving as PRs.json")
                 filename = "PRs.json"
             dumpfn(PRs, filename, default=lambda o: o.as_dict)
-        print('not reachable nodes:', len(self.not_reachable_nodes),self.not_reachable_nodes)
-        return PRs, old_solved_PRs
-
-
-    def parse_path(self, path):
-        nodes = []
-        PR = []
-        Reactants = []
-        for step in path:
-            if isinstance(step, int):
-                nodes.append(step)
-            elif "PR_" in step:
-                nodes = nodes + [step.split("+")[0]]
-                Reactants.append(int(step.split("+")[0]))
-                PR.append(int(step.split("+")[1].split("PR_")[1].split(",")[0]))
-                nodes = nodes + step.split("+")[1].split("PR_")[1].split(",")
-            else:
-                assert (("," in step), True)
-                nodes = nodes + step.split(",")
-        nodes.pop(0)
-        if len(nodes) != 0:
-            nodes.pop(-1)
-        return nodes, PR, Reactants
+        print('not reachable nodes:', self.not_reachable_nodes)
+        return PRs
 
     def find_path_cost(self, starts, weight, old_solved_PRs, cost_from_start, min_cost, PRs):
         """
@@ -1795,171 +1973,53 @@ class ReactionNetwork(MSONable):
         :return: cost_from_start: updated cost_from_start based on new PRs solved
         :return: min_cost: updated min_cost based on new PRs solved
         """
-        # START OF FASTER PR SOLVING CODE (SINGLE SOURCE DIJKSTRAS)
 
-        not_reachable_nodes_for_start = {}
-
-        wrong_paths = {}
-        dist_and_path = {}
+        # print("@@@", PRs)
+        #print("!!",min_cost)
         self.num_starts = len(starts)
-        for start in starts:
-            not_reachable_nodes_for_start[start] = []
-            dist, paths = nx.algorithms.shortest_paths.weighted.single_source_dijkstra(self.graph, start, weight=self.weight)
-            dist_and_path[start] = {}
-            wrong_paths[start] = []
-            for node in range(len(self.entries_list)):
-                if node not in paths.keys():
-                    not_reachable_nodes_for_start[start].append(int(node))
-            for node in paths:
-                if self.graph.nodes[node]["bipartite"] == 0:
-                    if node not in self.reachable_nodes:
-                        self.reachable_nodes.append(int(node))
+        self.weight = eval('self.graph.' + weight)
+        for PR in PRs:
+            reachable = False
+            if all(start in PRs[PR].keys() for start in starts):
+                for start in starts:
+                    if PRs[PR][start].path is not None:
+                        reachable = True
+            else:
+                reachable = True
+            if not reachable:
+                if PR not in self.not_reachable_nodes:
+                    self.not_reachable_nodes.append(PR)
+
+        indices_0 = [i for i, x in enumerate(self.graph.bipartite.a) if x == 0]
+        for i in indices_0:
+            if i in old_solved_PRs:
+                indices_0.remove(i)
 
 
-                    dist_and_path[start][int(node)] = {}
-                    dist_and_path[start][node]["cost"] = dist[node]
-                    dist_and_path[start][node]["path"] = paths[node]
-                    nodes = []
-                    PR = []
-                    Reactants = []
-                    for step in paths[node]:
-                        if isinstance(step, int):
-                            nodes.append(step)
-                        elif "PR_" in step:
-                            nodes = nodes + [step.split("+")[0]]
-                            Reactants.append(int(step.split("+")[0]))
-                            PR.append(int(step.split("+")[1].split("PR_")[1].split(",")[0]))
-                            if node in PR:
-                                if node not in wrong_paths[start]:
-                                    wrong_paths[start].append(int(node))
-                            nodes = nodes + step.split("+")[1].split("PR_")[1].split(",")
-                        else:
-                            assert(("," in step), True)
-                            nodes = nodes+step.split(",")
-                    nodes.pop(0)
-                    if len(nodes) != 0:
-                        nodes.pop(-1)
-                    dist_and_path[start][node]["all_nodes"] = nodes
-                    dist_and_path[start][node]["PRs"] = PR
-                    dist_and_path[start][node]["reactant"] = Reactants
-
-        for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 0:
-                if node not in self.reachable_nodes:
-                    self.not_reachable_nodes.append(node)
-
-        for start in not_reachable_nodes_for_start:
-            for node in not_reachable_nodes_for_start[start]:
-                PRs[node][start] = ReactionPath(None)
-                cost_from_start[node][start] = "no_path"
-
-        fixed_paths = {}
-        for start in wrong_paths:
-            fixed_paths[start] = {}
-            for node in wrong_paths[start]:
-                fixed_paths[start][node] = {}
-                try:
-                    length, dij_path = nx.algorithms.simple_paths._bidirectional_dijkstra(
-                        self.graph,
-                        source=hash(start),
-                        target=hash(node),
-                        ignore_nodes=self.find_or_remove_bad_nodes([node] + self.not_reachable_nodes),
-                        weight=self.weight)
-                    fixed_paths[start][node]["cost"] = length
-                    fixed_paths[start][node]["path"] = dij_path
-                except nx.exception.NetworkXNoPath:
-                    fixed_paths[start][node]["cost"] = "no_cost"
-                    fixed_paths[start][node]["path"] = "no_path"
-
-        for start in starts:
-            for node in fixed_paths[start]:
-                if fixed_paths[start][node]["path"] == "no_path":
-                    dist_and_path[start][node] = {}
-                    pass
-                else:
-                    dist_and_path[start][node]["cost"] = fixed_paths[start][node]["cost"]
-                    dist_and_path[start][node]["path"] = fixed_paths[start][node]["path"]
-                    nodes, PR, reactant = self.parse_path(dist_and_path[start][node]["path"])
-                    dist_and_path[start][node]["all_nodes"] = nodes
-                    dist_and_path[start][node]["PRs"] = PR
-                    dist_and_path[start][node]["reactant"] = reactant
-            dist_and_path[start] = {key: value for key, value in
-                                    sorted(dist_and_path[start].items(), key=lambda item: int(item[0]))}
-        for start in starts:
-            for node in dist_and_path[start]:
-                if node not in old_solved_PRs:
-                    if dist_and_path[start][node] == {}:
-                        PRs[node][start] = ReactionPath(None)
-                        cost_from_start[node][start] = "no_path"
-                    elif dist_and_path[start][node]["cost"] >= 10000000000000000.0:
-                        PRs[node][start] = ReactionPath(None)
-
-                    else:
-
-                        path_class = ReactionPath.characterize_path(dist_and_path[start][node]["path"], weight, self.min_cost, self.graph,
-                                                                    old_solved_PRs, PR_byproduct_dict = self.PR_byproducts, actualPRs = PRs)
-                        cost_from_start[node][start] = path_class.cost
-
-                        if len(path_class.unsolved_prereqs) == 0:
-                            PRs[node][start] = path_class
-                        if path_class.cost < min_cost[node]:
-                            min_cost[node] = path_class.cost
-                            self.PR_byproducts[node]["byproducts"] = path_class.byproducts
-                            self.PR_byproducts[node]["start"] = start
-
-
-        ## END OF FASTER SOLVING PR CODE
-
-
-        # START OF OG PR SOLVING CODE
-        # for PR in PRs:
-        #     reachable = False
-        #     if all(start in PRs[PR].keys() for start in starts):
-        #         for start in starts:
-        #             if PRs[PR][start].path is not None:
-        #                 reachable = True
-        #     else:
-        #         reachable = True
-        #     if not reachable:
-        #         if PR not in self.not_reachable_nodes:
-        #             self.not_reachable_nodes.append(PR)
-        # self.num_starts = len(starts)
         # for node in self.graph.nodes():
         #     if self.graph.nodes[node]["bipartite"] == 0 and node not in old_solved_PRs:# and node != target:
-        #         for start in starts:
-        #             if start not in PRs[node]:
-        #                 path_exists = True
-        #                 try:
-        #                     length, dij_path = nx.algorithms.simple_paths._bidirectional_dijkstra(
-        #                         self.graph,
-        #                         source=hash(start),
-        #                         target=hash(node),
-        #                         ignore_nodes=self.find_or_remove_bad_nodes([node]+self.not_reachable_nodes),
-        #                         weight=self.weight)
-        #                 except nx.exception.NetworkXNoPath:
-        #                     PRs[node][start] = ReactionPath(None)
-        #                     path_exists = False
-        #                     cost_from_start[node][start] = "no_path"
-        #                 # if ii == 4 or ii == 5:
-        #                 #     if node == 157 and start == 456:
-        #                 #         print("^^^", node, start, length, dij_path)
-        #                 if path_exists:
-        #                     # if ii == 4 or ii == 5:
-        #                     #     if (node == 157 and start == 456) or (node == 162):
-        #                     #         print("^^^", node, start, length, dij_path)
-        #                     path_class = ReactionPath.characterize_path(dij_path, weight, self.min_cost, self.graph,
-        #                                                                 old_solved_PRs, PR_byproduct_dict = self.PR_byproducts, actualPRs = PRs)
-        #                     cost_from_start[node][start] = path_class.cost
-        #                     # if node == 157 or node == 162 or node == 398:
-        #                     #     print("##",node, start, path_class.path_dict)
-        #                     if len(path_class.unsolved_prereqs) == 0:
-        #                         PRs[node][start] = path_class
-        #                     if path_class.cost < min_cost[node]:
-        #                         min_cost[node] = path_class.cost
-        #                         self.PR_byproducts[node]["byproducts"] = path_class.byproducts
-        #                         self.PR_byproducts[node]["start"] = start
+        for vertex in indices_0:
+            for start in starts:
+                if start not in PRs[vertex]:
+                    path_exists = True
+                    gv = self.graph.ignorenodes(self.find_or_remove_bad_nodes([vertex]))
+                    vlist, elist = graph_tool.topology.shortest_path(gv, start, vertex, self.weight, False)
+                    if elist == []:
+                        PRs[vertex][start] = ReactionPath(None)
+                        path_exists = False
+                        cost_from_start[vertex][start] = "no_path"
+                    if path_exists:
+                        path_class = ReactionPath.characterize_path(vlist, elist, weight, self.min_cost, self.graph,
+                                                                    old_solved_PRs)
+                        cost_from_start[vertex][start] = path_class.cost
 
-        # END OF OG PR SOLVING CODE
+                        if len(path_class.unsolved_prereqs) == 0:
+                            PRs[vertex][start] = path_class
+                        if path_class.cost < min_cost[vertex]:
+                            min_cost[vertex] = path_class.cost
+                        # if vertex == 9:
+                        #     print("999", vertex, path_class.path, path_class.cost, path_class.unsolved_prereqs,  min_cost[vertex])
+                        #     print(len(path_class.unsolved_prereqs))
 
 
         return PRs, cost_from_start, min_cost
@@ -1984,15 +2044,12 @@ class ReactionNetwork(MSONable):
                 else:
                     best_start_so_far = [None, 10000000000000000.0]
                     for start in PRs[PR]:
-
                         if PRs[PR][start] is not None:  # ALWAYS TRUE shoudl be != {}
                             # if PRs[PR][start] == "unsolved": #### DOES THIS EVER HAPPEN ---- NEED TO FIX
                             #     print("ERROR: unsolved should never be encountered here!")
                             if PRs[PR][start].cost < best_start_so_far[1]:
                                 best_start_so_far[0] = start
                                 best_start_so_far[1] = PRs[PR][start].cost
-
-
                     if best_start_so_far[0] is not None:
                         num_beaten = 0
                         for start in cost_from_start[PR]:
@@ -2002,14 +2059,12 @@ class ReactionNetwork(MSONable):
                                 elif cost_from_start[PR][start] > best_start_so_far[1]:
                                     num_beaten += 1
                         if num_beaten == self.num_starts - 1:
-
                             solved_PRs.append(PR)
                             new_solved_PRs.append(PR)
 
-
         return solved_PRs, new_solved_PRs, cost_from_start
 
-    def update_edge_weights(self, min_cost: Dict[int, float], orig_graph: nx.DiGraph) -> Dict[Tuple[int, str], Dict[
+    def update_edge_weights(self, min_cost: Dict[int, float], orig_graph: GraphTool, weight) -> Dict[Tuple[int, str], Dict[
         str, float]]:  # , solved_PRs: List[int], new_attrs:Dict[Tuple[int, str],Dict[str,float]]):
         """
             A method to update the ReactionNetwork.graph edge weights based on the new cost of solving PRs
@@ -2019,44 +2074,93 @@ class ReactionNetwork(MSONable):
         :return: attrs: dict of form {(node1, node2), {"softplus": float, "exponent": float, "weight: 1}, (node2, node3): {...}}
                 dict of all the edges to update the weights of
         """
-        if len(self.graph.nodes) == 0:
-            self.graph = self.build()
+        if self.graph.graph.num_vertices(ignore_filter=True) == 0:
+            self.build()
+
         if self.PR_record is None:
             self.PR_record = self.build_PR_record()
 
+       # print("***", orig_graph.graph.edge(20, 1))
+        vlabel_to_vind_dict = {orig_graph.node_label[n]: int(n) for n in orig_graph.graph.vertices()}
+        vind_to_vlabel_dict = {int(n): orig_graph.node_label[n] for n in orig_graph.graph.vertices()}
+        #vlabel_to_vind_dict = {self.graph.node_label[n]: int(n) for n in self.graph.graph.vertices()}
+        #vind_to_vlabel_dict = {int(n): self.graph.node_label[n] for n in self.graph.graph.vertices()}
         attrs = {}
+        og_graph_weight = eval('orig_graph.' + weight)
+        self_graph_weight = eval('self.graph.' + weight)
         for PR_ind in min_cost:
             for rxn_node in self.PR_record[PR_ind]:
+                #print(orig_graph.graph, orig_graph.node_label, str(rxn_node))
+                rxn_node_vertex = vlabel_to_vind_dict[str(rxn_node)]
+                 #   graph_tool.util.find_vertex(orig_graph.graph, orig_graph.node_label, str(rxn_node))
                 non_PR_reactant_node = int(rxn_node.split(",")[0].split("+PR_")[0])
+                og_edge = orig_graph.graph.edge(int(non_PR_reactant_node), int(rxn_node_vertex))
+                #self_edge = self.graph.graph.edge(int(non_PR_reactant_node), int(rxn_node_vertex))
+                #if vind_to_vlabel_dict[int(og_edge.source())] == "127" and vind_to_vlabel_dict[int(og_edge.target())] == '127+PR_0,10':
+                    #print("##", orig_graph.softplus[og_edge])
+                    #print(og_graph_weight[og_edge], min_cost[PR_ind])
 
-                attrs[(non_PR_reactant_node, rxn_node)] = {
-                    self.weight: orig_graph[non_PR_reactant_node][rxn_node][self.weight] + min_cost[PR_ind]}
-        nx.set_edge_attributes(self.graph, attrs)
+                #og_graph_weight[og_edge] = og_graph_weight[og_edge] + min_cost[PR_ind]
+                attrs[(vind_to_vlabel_dict[int(og_edge.source())], vind_to_vlabel_dict[int(og_edge.target())])] = {weight: og_graph_weight[og_edge] + min_cost[PR_ind]}
+                self_graph_weight[self.graph.graph.edge(int(og_edge.source()), int(og_edge.target()))] = og_graph_weight[og_edge] + min_cost[PR_ind]
+        # for edge in orig_graph.graph.edges():
+        #     #print("&&",edge,og_graph_weight[edge], og_graph_weight[orig_graph.graph.edge(int(edge.source()), int(edge.target()))], type(int(edge.target())), type(edge.target()))
+        #     self_graph_weight[self.graph.graph.edge(int(edge.source()), int(edge.target()))] = og_graph_weight[edge]
+
+        # 0.007207114516399871
+        # 1.063579623578771
+        # 1.0707867380951708
+        #
+        # 0.007207114516399871
+        # 1.063579623578771
+        # 1.0707867380952154}
+        #self.weight = og_graph_weight
+        #print("***", orig_graph.graph.edge(20, 1))
+        #print("***", self.graph.graph.edge(20, 1))
+        #print("***", self.weight)
+        # attrs = {}
+        # for PR_ind in min_cost:
+        #     for rxn_node in self.PR_record[PR_ind]:
+        #         non_PR_reactant_node = int(rxn_node.split(",")[0].split("+PR_")[0])
+        #         attrs[(non_PR_reactant_node, rxn_node)] = {
+        #             self.weight: orig_graph[non_PR_reactant_node][rxn_node][self.weight] + min_cost[PR_ind]}
+        # nx.set_edge_attributes(self.graph, attrs)
+        #print(attrs)
         return attrs
 
-    def final_PR_check(self, PRs: Mapping_PR_Dict):
+    def final_PR_check(self, weight, PRs: Mapping_PR_Dict):
         """
             A method to check errors in the path attributes of the PRs with a path, if no path then prints no path from any start to a given
         :param PRs: dict that defines a path from each node to a start, of the form {int(node1):
                 {int(start1}: {ReactionPath object}, int(start2): {ReactionPath object}}, int(node2):...}
         """
+        vlabel_to_vind_dict = {self.graph.node_label[n]: int(n) for n in self.graph.graph.vertices()}
+        vind_to_vlabel_dict = {int(n): self.graph.node_label[n] for n in self.graph.graph.vertices()}
+        print(vlabel_to_vind_dict)
+        print(vind_to_vlabel_dict)
         for PR in PRs:
             path_found = False
             if PRs[PR] != {}:
                 for start in PRs[PR]:
-                    if PRs[PR][start].cost >= 10000000000000000.0:
-                        PRs[PR][start] = ReactionPath(None)
                     if PRs[PR][start].path != None:
                         path_found = True
-                        path_dict_class = ReactionPath.characterize_path_final(PRs[PR][start].path, self.weight,
-                                                                               self.min_cost, self.graph, self.solved_PRs, PR_byproduct_dict = self.PR_byproducts, PR_paths = PRs)
+                        print(PRs[PR][start].path)
+                        i = 0
+                        vlist = []
+                        elist = []
+                        for n in PRs[PR][start].path:
+                            vlist.append(vlabel_to_vind_dict[str(n)])
+                        while i < len(vlist)-1:
+                            elist.append(self.graph.graph.edge(int(vlist[i]), int(vlist[i+1])))
+                            i=i+1
+                        path_dict_class = ReactionPath.characterize_path_final(vlist, elist, weight,
+                                                                               self.min_cost, self.graph, PRs)
                         if abs(path_dict_class.cost - path_dict_class.pure_cost) > 0.0001:
                             print("WARNING: cost mismatch for PR", PR, path_dict_class.cost, path_dict_class.pure_cost,
                                   path_dict_class.full_path)
                 if not path_found:
                     print("No path found from any start to PR", PR)
             else:
-                self.unsolvable_PRs.append(PR)
                 print("Unsolvable path from any start to PR", PR)
 
     def find_or_remove_bad_nodes(self, nodes: List[str], remove_nodes=False) -> List[str] or nx.DiGraph:
@@ -2069,7 +2173,7 @@ class ReactionNetwork(MSONable):
         ReactionNetwork.graph (of type nx.Digraph) from with list of bad nodes are removed
         :return: if remove_nodes = False -> list[node], if remove_nodes = True -> nx.DiGraph
         """
-        if len(self.graph.nodes) == 0:
+        if self.graph.graph.num_vertices(ignore_filter=True) == 0:
             self.graph = self.build()
         if self.PR_record is None:
             self.PR_record = self.build_PR_record()
@@ -2088,6 +2192,9 @@ class ReactionNetwork(MSONable):
         else:
             return bad_nodes
 
+
+
+
     def valid_shortest_simple_paths(self, start: int, target: int, PRs=[]):  # -> Generator[List[str]]:????
         """
             A method to determine shortest path from start to target
@@ -2097,10 +2204,16 @@ class ReactionNetwork(MSONable):
         :return: nx.path_generator of type generator
         """
 
-        valid_graph = self.find_or_remove_bad_nodes([target], remove_nodes=True)
-        valid_graph.remove_nodes_from(PRs)
-
-        return nx.shortest_simple_paths(valid_graph, hash(start), hash(target), weight=self.weight)
+        gv = self.graph.ignorenodes(self.find_or_remove_bad_nodes([target]))
+        # bad_nodes = PRs
+        # bad_nodes.append(target)
+        # valid_graph = self.find_or_remove_bad_nodes(bad_nodes, remove_nodes=True)
+        # vlist, elist = graph_tool.topology.shortest_path(gv, start, target, self.weight, False)
+        # return vlist, elist
+        paths = graph_tool.topology.all_shortest_paths(gv, start, target, weights=self.weight)
+        #paths = graph_tool.topology.all_paths(gv, start, target)
+        #return nx.shortest_simple_paths(gv, hash(start), hash(target), weight=self.weight)
+        return paths
 
     def find_paths(self, starts, target, weight, num_paths=10, solved_PRs_path=None, ignorenode=[]):  # -> ??
         """
@@ -2127,12 +2240,14 @@ class ReactionNetwork(MSONable):
         paths = []
         c = itertools.count()
         my_heapq = []
+        if self.graph.graph.num_vertices(ignore_filter=True) == 0:
+            self.build()
         print("Solving prerequisites...")
         if solved_PRs_path is None:
             self.min_cost = {}
-            if len(self.graph.nodes) == 0:
-                self.build()
-            PR_paths, old_solved_PRs = self.solve_prerequisites(starts, weight)
+            #self.graph = self.build()
+            PR_paths = self.solve_prerequisites(starts, weight)
+
         else:
             PR_paths = {}
             for key in solved_PRs_path:
@@ -2154,34 +2269,59 @@ class ReactionNetwork(MSONable):
                 for rxn_node in self.PR_record[PR]:
                     non_PR_reactant_node = int(rxn_node.split(",")[0].split("+PR_")[0])
                     self.graph[non_PR_reactant_node][rxn_node][self.weight] = self.graph[non_PR_reactant_node][rxn_node][
-                                                                              self.weight] + self.min_cost[PR]
+                                                                              weight] + self.min_cost[PR]
         print("Finding paths...")
-
-        remove_node = []
-        for PR in self.unsolvable_PRs:
-            remove_node = remove_node + self.PR_record[PR]
-        ignorenode = ignorenode + remove_node
+        vlabel_to_vind_dict = {self.graph.node_label[n]: int(n) for n in self.graph.graph.vertices()}
+        vind_to_vlabel_dict = {int(n): self.graph.node_label[n] for n in self.graph.graph.vertices()}
         for start in starts:
-            ind = 0
+            # ind = 0
+            # p = []
+            # for v in vlist:
+            #     p.append(vind_to_vlabel_dict[v])
+            # print(p)
+            # vlist, elist = self.valid_shortest_simple_paths(start, target, ignorenode)
+            # path_dict_class2 = ReactionPath.characterize_path_final(vlist, elist, self.weight, self.min_cost,
+            #                                                         self.graph, PR_paths)
+            # print(path_dict_class2.path_dict)
 
-            for path in self.valid_shortest_simple_paths(start, target, ignorenode):
-                if ind == num_paths:
-                    break
-                else:
-                    ind += 1
-                    path_dict_class2 = ReactionPath.characterize_path_final(path, self.weight, self.min_cost,
-                                                                            self.graph, old_solved_PRs,
-                                                                            PR_byproduct_dict = self.PR_byproducts,
-                                                                            PR_paths = PR_paths)
-                    heapq.heappush(my_heapq, (path_dict_class2.cost, next(c), path_dict_class2))
+            paths = self.valid_shortest_simple_paths(start, target, ignorenode)
 
-        while len(paths) < num_paths and my_heapq:
-            # Check if any byproduct could yield a prereq cheaper than from starting molecule(s)?
-            (cost_HP, _x, path_dict_HP_class) = heapq.heappop(my_heapq)
-            print(len(paths), cost_HP, len(my_heapq), path_dict_HP_class.path_dict)
-            paths.append(
-                path_dict_HP_class.path_dict)  ### ideally just append the class, but for now dict for easy printing
+            for path in paths:
+                i = 0
+                vlist = []
+                elist = []
+                vlist = path
+                while i < len(path) - 1:
+                    elist.append(self.graph.graph.edge(int(vlist[i]), int(vlist[i + 1])))
+                    i = i +1
+                path_dict_class2 = ReactionPath.characterize_path_final(vlist, elist, weight, self.min_cost,self.graph, PR_paths)
 
-        print(paths)
 
-        return PR_paths, paths
+                print(path_dict_class2.path_dict)
+        #     for path in self.valid_shortest_simple_paths(start, target, ignorenode):
+        #         # i = 0
+        #         # vlist = []
+        #         # elist = []
+        #         # for n in path:
+        #         #     vlist.append(vind_to_vlabel_dict[n])
+        #         # while i < len(vlist) - 1:
+        #         #     elist.append(self.graph.graph.edge(int(vlist[i]), int(vlist[i + 1])))
+        #         if ind == num_paths:
+        #             break
+        #         else:
+        #             ind += 1
+        #             path_dict_class2 = ReactionPath.characterize_path_final(vlist, elist, self.weight, self.min_cost,
+        #                                                                     self.graph, PR_paths)
+        #             heapq.heappush(my_heapq, (path_dict_class2.cost, next(c), path_dict_class2))
+        #
+        # while len(paths) < num_paths and my_heapq:
+        #     # Check if any byproduct could yield a prereq cheaper than from starting molecule(s)?
+        #     (cost_HP, _x, path_dict_HP_class) = heapq.heappop(my_heapq)
+        #     print(len(paths), cost_HP, len(my_heapq), path_dict_HP_class.path_dict)
+        #     paths.append(
+        #         path_dict_HP_class.path_dict)  ### ideally just append the class, but for now dict for easy printing
+        #
+        # #print(PR_paths)
+        # print(paths)
+
+        #return PR_paths, paths
