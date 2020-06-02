@@ -10,16 +10,14 @@ from pymatgen.entries.mol_entry import MoleculeEntry
 from monty.serialization import dumpfn, loadfn
 from pymatgen.analysis.fragmenter import metal_edge_extender
 
-
 try:
     import openbabel as ob
 except ImportError:
     ob = None
 
-
-
 test_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..","..",
                         'test_files', 'reaction_network_files')
+
 
 class TestRedoxReaction(PymatgenTest):
 
@@ -35,18 +33,17 @@ class TestRedoxReaction(PymatgenTest):
             E = float(entry["output"]["final_energy"])
             H = float(entry["output"]["enthalpy"])
             S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol,energy=E,enthalpy=H,entropy=S,entry_id=entry["task_id"])
+            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                      entropy=S, entry_id=entry["task_id"])
             if mol_entry.formula == "Li1":
                 if mol_entry.charge == 1:
                     cls.LiEC_reextended_entries.append(mol_entry)
             else:
                 cls.LiEC_reextended_entries.append(mol_entry)
 
-        EC_mg =  MoleculeGraph.with_local_env_strategy(
+        EC_mg = MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.EC_mg = metal_edge_extender(EC_mg)
 
 
@@ -148,16 +145,12 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
 
         LiEC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LiEC_mg = metal_edge_extender(LiEC_mg)
 
         LiEC_RO_mg = MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir, "LiEC_RO.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LiEC_RO_mg = metal_edge_extender(LiEC_RO_mg)
 
 
@@ -256,23 +249,17 @@ class TestIntermolecularReaction(PymatgenTest):
 
         C2H4_mg = MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir, "C2H4.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.C2H4_mg = metal_edge_extender(C2H4_mg)
 
         LiEC_RO_mg = MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir, "LiEC_RO.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LiEC_RO_mg = metal_edge_extender(LiEC_RO_mg)
 
         C1Li1O3_mg = MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir, "C1Li1O3.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.C1Li1O3_mg = metal_edge_extender(C1Li1O3_mg)
 
         cls.C2H4_entry = None
@@ -405,16 +392,12 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
 
         EC_mg = MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.EC_mg = metal_edge_extender(EC_mg)
 
         LiEC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LiEC_mg = metal_edge_extender(LiEC_mg)
 
 
@@ -608,41 +591,23 @@ class TestReactionNetwork(PymatgenTest):
     def setUpClass(cls):
         EC_mg = MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.EC_mg = metal_edge_extender(EC_mg)
 
         LiEC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LiEC_mg = metal_edge_extender(LiEC_mg)
 
         LEDC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"LEDC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LEDC_mg = metal_edge_extender(LEDC_mg)
 
         LEMC_mg =  MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir,"LEMC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            Molecule.from_file(os.path.join(test_dir, "LEMC.xyz")),
+            OpenBabelNN())
         cls.LEMC_mg = metal_edge_extender(LEMC_mg)
-
-        # cls.LiEC_extended_entries = []
-        # entries = loadfn(os.path.join(test_dir,"LiEC_extended_entries.json"))
-        # for entry in entries:
-        #     mol = entry["output"]["optimized_molecule"]
-        #     E = float(entry["output"]["final_energy"])
-        #     H = float(entry["output"]["enthalpy"])
-        #     S = float(entry["output"]["entropy"])
-        #     mol_entry = MoleculeEntry(molecule=mol,energy=E,enthalpy=H,entropy=S,entry_id=entry["task_id"])
-        #     cls.LiEC_extended_entries.append(mol_entry)
 
         cls.LiEC_reextended_entries = []
         entries = loadfn(os.path.join(test_dir,"LiEC_reextended_entries.json"))
@@ -695,9 +660,7 @@ class TestReactionNetwork(PymatgenTest):
     def test_build(self):
 
         # set up RN
-        RN = ReactionNetwork(
-            self.LiEC_reextended_entries,
-            electron_free_energy=-2.15)
+        RN = ReactionNetwork(self.LiEC_reextended_entries, electron_free_energy=-2.15)
 
         # perfrom calc
         RN.build()
@@ -784,7 +747,7 @@ class TestReactionNetwork(PymatgenTest):
 
         # perfrom calc
         PRs_filename = "xx_PRs_unittest.json"
-        PRs_calc, old_solved_PRs = RN.solve_prerequisites([EC_ind,Li1_ind],weight="softplus", save=True, filename=PRs_filename)
+        PRs_calc, old_solved_PRs = RN.solve_prerequisites([EC_ind,Li1_ind], weight="softplus", save=True, filename=PRs_filename)
 
         # assert
         loaded_PRs = loadfn(PRs_filename)
@@ -797,15 +760,6 @@ class TestReactionNetwork(PymatgenTest):
         for node in PRs_calc:
             for start in PRs_calc[node]:
                 self.assertEqual(PRs_calc[node][start].path_dict, PR_paths[node][start].path_dict)
-
-        # for key in PRs_calc:
-        #     new_path = ReactionPath.characterize_path_final(PRs_calc[key][EC_ind].path,"softplus",RN.min_cost, RN.graph, old_solved_PRs,RN.PR_byproducts,PR_paths=PRs_calc)
-        #     old_path = ReactionPath.characterize_path_final(loaded_PRs[str(key)][str(EC_ind)].path, "softplus", RN.min_cost, RN.graph,old_solved_PRs,RN.PR_byproducts,PRs_calc)
-        #     if new_path.path is not None:
-        #         if len(new_path.path) != 1:
-        #             self.assertTrue(abs(new_path.hardest_step_deltaG-old_path.hardest_step_deltaG)<0.000000000001)
-        #             self.assertTrue(abs(new_path.overall_free_energy_change-old_path.overall_free_energy_change)<0.000000000001)
-        #             self.assertTrue(abs(new_path.cost-old_path.cost)<0.000000000001)
 
     def test_find_path_cost(self):
 

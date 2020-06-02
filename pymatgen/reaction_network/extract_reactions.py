@@ -1274,25 +1274,17 @@ class FindConcertedReactions:
 if __name__ == '__main__':
     mol = Molecule.from_file(
         '/Users/xiaowei_xie/PycharmProjects/electrolyte/recombination_final_2/LiEC_LPF6_water_recomb_mols/175.xyz')
-    B = MoleculeGraph.with_local_env_strategy(mol, OpenBabelNN(),
-                                              reorder=False,
-                                              extend_structure=False)
+    B = MoleculeGraph.with_local_env_strategy(mol, OpenBabelNN())
 
     mol1 = Molecule.from_file(
         '/Users/xiaowei_xie/PycharmProjects/electrolyte/recombination_final_2/LiEC_LPF6_water_recomb_mols/114.xyz')
-    A = MoleculeGraph.with_local_env_strategy(mol1, OpenBabelNN(),
-                                              reorder=False,
-                                              extend_structure=False)
+    A = MoleculeGraph.with_local_env_strategy(mol1, OpenBabelNN())
     mol2 = Molecule.from_file(
         '/Users/xiaowei_xie/PycharmProjects/electrolyte/recombination_final_2/LiEC_LPF6_water_recomb_mols/144.xyz')
-    C = MoleculeGraph.with_local_env_strategy(mol2, OpenBabelNN(),
-                                              reorder=False,
-                                              extend_structure=False)
+    C = MoleculeGraph.with_local_env_strategy(mol2, OpenBabelNN())
     mol3 = Molecule.from_file(
         '/Users/xiaowei_xie/PycharmProjects/electrolyte/recombination_final_2/LiEC_LPF6_water_recomb_mols/158.xyz')
-    D = MoleculeGraph.with_local_env_strategy(mol3, OpenBabelNN(),
-                                              reorder=False,
-                                              extend_structure=False)
+    D = MoleculeGraph.with_local_env_strategy(mol3, OpenBabelNN())
 
     frags_A_two_step = break_two_bonds_in_one_mol(A)
     frags_D_two_step = break_two_bonds_in_one_mol(D)

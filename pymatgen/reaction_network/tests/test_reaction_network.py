@@ -31,37 +31,27 @@ class TestReactionNetwork(PymatgenTest):
     def setUpClass(cls):
         EC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.EC_mg = metal_edge_extender(EC_mg)
 
         LiEC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LiEC_mg = metal_edge_extender(LiEC_mg)
 
         LEDC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"LEDC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LEDC_mg = metal_edge_extender(LEDC_mg)
 
         LEMC_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"LEMC.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.LEMC_mg = metal_edge_extender(LEMC_mg)
 
         H2O_mg =  MoleculeGraph.with_local_env_strategy(
             Molecule.from_file(os.path.join(test_dir,"H2O.xyz")),
-            OpenBabelNN(),
-            reorder=False,
-            extend_structure=False)
+            OpenBabelNN())
         cls.H2O_mg = metal_edge_extender(H2O_mg)
 
         cls.LiEC_extended_entries = []

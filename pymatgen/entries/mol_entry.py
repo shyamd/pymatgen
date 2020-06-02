@@ -2,22 +2,12 @@
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
 
-
-import json
-
-from monty.json import MontyEncoder, MontyDecoder
-
-from pymatgen.core.composition import Composition
 from monty.json import MSONable
-from pymatgen.analysis.graphs import MoleculeGraph, MolGraphSplitError
+
+from pymatgen.analysis.graphs import MoleculeGraph
 from pymatgen.analysis.local_env import OpenBabelNN
-from pymatgen.io.babel import BabelMolAdaptor
 from pymatgen import Molecule
 from pymatgen.analysis.fragmenter import metal_edge_extender
-
-"""
-
-"""
 
 __author__ = "Sam Blau"
 __copyright__ = "Copyright 2019, The Materials Project"
@@ -77,15 +67,11 @@ class MoleculeEntry(MSONable):
                     self.mol_graph = MoleculeGraph.from_dict(self.mol_doc["mol_graph"])
             else:
                 mol_graph = MoleculeGraph.with_local_env_strategy(self.molecule,
-                                                                  OpenBabelNN(),
-                                                                  reorder=False,
-                                                                  extend_structure=False)
+                                                                  OpenBabelNN())
                 self.mol_graph = metal_edge_extender(mol_graph)
         else:
             mol_graph = MoleculeGraph.with_local_env_strategy(self.molecule,
-                                                              OpenBabelNN(),
-                                                              reorder=False,
-                                                              extend_structure=False)
+                                                              OpenBabelNN())
             self.mol_graph = metal_edge_extender(mol_graph)
 
     @property
@@ -105,8 +91,8 @@ class MoleculeEntry(MSONable):
 
     @property
     def free_energy(self, temp=298.0):
-        if self.enthalpy != None and self.entropy != None:
-            return self.energy*27.21139+0.0433641*self.enthalpy-temp*self.entropy*0.0000433641
+        if self.enthalpy is not None and self.entropy is not None:
+            return self.energy * 27.21139 + 0.0433641 * self.enthalpy - temp * self.entropy * 0.0000433641
         else:
             return None
 
