@@ -170,6 +170,14 @@ def make_symmetric_matrix_from_upper_tri(val):
     return out
 
 
+def product(iterable):
+    """
+    Given some iterator which allows multiplication, perform a product operation on the iterator.
+    """
+
+    return reduce(operator.mul, iterable, 1)
+
+
 if __name__ == "__main__":
     import doctest
 
