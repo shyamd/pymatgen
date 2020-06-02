@@ -11,7 +11,7 @@ from scipy.constants import h, k
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.io.qchem.inputs import QCInput
 from pymatgen.io.qchem.outputs import QCOutput
-from pymatgen.reactions.reaction_rates import (
+from pymatgen.reaction_network.reaction_rates import (
     ReactionRateCalculator,
     BEPRateCalculator,
     ExpandedBEPRateCalculator
