@@ -317,7 +317,7 @@ def metal_edge_extender(mol_graph):
     """
     Function to identify and add missed edges in ionic bonding of Li and Mg ions.
     """
-    metal_sites = {"Li": {}, "Mg": {}}
+    metal_sites = {"Li": {}, "Mg": {}, "Ca": {}, "Zn": {}}
     coordinators = ["O", "N", "F", "Cl"]
     num_new_edges = 0
     for idx in mol_graph.graph.nodes():
