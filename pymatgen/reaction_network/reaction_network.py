@@ -1,5 +1,4 @@
 from abc import ABCMeta, abstractmethod
-from gunicorn.util import load_class
 import copy
 import itertools
 import heapq
@@ -19,7 +18,7 @@ from pymatgen.analysis.graphs import MolGraphSplitError
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.reactions.reaction_rates import (ReactionRateCalculator,
                                                ExpandedBEPRateCalculator)
-from pymatgen.util.families import load_class
+from pymatgen.util.classes import load_class
 
 MappingDict = Dict[str, Dict[int, Dict[int, List[MoleculeEntry]]]]
 Mapping_Energy_Dict = Dict[str, float]
@@ -1140,7 +1139,9 @@ class ConcertedReaction(Reaction):
             return graph_rep_2_2(self)
 
     @classmethod
-    def generate(cls, entries_list: [MoleculeEntry], name="nothing", read_file=False, num_processors=16, reaction_type="break2_form2", allowed_charge_change=0) -> List[Reaction]:
+    def generate(cls, entries_list: [MoleculeEntry], name="nothing", read_file=False,
+                 num_processors=16, reaction_type="break2_form2", allowed_charge_change=0) -> Tuple[List[Reaction],
+                                                                                                    Mapping_Family_Dict]:
 
         """
            A method to generate all the possible concerted reactions from given entries_list.
@@ -1174,10 +1175,11 @@ class ConcertedReaction(Reaction):
             product_total_charge = np.sum([item.charge for item in entries1])
             total_charge_change = product_total_charge - reactant_total_charge
             if abs(total_charge_change) <= allowed_charge_change:
-                r = cls(entries0,entries1)
+                r = cls(entries0, entries1)
                 reactions.append(r)
 
-        return reactions
+        # TODO: implement concept of reaction families for concerted reactions with multiple reactants and multiple products
+        return reactions, dict()
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
 
@@ -1574,35 +1576,62 @@ class ReactionNetwork(MSONable):
 
     """
 
-    def __init__(self, input_entries: List[MoleculeEntry], electron_free_energy=-2.15):
+    def __init__(self, electron_free_energy, temperature, entries_dict,
+                 entries_list, graph, reactions, families, mapping,
+                 PR_record, min_cost, num_starts):
         """
-        Initilize the ReacitonNetwork object attributes
-        :param input_entries: [MoleculeEntry]: List of MoleculeEntry objects
-        :param electron_free_energy: The Gibbs free energy of an electron. Defaults to -2.15 eV, the value at which the LiEC SEI forms
-
+        :param electron_free_energy: Electron free energy (in eV)
+        :param temperature: Temperature of the system, used for free energy
+            and rate constants (temperature given in K)
+        :param entries_dict: dict of dicts of dicts of lists (d[formula][bonds][charge])
+        :param entries_list: list of unique entries in entries_dict
+        :param graph: nx.DiGraph representing connections in the network
+        :param reactions: list of Reaction objects
+        :param families: dict containing reaction families
+        :param mapping: dict linking rxn node names to rxn node indices
+            (along with information about directionality)
+        :param PR_record: dict containing reaction prerequisites
+        :param min_cost: dict containing costs of entries in the network
+        :param num_starts: Number of starting molecules
         """
 
-        self.reachable_nodes = []
-        self.unsolvable_PRs = []
-        self.graph = nx.DiGraph()
-        self.reactions = []
-        self.input_entries = input_entries
-        self.entry_ids = {e.entry_id for e in self.input_entries}
         self.electron_free_energy = electron_free_energy
-        self.entries = {}
-        self.entries_list = []
-        self.num_starts = 0
-        self.weight = None
-        self.PR_record = None
-        self.Reactant_record = None
-        self.min_cost = {}
-        self.not_reachable_nodes = []
+        self.temperature = temperature
 
-        print(len(self.input_entries), "input entries")
+        self.entries = entries_dict
+        self.entries_list = entries_list
 
+        self.graph = graph
+        self.PR_record = PR_record
+        self.reactions = reactions
+        self.families = families
+        self.rxn_node_to_rxn_ind = mapping
 
-        connected_entries = []
-        for entry in self.input_entries:
+        self.min_cost = min_cost
+        self.num_starts = num_starts
+
+    @classmethod
+    def from_input_entries(cls, input_entries, electron_free_energy=-2.15,
+                           temperature=298.15):
+        """
+        Generate a ReactionNetwork from a set of MoleculeEntries.
+
+        :param input_entries: list of MoleculeEntries which will make up the
+            network
+        :param electron_free_energy: float representing the Gibbs free energy
+            required to add an electron (in eV)
+        :param temperature: Temperature of the system, used for free energy
+            and rate constants (in K)
+        :return:
+        """
+
+        entries = dict()
+        entries_list = list()
+
+        print(len(input_entries), "input entries")
+
+        connected_entries = list()
+        for entry in input_entries:
             if len(entry.molecule) > 1:
                 if nx.is_weakly_connected(entry.graph):
                     connected_entries.append(entry)
@@ -1613,53 +1642,57 @@ class ReactionNetwork(MSONable):
         get_formula = lambda x: x.formula
         get_Nbonds = lambda x: x.Nbonds
         get_charge = lambda x: x.charge
-        get_free_energy = lambda x: x.free_energy
+        get_free_energy = lambda x: x.free_energy(temp=temperature)
 
         sorted_entries_0 = sorted(connected_entries, key=get_formula)
         for k1, g1 in itertools.groupby(sorted_entries_0, get_formula):
             sorted_entries_1 = sorted(list(g1), key=get_Nbonds)
-            self.entries[k1] = {}
+            entries[k1] = dict()
 
             for k2, g2 in itertools.groupby(sorted_entries_1, get_Nbonds):
                 sorted_entries_2 = sorted(list(g2), key=get_charge)
-                self.entries[k1][k2] = {}
+                entries[k1][k2] = dict()
                 for k3, g3 in itertools.groupby(sorted_entries_2, get_charge):
-                    sorted_entries_3 = list(g3)
-                    sorted_entries_3.sort(key=get_free_energy)
+                    entries_3 = list(g3)
+                    sorted_entries_3 = sorted(entries_3, key=get_free_energy)
                     if len(sorted_entries_3) > 1:
-                        unique = []
+                        unique = list()
                         for entry in sorted_entries_3:
                             isomorphic_found = False
                             for ii, Uentry in enumerate(unique):
                                 if entry.mol_graph.isomorphic_to(Uentry.mol_graph):
                                     isomorphic_found = True
-                                    # print("Isomorphic entries with equal charges found!")
-                                    if entry.free_energy != None and Uentry.free_energy != None:
-                                        if entry.free_energy < Uentry.free_energy:
+                                    if entry.free_energy() is not None and Uentry.free_energy() is not None:
+                                        if entry.free_energy(temp=temperature) < Uentry.free_energy(temp=temperature):
                                             unique[ii] = entry
-                                            # if entry.energy > Uentry.energy:
-                                            #     print("WARNING: Free energy lower but electronic energy higher!")
-                                    elif entry.free_energy != None:
+                                    elif entry.free_energy() is not None:
                                         unique[ii] = entry
                                     elif entry.energy < Uentry.energy:
                                         unique[ii] = entry
                                     break
                             if not isomorphic_found:
                                 unique.append(entry)
-                        self.entries[k1][k2][k3] = unique
+                        entries[k1][k2][k3] = unique
                     else:
-                        self.entries[k1][k2][k3] = sorted_entries_3
-                    for entry in self.entries[k1][k2][k3]:
-                        self.entries_list.append(entry)
+                        entries[k1][k2][k3] = sorted_entries_3
+                    for entry in entries[k1][k2][k3]:
+                        entries_list.append(entry)
 
-        print(len(self.entries_list), "unique entries")
-        for ii, entry in enumerate(self.entries_list):
-            # if "ind" in entry.parameters.keys():
-            #     pass
-            # else:
-            entry.parameters["ind"] = ii
+        print(len(entries_list), "unique entries")
+        for ii, entry in enumerate(entries_list):
+            if "ind" in entry.parameters.keys():
+                pass
+            else:
+                entry.parameters["ind"] = ii
 
-        self.entries_list = sorted(self.entries_list, key=lambda x: x.parameters["ind"])
+        entries_list = sorted(entries_list, key=lambda x: x.parameters["ind"])
+
+        graph = nx.DiGraph()
+
+        network = cls(electron_free_energy, temperature, entries, entries_list, graph,
+                      list(), dict(), dict(), None, dict(), None)
+
+        return network
 
     @staticmethod
     def softplus(free_energy: float) -> float:
@@ -1690,32 +1723,54 @@ class ReactionNetwork(MSONable):
         if free_energy <= 0:
             cost = 0
         else:
-            k = 0.00008617333262145 #(eV)
-            cost = np.exp(free_energy/(k * 298.0))
+            kb = 0.00008617333262145  # (eV)
+            cost = np.exp(free_energy/(kb * 298.0))
         return float(cost)
 
-    def build(self, reaction_types={"RedoxReaction","IntramolSingleBondChangeReaction", "IntermolecularReaction",
-                                   "CoordinationBondChangeReaction"}) -> nx.DiGraph:
+    def build(self, reaction_types=frozenset({"RedoxReaction", "IntramolSingleBondChangeReaction",
+                                              "IntermolecularReaction", "CoordinationBondChangeReaction"})) -> nx.DiGraph:
         """
             A method to build the reaction network graph
-        :param reaction_types: set of all the reactions class to include while building the graph
+
+        :param reaction_types: set/frozenset of all the reactions class to include while building the graph
         :return: nx.DiGraph
         """
 
         self.graph.add_nodes_from(range(len(self.entries_list)), bipartite=0)
         reaction_types = [load_class(str(self.__module__) + "." + s) for s in reaction_types]
+
+        all_reactions = list()
+        raw_families = dict()
+
         for r in reaction_types:
             if r.__name__ == "ConcertedReaction":
-                self.reactions = self.reactions+[r.generate(self.entries_list)]
+                reactions, families = r.generate(self.entries_list)
+                all_reactions.append(reactions)
+                raw_families[r.__name__] = families
             else:
-                self.reactions = self.reactions+[r.generate(self.entries)]
-        self.reactions = [i for i in self.reactions if i]
-        self.reactions = list(itertools.chain.from_iterable(self.reactions))
+                reactions, families = r.generate(self.entries_list)
+                all_reactions.append(reactions)
+                raw_families[r.__name__] = families
+
+        all_reactions = [i for i in all_reactions if i]
+        self.reactions = list(itertools.chain.from_iterable(all_reactions))
+        self.graph.add_nodes_from(range(len(self.entries_list)), bipartite=0)
+
         redox_c = 0
         inter_c = 0
         intra_c = 0
         coord_c = 0
-        for r in self.reactions:
+
+        self.families = dict()
+        for label_1, grouping_1 in raw_families.items():
+            self.families[label_1] = dict()
+            for label_2, grouping_2 in grouping_1.items():
+                self.families[label_1][label_2] = dict()
+                for label_3 in grouping_2.keys():
+                    self.families[label_1][label_2][label_3] = set()
+
+        for ii, r in enumerate(self.reactions):
+            r.parameters["ind"] = ii
             if r.reaction_type()["class"] == "RedoxReaction":
                 redox_c += 1
                 r.electron_free_energy = self.electron_free_energy
@@ -1726,6 +1781,17 @@ class ReactionNetwork(MSONable):
             elif r.reaction_type()["class"] == "CoordinationBondChangeReaction":
                 coord_c += 1
             self.add_reaction(r.graph_representation())
+
+            # TODO: concerted reactions?
+
+            this_class = r.reaction_type()["class"]
+            for layer1, class1 in raw_families[this_class].items():
+                for layer2, class2 in class1.items():
+                    for rxn in class2:
+                        # Reactions identical - link by index
+                        if sorted(r.reactant_ids) == sorted(rxn.reactant_ids) and sorted(r.product_ids) == sorted(rxn.product_ids):
+                            self.families[this_class][layer1][layer2].add(ii)
+
         print("redox: ", redox_c, "inter: ", inter_c, "intra: ", intra_c, "coord: ", coord_c)
         self.PR_record = self.build_PR_record()
         self.Reactant_record = self.build_reactant_record()
@@ -1770,7 +1836,6 @@ class ReactionNetwork(MSONable):
                 non_PR_reactant = node.split(",")[0].split("+PR_")[0]
                 Reactant_record[int(non_PR_reactant)].append(node)
         return Reactant_record
-
 
     def solve_prerequisites(self, starts: List[int], weight: str, max_iter=20, save=False,
                             filename=None):  # -> Tuple[Union[Dict[Union[int, Any], dict], Any], Any]:
@@ -1868,7 +1933,6 @@ class ReactionNetwork(MSONable):
             dumpfn(PRs, filename, default=lambda o: o.as_dict)
         print('not reachable nodes:', len(self.not_reachable_nodes),self.not_reachable_nodes)
         return PRs, old_solved_PRs
-
 
     def parse_path(self, path):
         nodes = []
