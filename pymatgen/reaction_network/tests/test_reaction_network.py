@@ -641,36 +641,38 @@ class TestReactionNetwork(PymatgenTest):
             else:
                 cls.LiEC_reextended_entries.append(mol_entry)
         dumpfn(cls.LiEC_reextended_entries, "unittest_input_molentries.json")
-        # cls.RN_cls = loadfn(os.path.join(test_dir, "RN.json"))
+        cls.RN_cls = loadfn(os.path.join(test_dir, "RN.json"))
 
-    # def test_add_reactions(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #
-    #     # set up input variables
-    #     EC_0_entry = None
-    #     EC_minus_entry = None
-    #
-    #     for entry in RN.entries["C3 H4 O3"][10][0]:
-    #         if self.EC_mg.isomorphic_to(entry.mol_graph):
-    #             EC_0_entry = entry
-    #             break
-    #     for entry in RN.entries["C3 H4 O3"][10][-1]:
-    #         if self.EC_mg.isomorphic_to(entry.mol_graph):
-    #             EC_minus_entry = entry
-    #             break
-    #
-    #     redox = RedoxReaction(EC_0_entry, EC_minus_entry)
-    #     redox.electron_free_energy = -2.15
-    #     redox_graph = redox.graph_representation()
-    #
-    #     # run calc
-    #     RN.add_reaction(redox_graph)
-    #
-    #     # assert
-    #     self.assertEqual(list(RN.graph.nodes), ['456,455', 456, 455, '455,456'])
-    #     self.assertEqual(list(RN.graph.edges), [('456,455', 455), (456, '456,455'), (455, '455,456'), ('455,456', 456)])
+    def test_add_reactions(self):
+
+        # set up RN
+        RN = self.RN_cls
+
+        # set up input variables
+        EC_0_entry = None
+        EC_minus_entry = None
+
+        # print(RN.entries["C3 H4 O3"].keys())
+
+        for entry in RN.entries["C3 H4 O3"][10][0]:
+            if self.EC_mg.isomorphic_to(entry.mol_graph):
+                EC_0_entry = entry
+                break
+        for entry in RN.entries["C3 H4 O3"][10][-1]:
+            if self.EC_mg.isomorphic_to(entry.mol_graph):
+                EC_minus_entry = entry
+                break
+
+        redox = RedoxReaction(EC_0_entry, EC_minus_entry)
+        redox.electron_free_energy = -2.15
+        redox_graph = redox.graph_representation()
+
+        # run calc
+        RN.add_reaction(redox_graph)
+
+        # assert
+        self.assertEqual(list(RN.graph.nodes), ['456,455', 456, 455, '455,456'])
+        self.assertEqual(list(RN.graph.edges), [('456,455', 455), (456, '456,455'), (455, '455,456'), ('455,456', 456)])
 
     def test_build(self):
 
@@ -707,394 +709,394 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(len(RN.graph.nodes),10481)
         self.assertEqual(len(RN.graph.edges),22890)
 
-        dumpfn(RN, os.path.join(test_dir, "RN.json"))
+        # dumpfn(RN, os.path.join(test_dir, "RN.json"))
 
-    # def test_build_PR_record(self):
-    #     # set up RN
-    #     RN = self.RN_cls
-    #     RN.build()
-    #
-    #     # run calc
-    #     PR_record = RN.build_PR_record()
-    #
-    #     # assert
-    #     self.assertEqual(len(PR_record[0]), 42)
-    #     self.assertEqual(PR_record[44], ['165+PR_44,434'])
-    #     self.assertEqual(len(PR_record[529]), 0)
-    #     self.assertEqual(len(PR_record[556]), 104)
-    #     self.assertEqual(len(PR_record[564]), 165)
-    #
-    # def test_build_reactant_record(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #     RN.build()
-    #
-    #     # run calc
-    #     reactant_record = RN.build_reactant_record()
-    #
-    #     # assert
-    #     self.assertEqual(len(reactant_record[0]), 43)
-    #     self.assertCountEqual(reactant_record[44], ['44+PR_165,434', '44,43', '44,40+556'])
-    #     self.assertEqual(len(reactant_record[529]), 0)
-    #     self.assertEqual(len(reactant_record[556]), 104)
-    #     self.assertEqual(len(reactant_record[564]), 167)
-    #
-    # def test_solve_prerequisites(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #
-    #     # set up input variables
-    #
-    #     EC_ind = None
-    #     LEDC_ind = None
-    #
-    #     for entry in RN.entries["C3 H4 O3"][10][0]:
-    #         if self.EC_mg.isomorphic_to(entry.mol_graph):
-    #             EC_ind = entry.parameters["ind"]
-    #             break
-    #     for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
-    #         if self.LEDC_mg.isomorphic_to(entry.mol_graph):
-    #             LEDC_ind = entry.parameters["ind"]
-    #             break
-    #     Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
-    #
-    #     # perfrom calc
-    #     PRs_filename = "xx_PRs_unittest.json"
-    #     PRs_calc, old_solved_PRs = RN.solve_prerequisites([EC_ind,Li1_ind], weight="softplus", save=True, filename=PRs_filename)
-    #
-    #     # assert
-    #     loaded_PRs = loadfn(PRs_filename)
-    #     PR_paths = {}
-    #     for key in loaded_PRs:
-    #         PR_paths[int(key)] = {}
-    #         for start in loaded_PRs[key]:
-    #             PR_paths[int(key)][int(start)] = copy.deepcopy(loaded_PRs[key][start])
-    #
-    #     for node in PRs_calc:
-    #         for start in PRs_calc[node]:
-    #             self.assertEqual(PRs_calc[node][start].path_dict, PR_paths[node][start].path_dict)
-    #
-    # def test_find_path_cost(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #     RN.weight = "softplus"
-    #     RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"find_path_cost_self_graph_IN.json")))
-    #     loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"find_path_cost_self_min_cost_IN.json"))
-    #     loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
-    #
-    #     RN.PR_byproducts = {}
-    #     for node in loaded_PR_byproducts:
-    #         RN.PR_byproducts[int(node)] = loaded_PR_byproducts[node]
-    #
-    #
-    #     for node in loaded_self_min_cost_str:
-    #         RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
-    #
-    #     # set up input variables
-    #     EC_ind = None
-    #     LEDC_ind = None
-    #     for entry in RN.entries["C3 H4 O3"][10][0]:
-    #         if self.EC_mg.isomorphic_to(entry.mol_graph):
-    #             EC_ind = entry.parameters["ind"]
-    #             break
-    #     for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
-    #         if self.LEDC_mg.isomorphic_to(entry.mol_graph):
-    #             LEDC_ind = entry.parameters["ind"]
-    #             break
-    #     Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
-    #
-    #
-    #     loaded_cost_from_start_str = loadfn(os.path.join(test_dir,"find_path_cost_cost_from_start_IN.json"))
-    #     old_solved_PRs = loadfn(os.path.join(test_dir,"find_path_cost_old_solved_PRs_IN.json"))
-    #     loaded_min_cost_str = loadfn(os.path.join(test_dir,"find_path_cost_min_cost_IN.json"))
-    #     loaded_PRs_str = loadfn(os.path.join(test_dir,"find_path_cost_PRs_IN.json"))
-    #
-    #     loaded_cost_from_start = {}
-    #     for node in loaded_cost_from_start_str:
-    #         loaded_cost_from_start[int(node)] = {}
-    #         for start in loaded_cost_from_start_str[node]:
-    #             loaded_cost_from_start[int(node)][int(start)] = loaded_cost_from_start_str[node][start]
-    #
-    #     loaded_min_cost = {}
-    #     for node in loaded_min_cost_str:
-    #         loaded_min_cost[int(node)] = loaded_min_cost_str[node]
-    #
-    #     loaded_PRs = {}
-    #     for node in loaded_PRs_str:
-    #         loaded_PRs[int(node)] = {}
-    #         for start in loaded_PRs_str[node]:
-    #             loaded_PRs[int(node)][int(start)] = copy.deepcopy(loaded_PRs_str[node][start])
-    #
-    #     # perform calc
-    #     PRs_cal, cost_from_start_cal, min_cost_cal = RN.find_path_cost([EC_ind, Li1_ind], RN.weight,
-    #                                                                    old_solved_PRs,loaded_cost_from_start,
-    #                                                                    loaded_min_cost, loaded_PRs)
-    #
-    #     # assert
-    #     self.assertEqual(cost_from_start_cal[456][456], 0.0)
-    #     self.assertEqual(cost_from_start_cal[556][456], "no_path")
-    #     self.assertEqual(cost_from_start_cal[0][456], 2.0148202484602122)
-    #     self.assertEqual(cost_from_start_cal[6][556], 0.06494386469823213)
-    #     self.assertEqual(cost_from_start_cal[80][456], 1.0882826020202816)
-    #
-    #     self.assertEqual(min_cost_cal[556], 0.0)
-    #     self.assertEqual(min_cost_cal[1], 0.9973160537476341)
-    #     self.assertEqual(min_cost_cal[4], 0.2456832817986014)
-    #     self.assertEqual(min_cost_cal[148], 0.09651432795671926)
-    #
-    #     self.assertEqual(PRs_cal[556][556].path, [556])
-    #     self.assertEqual(PRs_cal[556][456].path, None)
-    #     self.assertEqual(PRs_cal[29][456].path, None)
-    #     self.assertEqual(PRs_cal[313], {})
-    #
-    # def test_identify_solved_PRs(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #     RN.num_starts = 2
-    #     RN.weight = "softplus"
-    #     RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"identify_solved_PRs_self_graph_IN.json")))
-    #     loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"identify_solved_PRs_self_min_cost_IN.json"))
-    #     for node in loaded_self_min_cost_str:
-    #         RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
-    #
-    #     # set up input variables
-    #     cost_from_start_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_cost_from_start_OUT.json"))
-    #     min_cost_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_min_cost_OUT.json"))
-    #     PRs_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_PRs_OUT.json"))
-    #     solved_PRs = loadfn(os.path.join(test_dir,"find_path_cost_old_solved_PRs_IN.json"))
-    #
-    #     PRs = {}
-    #     for node in PRs_IN_str:
-    #         PRs[int(node)] = {}
-    #         for start in PRs_IN_str[node]:
-    #             PRs[int(node)][int(start)] = copy.deepcopy(PRs_IN_str[node][start])
-    #     cost_from_start = {}
-    #     for node in cost_from_start_IN_str:
-    #         cost_from_start[int(node)] = {}
-    #         for start in cost_from_start_IN_str[node]:
-    #             cost_from_start[int(node)][int(start)] = cost_from_start_IN_str[node][start]
-    #     min_cost = {}
-    #     for node in min_cost_IN_str:
-    #         min_cost[int(node)] = min_cost_IN_str[node]
-    #
-    #     # perform calc
-    #     solved_PRs_cal, new_solved_PRs_cal, cost_from_start_cal = RN.identify_solved_PRs(PRs, solved_PRs, cost_from_start)
-    #
-    #     # assert
-    #     self.assertEqual(len(solved_PRs_cal), 34)
-    #     self.assertEqual(list(set(solved_PRs_cal)-set(new_solved_PRs_cal)), [456, 556])
-    #     self.assertEqual(len(cost_from_start_cal), 568)
-    #     self.assertEqual(cost_from_start_cal[456][556], "no_path")
-    #     self.assertEqual(cost_from_start_cal[556][556], 0.0)
-    #     self.assertEqual(cost_from_start_cal[2][556], 1.6911618579132313)
-    #     self.assertEqual(cost_from_start_cal[7][456], 1.0022887913156873)
-    #     self.assertEqual(cost_from_start_cal[30][556], "no_path")
-    #
-    # def test_update_edge_weights(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #     RN.weight = "softplus"
-    #     RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"update_edge_weights_self_graph_IN.json")))
-    #
-    #     # set up input variables
-    #     min_cost_str = loadfn(os.path.join(test_dir,"update_edge_weights_min_cost_IN.json"))
-    #     orig_graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"update_edge_weights_orig_graph_IN.json")))
-    #     min_cost = {}
-    #     for key in min_cost_str:
-    #         min_cost[int(key)] = min_cost_str[key]
-    #
-    #     # perform calc
-    #     attrs_cal = RN.update_edge_weights(min_cost, orig_graph)
-    #
-    #     # assert
-    #     self.assertEqual(len(attrs_cal), 6143)
-    #     self.assertEqual(attrs_cal[(556, '556+PR_456,421')]['softplus'], 0.2436101275766031)
-    #     self.assertEqual(attrs_cal[(41, '41+PR_556,42')]['softplus'], 0.2606224897665045)
-    #     self.assertEqual(attrs_cal[(308, '308+PR_556,277')]['softplus'], 0.0866554990833896)
-    #
-    # def test_final_PR_check(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #     RN.weight = "softplus"
-    #     loaded_PRs = loadfn(os.path.join(test_dir, "finalPRcheck_PRs_HP_IN.json"))
-    #     loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"finalPRcheck_self_min_cost.json"))
-    #     RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"finalPRcheck_self_graph.json")))
-    #     RN.solved_PRs = loadfn(os.path.join(test_dir,"solved_PRs_list.json"))
-    #     loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
-    #
-    #     RN.PR_byproducts = {}
-    #     for node in loaded_PR_byproducts:
-    #         RN.PR_byproducts[int(node)] = loaded_PR_byproducts[node]
-    #
-    #     RN.min_cost = {}
-    #     for node in loaded_self_min_cost_str:
-    #         RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
-    #
-    #     # set up input variables
-    #     PRs = {}
-    #     for node in loaded_PRs:
-    #         PRs[int(node)] = {}
-    #         for start in loaded_PRs[node]:
-    #             PRs[int(node)][int(start)] = loaded_PRs[node][start]
-    #
-    #     # perform calc
-    #     old_stdout = sys.stdout
-    #     new_stdout = io.StringIO()
-    #     sys.stdout = new_stdout
-    #     RN.final_PR_check(PRs)
-    #     output = new_stdout.getvalue()
-    #     sys.stdout = old_stdout
-    #
-    #     # assert
-    #     self.assertTrue(output.__contains__("No path found from any start to PR 30"))
-    #     self.assertTrue(output.__contains__("WARNING: Matching prereq and byproduct found! 46"))
-    #     self.assertTrue(output.__contains__("No path found from any start to PR 513"))
-    #     self.assertTrue(output.__contains__("No path found from any start to PR 539"))
-    #
-    # def test_find_or_remove_bad_nodes(self):
-    #
-    #     # set up RN
-    #     RN = self.RN_cls
-    #
-    #     # set up input variables
-    #     LEDC_ind = None
-    #     LiEC_ind = None
-    #     EC_ind = None
-    #
-    #     for entry in RN.entries["C3 H4 O3"][10][0]:
-    #         if self.EC_mg.isomorphic_to(entry.mol_graph):
-    #             EC_ind = entry.parameters["ind"]
-    #             break
-    #
-    #     for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
-    #         if self.LEDC_mg.isomorphic_to(entry.mol_graph):
-    #             LEDC_ind = entry.parameters["ind"]
-    #             break
-    #
-    #     for entry in RN.entries["C3 H4 Li1 O3"][12][1]:
-    #         if self.LiEC_mg.isomorphic_to(entry.mol_graph):
-    #             LiEC_ind = entry.parameters["ind"]
-    #             break
-    #
-    #     Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
-    #
-    #     nodes = [LEDC_ind, LiEC_ind, Li1_ind, EC_ind]
-    #
-    #     # perform calc & assert
-    #     bad_nodes_list = RN.find_or_remove_bad_nodes(nodes, remove_nodes = False)
-    #     self.assertEqual(len(bad_nodes_list), 231)
-    #     self.assertTrue({'511,108+112', '46+PR_556,34', '556+PR_199,192','456,399+543', '456,455'} <= set(bad_nodes_list))
-    #
-    #     bad_nodes_pruned_graph = RN.find_or_remove_bad_nodes(nodes, remove_nodes = True)
-    #     self.assertEqual(len(bad_nodes_pruned_graph.nodes), 10254)
-    #     self.assertEqual(len(bad_nodes_pruned_graph.edges), 22424)
-    #     for node_ind in nodes:
-    #         self.assertEqual(bad_nodes_pruned_graph[node_ind], {})
-    #
-    # def test_valid_shortest_simple_paths(self):
-    #
-    #     RN = self.RN_cls
-    #
-    #     RN.weight = "softplus"
-    #     loaded_graph = loadfn("graph_HP.json")
-    #     RN.graph = json_graph.adjacency_graph(loaded_graph)
-    #
-    #
-    #     EC_ind = None
-    #     LEDC_ind = None
-    #
-    #     for entry in RN.entries["C3 H4 O3"][10][0]:
-    #         if self.EC_mg.isomorphic_to(entry.mol_graph):
-    #             EC_ind = entry.parameters["ind"]
-    #             break
-    #     for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
-    #         if self.LEDC_mg.isomorphic_to(entry.mol_graph):
-    #             LEDC_ind = entry.parameters["ind"]
-    #             break
-    #
-    #     paths = RN.valid_shortest_simple_paths(EC_ind, LEDC_ind)
-    #     p = [[456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420+PR_41,511', 511],
-    #         [456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
-    #         [456, '456,455', 455, '455,448', 448, '448,51+164', 51, '51+PR_556,41', 41, '41+PR_420,511', 511],
-    #         [456, '456+PR_556,421', 421, '421,424', 424, '424,423', 423, '423,420', 420, '420+PR_41,511', 511],
-    #         [456, '456+PR_556,421', 421, '421,424', 424, '424,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511',
-    #         511],
-    #         [456, '456,455', 455, '455,448', 448, '448+PR_556,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
-    #         [456, '456,455', 455, '455,448', 448, '448+PR_556,420', 420, '420+PR_41,511', 511],
-    #         [456, '456,455', 455, '455+PR_556,423', 423, '423,420', 420, '420+PR_41,511', 511],
-    #         [456, '456,455', 455, '455+PR_556,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
-    #         [456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420,419', 419, '419+PR_41,510', 510, '510,511',
-    #         511]]
-    #
-    #     ind = 0
-    #     for path in paths:
-    #         if ind == 10:
-    #             break
-    #         else:
-    #             print(path)
-    #             self.assertEqual(path, p[ind])
-    #             ind += 1
-    #
-    # def test_find_paths(self):
-    #
-    #     # set up RN
-    #     #RN = self.RN_cls
-    #     RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
-    #     RN.build()
-    #     RN.weight = "softplus"
-    #     # set up input variables
-    #     EC_ind = None
-    #     LEDC_ind = None
-    #
-    #
-    #     for entry in RN.entries["C3 H4 O3"][10][0]:
-    #         if self.EC_mg.isomorphic_to(entry.mol_graph):
-    #             EC_ind = entry.parameters["ind"]
-    #             break
-    #     for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
-    #         if self.LEDC_mg.isomorphic_to(entry.mol_graph):
-    #             LEDC_ind = entry.parameters["ind"]
-    #             break
-    #     Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
-    #     print(EC_ind, Li1_ind, LEDC_ind)
-    #     # loaded_PRs = loadfn("PR_paths_HP.json")
-    #     #
-    #     # PR_paths_loaded, paths_loaded = RN.find_paths([EC_ind,Li1_ind],LEDC_ind,weight="softplus",num_paths=10, solved_PRs_path=loaded_PRs)
-    #     #
-    #     #
-    #     # self.assertEqual(paths_loaded[0]["byproducts"],[164])
-    #     # self.assertEqual(paths_loaded[1]["all_prereqs"],[556,420,556])
-    #     # self.assertEqual(paths_loaded[0]["cost"],2.313631862390461)
-    #     # self.assertEqual(paths_loaded[0]["overall_free_energy_change"],-6.240179642711564)
-    #     # self.assertEqual(paths_loaded[0]["hardest_step_deltaG"],0.3710129384598986)
-    #     # self.assertEqual(paths_loaded[0]["all_prereqs"],[556,41,556])
-    #     # for path in paths_loaded:
-    #     #     self.assertTrue(abs(path["cost"]-path["pure_cost"])<0.000000000001)
-    #
-    #     PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind, Li1_ind],LEDC_ind,weight="softplus",num_paths=10)
-    #
-    #     self.assertEqual(paths_calculated[0]["byproducts"],[164, 164])
-    #     self.assertEqual(paths_calculated[1]["all_prereqs"],[556,420,556])
-    #     self.assertEqual(paths_calculated[0]["cost"],2.313631862390461)
-    #     self.assertEqual(paths_calculated[0]["overall_free_energy_change"],-6.240179642711564)
-    #     self.assertEqual(paths_calculated[0]["hardest_step_deltaG"],0.3710129384598986)
-    #     self.assertEqual(paths_calculated[0]["all_prereqs"],[556,41,556])
-    #     for path in paths_calculated:
-    #         self.assertTrue(abs(path["cost"] - path["pure_cost"]) < 0.000000000001)
-    #
-    #
-    #     # self.assertEqual(paths_loaded[0], paths_calculated[0])
-    #     # self.assertEqual(paths_loaded[1], paths_calculated[1])
-    #     # self.assertEqual(paths_loaded[3], paths_calculated[3])
-    #     # self.assertEqual(paths_loaded[5], paths_calculated[5])
-    #     # self.assertEqual(paths_loaded[7], paths_calculated[7])
-    #     # self.assertEqual(paths_loaded[9], paths_calculated[9])
+    def test_build_PR_record(self):
+        # set up RN
+        RN = self.RN_cls
+        RN.build()
+
+        # run calc
+        PR_record = RN.build_PR_record()
+
+        # assert
+        self.assertEqual(len(PR_record[0]), 42)
+        self.assertEqual(PR_record[44], ['165+PR_44,434'])
+        self.assertEqual(len(PR_record[529]), 0)
+        self.assertEqual(len(PR_record[556]), 104)
+        self.assertEqual(len(PR_record[564]), 165)
+
+    def test_build_reactant_record(self):
+
+        # set up RN
+        RN = self.RN_cls
+        RN.build()
+
+        # run calc
+        reactant_record = RN.build_reactant_record()
+
+        # assert
+        self.assertEqual(len(reactant_record[0]), 43)
+        self.assertCountEqual(reactant_record[44], ['44+PR_165,434', '44,43', '44,40+556'])
+        self.assertEqual(len(reactant_record[529]), 0)
+        self.assertEqual(len(reactant_record[556]), 104)
+        self.assertEqual(len(reactant_record[564]), 167)
+
+    def test_solve_prerequisites(self):
+
+        # set up RN
+        RN = self.RN_cls
+
+        # set up input variables
+
+        EC_ind = None
+        LEDC_ind = None
+
+        for entry in RN.entries["C3 H4 O3"][10][0]:
+            if self.EC_mg.isomorphic_to(entry.mol_graph):
+                EC_ind = entry.parameters["ind"]
+                break
+        for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
+            if self.LEDC_mg.isomorphic_to(entry.mol_graph):
+                LEDC_ind = entry.parameters["ind"]
+                break
+        Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
+
+        # perfrom calc
+        PRs_filename = "xx_PRs_unittest.json"
+        PRs_calc, old_solved_PRs = RN.solve_prerequisites([EC_ind,Li1_ind], weight="softplus", save=True, filename=PRs_filename)
+
+        # assert
+        loaded_PRs = loadfn(PRs_filename)
+        PR_paths = {}
+        for key in loaded_PRs:
+            PR_paths[int(key)] = {}
+            for start in loaded_PRs[key]:
+                PR_paths[int(key)][int(start)] = copy.deepcopy(loaded_PRs[key][start])
+
+        for node in PRs_calc:
+            for start in PRs_calc[node]:
+                self.assertEqual(PRs_calc[node][start].path_dict, PR_paths[node][start].path_dict)
+
+    def test_find_path_cost(self):
+
+        # set up RN
+        RN = self.RN_cls
+        RN.weight = "softplus"
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"find_path_cost_self_graph_IN.json")))
+        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"find_path_cost_self_min_cost_IN.json"))
+        loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
+
+        RN.PR_byproducts = {}
+        for node in loaded_PR_byproducts:
+            RN.PR_byproducts[int(node)] = loaded_PR_byproducts[node]
+
+
+        for node in loaded_self_min_cost_str:
+            RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
+
+        # set up input variables
+        EC_ind = None
+        LEDC_ind = None
+        for entry in RN.entries["C3 H4 O3"][10][0]:
+            if self.EC_mg.isomorphic_to(entry.mol_graph):
+                EC_ind = entry.parameters["ind"]
+                break
+        for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
+            if self.LEDC_mg.isomorphic_to(entry.mol_graph):
+                LEDC_ind = entry.parameters["ind"]
+                break
+        Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
+
+
+        loaded_cost_from_start_str = loadfn(os.path.join(test_dir,"find_path_cost_cost_from_start_IN.json"))
+        old_solved_PRs = loadfn(os.path.join(test_dir,"find_path_cost_old_solved_PRs_IN.json"))
+        loaded_min_cost_str = loadfn(os.path.join(test_dir,"find_path_cost_min_cost_IN.json"))
+        loaded_PRs_str = loadfn(os.path.join(test_dir,"find_path_cost_PRs_IN.json"))
+
+        loaded_cost_from_start = {}
+        for node in loaded_cost_from_start_str:
+            loaded_cost_from_start[int(node)] = {}
+            for start in loaded_cost_from_start_str[node]:
+                loaded_cost_from_start[int(node)][int(start)] = loaded_cost_from_start_str[node][start]
+
+        loaded_min_cost = {}
+        for node in loaded_min_cost_str:
+            loaded_min_cost[int(node)] = loaded_min_cost_str[node]
+
+        loaded_PRs = {}
+        for node in loaded_PRs_str:
+            loaded_PRs[int(node)] = {}
+            for start in loaded_PRs_str[node]:
+                loaded_PRs[int(node)][int(start)] = copy.deepcopy(loaded_PRs_str[node][start])
+
+        # perform calc
+        PRs_cal, cost_from_start_cal, min_cost_cal = RN.find_path_cost([EC_ind, Li1_ind], RN.weight,
+                                                                       old_solved_PRs,loaded_cost_from_start,
+                                                                       loaded_min_cost, loaded_PRs)
+
+        # assert
+        self.assertEqual(cost_from_start_cal[456][456], 0.0)
+        self.assertEqual(cost_from_start_cal[556][456], "no_path")
+        self.assertEqual(cost_from_start_cal[0][456], 2.0148202484602122)
+        self.assertEqual(cost_from_start_cal[6][556], 0.06494386469823213)
+        self.assertEqual(cost_from_start_cal[80][456], 1.0882826020202816)
+
+        self.assertEqual(min_cost_cal[556], 0.0)
+        self.assertEqual(min_cost_cal[1], 0.9973160537476341)
+        self.assertEqual(min_cost_cal[4], 0.2456832817986014)
+        self.assertEqual(min_cost_cal[148], 0.09651432795671926)
+
+        self.assertEqual(PRs_cal[556][556].path, [556])
+        self.assertEqual(PRs_cal[556][456].path, None)
+        self.assertEqual(PRs_cal[29][456].path, None)
+        self.assertEqual(PRs_cal[313], {})
+
+    def test_identify_solved_PRs(self):
+
+        # set up RN
+        RN = self.RN_cls
+        RN.num_starts = 2
+        RN.weight = "softplus"
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"identify_solved_PRs_self_graph_IN.json")))
+        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"identify_solved_PRs_self_min_cost_IN.json"))
+        for node in loaded_self_min_cost_str:
+            RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
+
+        # set up input variables
+        cost_from_start_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_cost_from_start_OUT.json"))
+        min_cost_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_min_cost_OUT.json"))
+        PRs_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_PRs_OUT.json"))
+        solved_PRs = loadfn(os.path.join(test_dir,"find_path_cost_old_solved_PRs_IN.json"))
+
+        PRs = {}
+        for node in PRs_IN_str:
+            PRs[int(node)] = {}
+            for start in PRs_IN_str[node]:
+                PRs[int(node)][int(start)] = copy.deepcopy(PRs_IN_str[node][start])
+        cost_from_start = {}
+        for node in cost_from_start_IN_str:
+            cost_from_start[int(node)] = {}
+            for start in cost_from_start_IN_str[node]:
+                cost_from_start[int(node)][int(start)] = cost_from_start_IN_str[node][start]
+        min_cost = {}
+        for node in min_cost_IN_str:
+            min_cost[int(node)] = min_cost_IN_str[node]
+
+        # perform calc
+        solved_PRs_cal, new_solved_PRs_cal, cost_from_start_cal = RN.identify_solved_PRs(PRs, solved_PRs, cost_from_start)
+
+        # assert
+        self.assertEqual(len(solved_PRs_cal), 34)
+        self.assertEqual(list(set(solved_PRs_cal)-set(new_solved_PRs_cal)), [456, 556])
+        self.assertEqual(len(cost_from_start_cal), 568)
+        self.assertEqual(cost_from_start_cal[456][556], "no_path")
+        self.assertEqual(cost_from_start_cal[556][556], 0.0)
+        self.assertEqual(cost_from_start_cal[2][556], 1.6911618579132313)
+        self.assertEqual(cost_from_start_cal[7][456], 1.0022887913156873)
+        self.assertEqual(cost_from_start_cal[30][556], "no_path")
+
+    def test_update_edge_weights(self):
+
+        # set up RN
+        RN = self.RN_cls
+        RN.weight = "softplus"
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"update_edge_weights_self_graph_IN.json")))
+
+        # set up input variables
+        min_cost_str = loadfn(os.path.join(test_dir,"update_edge_weights_min_cost_IN.json"))
+        orig_graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"update_edge_weights_orig_graph_IN.json")))
+        min_cost = {}
+        for key in min_cost_str:
+            min_cost[int(key)] = min_cost_str[key]
+
+        # perform calc
+        attrs_cal = RN.update_edge_weights(min_cost, orig_graph)
+
+        # assert
+        self.assertEqual(len(attrs_cal), 6143)
+        self.assertEqual(attrs_cal[(556, '556+PR_456,421')]['softplus'], 0.2436101275766031)
+        self.assertEqual(attrs_cal[(41, '41+PR_556,42')]['softplus'], 0.2606224897665045)
+        self.assertEqual(attrs_cal[(308, '308+PR_556,277')]['softplus'], 0.0866554990833896)
+
+    def test_final_PR_check(self):
+
+        # set up RN
+        RN = self.RN_cls
+        RN.weight = "softplus"
+        loaded_PRs = loadfn(os.path.join(test_dir, "finalPRcheck_PRs_HP_IN.json"))
+        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"finalPRcheck_self_min_cost.json"))
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"finalPRcheck_self_graph.json")))
+        RN.solved_PRs = loadfn(os.path.join(test_dir,"solved_PRs_list.json"))
+        loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
+
+        RN.PR_byproducts = {}
+        for node in loaded_PR_byproducts:
+            RN.PR_byproducts[int(node)] = loaded_PR_byproducts[node]
+
+        RN.min_cost = {}
+        for node in loaded_self_min_cost_str:
+            RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
+
+        # set up input variables
+        PRs = {}
+        for node in loaded_PRs:
+            PRs[int(node)] = {}
+            for start in loaded_PRs[node]:
+                PRs[int(node)][int(start)] = loaded_PRs[node][start]
+
+        # perform calc
+        old_stdout = sys.stdout
+        new_stdout = io.StringIO()
+        sys.stdout = new_stdout
+        RN.final_PR_check(PRs)
+        output = new_stdout.getvalue()
+        sys.stdout = old_stdout
+
+        # assert
+        self.assertTrue(output.__contains__("No path found from any start to PR 30"))
+        self.assertTrue(output.__contains__("WARNING: Matching prereq and byproduct found! 46"))
+        self.assertTrue(output.__contains__("No path found from any start to PR 513"))
+        self.assertTrue(output.__contains__("No path found from any start to PR 539"))
+
+    def test_find_or_remove_bad_nodes(self):
+
+        # set up RN
+        RN = self.RN_cls
+
+        # set up input variables
+        LEDC_ind = None
+        LiEC_ind = None
+        EC_ind = None
+
+        for entry in RN.entries["C3 H4 O3"][10][0]:
+            if self.EC_mg.isomorphic_to(entry.mol_graph):
+                EC_ind = entry.parameters["ind"]
+                break
+
+        for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
+            if self.LEDC_mg.isomorphic_to(entry.mol_graph):
+                LEDC_ind = entry.parameters["ind"]
+                break
+
+        for entry in RN.entries["C3 H4 Li1 O3"][12][1]:
+            if self.LiEC_mg.isomorphic_to(entry.mol_graph):
+                LiEC_ind = entry.parameters["ind"]
+                break
+
+        Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
+
+        nodes = [LEDC_ind, LiEC_ind, Li1_ind, EC_ind]
+
+        # perform calc & assert
+        bad_nodes_list = RN.find_or_remove_bad_nodes(nodes, remove_nodes = False)
+        self.assertEqual(len(bad_nodes_list), 231)
+        self.assertTrue({'511,108+112', '46+PR_556,34', '556+PR_199,192','456,399+543', '456,455'} <= set(bad_nodes_list))
+
+        bad_nodes_pruned_graph = RN.find_or_remove_bad_nodes(nodes, remove_nodes = True)
+        self.assertEqual(len(bad_nodes_pruned_graph.nodes), 10254)
+        self.assertEqual(len(bad_nodes_pruned_graph.edges), 22424)
+        for node_ind in nodes:
+            self.assertEqual(bad_nodes_pruned_graph[node_ind], {})
+
+    def test_valid_shortest_simple_paths(self):
+
+        RN = self.RN_cls
+
+        RN.weight = "softplus"
+        loaded_graph = loadfn("graph_HP.json")
+        RN.graph = json_graph.adjacency_graph(loaded_graph)
+
+
+        EC_ind = None
+        LEDC_ind = None
+
+        for entry in RN.entries["C3 H4 O3"][10][0]:
+            if self.EC_mg.isomorphic_to(entry.mol_graph):
+                EC_ind = entry.parameters["ind"]
+                break
+        for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
+            if self.LEDC_mg.isomorphic_to(entry.mol_graph):
+                LEDC_ind = entry.parameters["ind"]
+                break
+
+        paths = RN.valid_shortest_simple_paths(EC_ind, LEDC_ind)
+        p = [[456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420+PR_41,511', 511],
+            [456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
+            [456, '456,455', 455, '455,448', 448, '448,51+164', 51, '51+PR_556,41', 41, '41+PR_420,511', 511],
+            [456, '456+PR_556,421', 421, '421,424', 424, '424,423', 423, '423,420', 420, '420+PR_41,511', 511],
+            [456, '456+PR_556,421', 421, '421,424', 424, '424,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511',
+            511],
+            [456, '456,455', 455, '455,448', 448, '448+PR_556,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
+            [456, '456,455', 455, '455,448', 448, '448+PR_556,420', 420, '420+PR_41,511', 511],
+            [456, '456,455', 455, '455+PR_556,423', 423, '423,420', 420, '420+PR_41,511', 511],
+            [456, '456,455', 455, '455+PR_556,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
+            [456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420,419', 419, '419+PR_41,510', 510, '510,511',
+            511]]
+
+        ind = 0
+        for path in paths:
+            if ind == 10:
+                break
+            else:
+                print(path)
+                self.assertEqual(path, p[ind])
+                ind += 1
+
+    def test_find_paths(self):
+
+        # set up RN
+        #RN = self.RN_cls
+        RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
+        RN.build()
+        RN.weight = "softplus"
+        # set up input variables
+        EC_ind = None
+        LEDC_ind = None
+
+
+        for entry in RN.entries["C3 H4 O3"][10][0]:
+            if self.EC_mg.isomorphic_to(entry.mol_graph):
+                EC_ind = entry.parameters["ind"]
+                break
+        for entry in RN.entries["C4 H4 Li2 O6"][17][0]:
+            if self.LEDC_mg.isomorphic_to(entry.mol_graph):
+                LEDC_ind = entry.parameters["ind"]
+                break
+        Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
+        print(EC_ind, Li1_ind, LEDC_ind)
+        # loaded_PRs = loadfn("PR_paths_HP.json")
+        #
+        # PR_paths_loaded, paths_loaded = RN.find_paths([EC_ind,Li1_ind],LEDC_ind,weight="softplus",num_paths=10, solved_PRs_path=loaded_PRs)
+        #
+        #
+        # self.assertEqual(paths_loaded[0]["byproducts"],[164])
+        # self.assertEqual(paths_loaded[1]["all_prereqs"],[556,420,556])
+        # self.assertEqual(paths_loaded[0]["cost"],2.313631862390461)
+        # self.assertEqual(paths_loaded[0]["overall_free_energy_change"],-6.240179642711564)
+        # self.assertEqual(paths_loaded[0]["hardest_step_deltaG"],0.3710129384598986)
+        # self.assertEqual(paths_loaded[0]["all_prereqs"],[556,41,556])
+        # for path in paths_loaded:
+        #     self.assertTrue(abs(path["cost"]-path["pure_cost"])<0.000000000001)
+
+        PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind, Li1_ind],LEDC_ind,weight="softplus",num_paths=10)
+
+        self.assertEqual(paths_calculated[0]["byproducts"],[164, 164])
+        self.assertEqual(paths_calculated[1]["all_prereqs"],[556,420,556])
+        self.assertEqual(paths_calculated[0]["cost"],2.313631862390461)
+        self.assertEqual(paths_calculated[0]["overall_free_energy_change"],-6.240179642711564)
+        self.assertEqual(paths_calculated[0]["hardest_step_deltaG"],0.3710129384598986)
+        self.assertEqual(paths_calculated[0]["all_prereqs"],[556,41,556])
+        for path in paths_calculated:
+            self.assertTrue(abs(path["cost"] - path["pure_cost"]) < 0.000000000001)
+
+
+        # self.assertEqual(paths_loaded[0], paths_calculated[0])
+        # self.assertEqual(paths_loaded[1], paths_calculated[1])
+        # self.assertEqual(paths_loaded[3], paths_calculated[3])
+        # self.assertEqual(paths_loaded[5], paths_calculated[5])
+        # self.assertEqual(paths_loaded[7], paths_calculated[7])
+        # self.assertEqual(paths_loaded[9], paths_calculated[9])
 
 
 if __name__ == "__main__":

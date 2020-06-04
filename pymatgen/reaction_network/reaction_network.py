@@ -370,8 +370,9 @@ class RedoxReaction(Reaction):
 
     @classmethod
     def from_dict(cls, d):
-        reactants = [MoleculeEntry.from_dict(r) for r in d["reactants"]]
-        products = [MoleculeEntry.from_dict(p) for p in d["products"]]
+        reactant = MoleculeEntry.from_dict(d["reactant"])
+        product = MoleculeEntry.from_dict(d["product"])
+
         if d["transition_state"] is None:
             ts = None
             if d["rate_calculator"] is None:
@@ -384,7 +385,7 @@ class RedoxReaction(Reaction):
 
         parameters = d["parameters"]
 
-        reaction = cls(reactants, products, transition_state=ts,
+        reaction = cls(reactant, product, transition_state=ts,
                        parameters=parameters)
         reaction.rate_calculator = rate_calculator
         reaction.electron_free_energy = d["electron_free_energy"]
@@ -588,8 +589,8 @@ class IntramolSingleBondChangeReaction(Reaction):
 
     @classmethod
     def from_dict(cls, d):
-        reactants = [MoleculeEntry.from_dict(r) for r in d["reactants"]]
-        products = [MoleculeEntry.from_dict(p) for p in d["products"]]
+        reactant = MoleculeEntry.from_dict(d["reactant"])
+        product = MoleculeEntry.from_dict(d["product"])
         if d["transition_state"] is None:
             ts = None
             if d["rate_calculator"] is None:
@@ -602,7 +603,7 @@ class IntramolSingleBondChangeReaction(Reaction):
 
         parameters = d["parameters"]
 
-        reaction = cls(reactants, products, transition_state=ts,
+        reaction = cls(reactant, product, transition_state=ts,
                        parameters=parameters)
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -805,8 +806,8 @@ class IntermolecularReaction(Reaction):
              "reactants": [r.as_dict() for r in self.reactants],
              "products": [p.as_dict() for p in self.products],
              "reactant": self.reactant.as_dict(),
-             "product0": self.product0.as_dict(),
-             "product1": self.product1.as_dict(),
+             "product_0": self.product_0.as_dict(),
+             "product_1": self.product_1.as_dict(),
              "transition_state": ts,
              "rate_calculator": rc,
              "parameters": self.parameters}
@@ -815,8 +816,9 @@ class IntermolecularReaction(Reaction):
 
     @classmethod
     def from_dict(cls, d):
-        reactants = [MoleculeEntry.from_dict(r) for r in d["reactants"]]
-        products = [MoleculeEntry.from_dict(p) for p in d["products"]]
+        reactant = MoleculeEntry.from_dict(d["reactant"])
+        product_0 = MoleculeEntry.from_dict(d["product_0"])
+        product_1 = MoleculeEntry.from_dict(d["product_1"])
         if d["transition_state"] is None:
             ts = None
             if d["rate_calculator"] is None:
@@ -829,7 +831,7 @@ class IntermolecularReaction(Reaction):
 
         parameters = d["parameters"]
 
-        reaction = cls(reactants, products, transition_state=ts,
+        reaction = cls(reactant, [product_0, product_1], transition_state=ts,
                        parameters=parameters)
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -1061,8 +1063,8 @@ class CoordinationBondChangeReaction(Reaction):
              "reactants": [r.as_dict() for r in self.reactants],
              "products": [p.as_dict() for p in self.products],
              "reactant": self.reactant.as_dict(),
-             "product0": self.product_0.as_dict(),
-             "product1": self.product_1.as_dict(),
+             "product_0": self.product_0.as_dict(),
+             "product_1": self.product_1.as_dict(),
              "transition_state": ts,
              "rate_calculator": rc,
              "parameters": self.parameters}
@@ -1071,8 +1073,9 @@ class CoordinationBondChangeReaction(Reaction):
 
     @classmethod
     def from_dict(cls, d):
-        reactants = [MoleculeEntry.from_dict(r) for r in d["reactants"]]
-        products = [MoleculeEntry.from_dict(p) for p in d["products"]]
+        reactant = MoleculeEntry.from_dict(d["reactant"])
+        product_0 = MoleculeEntry.from_dict(d["product_0"])
+        product_1 = MoleculeEntry.from_dict(d["product_1"])
         if d["transition_state"] is None:
             ts = None
             if d["rate_calculator"] is None:
@@ -1085,7 +1088,7 @@ class CoordinationBondChangeReaction(Reaction):
 
         parameters = d["parameters"]
 
-        reaction = cls(reactants, products, transition_state=ts,
+        reaction = cls(reactant, [product_0, product_1], transition_state=ts,
                        parameters=parameters)
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -1584,7 +1587,7 @@ class ReactionNetwork(MSONable):
     """
 
     def __init__(self, electron_free_energy, temperature, entries_dict,
-                 entries_list, graph, reactions, families, mapping,
+                 entries_list, graph, reactions, families,
                  PR_record, min_cost, num_starts):
         """
         :param electron_free_energy: Electron free energy (in eV)
@@ -1595,8 +1598,6 @@ class ReactionNetwork(MSONable):
         :param graph: nx.DiGraph representing connections in the network
         :param reactions: list of Reaction objects
         :param families: dict containing reaction families
-        :param mapping: dict linking rxn node names to rxn node indices
-            (along with information about directionality)
         :param PR_record: dict containing reaction prerequisites
         :param min_cost: dict containing costs of entries in the network
         :param num_starts: Number of starting molecules
@@ -1612,7 +1613,6 @@ class ReactionNetwork(MSONable):
         self.PR_record = PR_record
         self.reactions = reactions
         self.families = families
-        self.rxn_node_to_rxn_ind = mapping
 
         self.min_cost = min_cost
         self.num_starts = num_starts
@@ -1695,8 +1695,8 @@ class ReactionNetwork(MSONable):
 
         graph = nx.DiGraph()
 
-        network = cls(electron_free_energy, temperature, entries, entries_list, graph,
-                      list(), dict(), dict(), None, dict(), None)
+        network = cls(electron_free_energy, temperature, entries, entries_list,
+                      graph, list(), dict(), dict(), dict(), None)
 
         return network
 
@@ -2311,6 +2311,85 @@ class ReactionNetwork(MSONable):
         print(paths)
 
         return PR_paths, paths
+
+    def as_dict(self) -> dict:
+        entries = dict()
+        for formula in self.entries.keys():
+            entries[formula] = dict()
+            for bonds in self.entries[formula].keys():
+                entries[formula][bonds] = dict()
+                for charge in self.entries[formula][bonds].keys():
+                    entries[formula][bonds][charge] = list()
+                    for entry in self.entries[formula][bonds][charge]:
+                        entries[formula][bonds][charge].append(entry.as_dict())
+
+        entries_list = [e.as_dict() for e in self.entries_list]
+
+        reactions = [r.as_dict() for r in self.reactions]
+
+        families = dict()
+        for category in self.families.keys():
+            families[category] = dict()
+            for charge in self.families[category].keys():
+                families[category][charge] = dict()
+                for label in self.families[category][charge].keys():
+                    families[category][charge][label] = list()
+                    for reaction in self.families[category][charge][label]:
+                        families[category][charge][label].append(reaction)
+
+        d = {"@module": self.__class__.__module__,
+             "@class": self.__class__.__name__,
+             "entries_dict": entries,
+             "entries_list": entries_list,
+             "reactions": reactions,
+             "families": families,
+             "electron_free_energy": self.electron_free_energy,
+             "temperature": self.temperature,
+             "graph": json_graph.adjacency_data(self.graph),
+             "PR_record": self.PR_record,
+             "min_cost": self.min_cost,
+             "num_starts": self.num_starts}
+
+        return d
+
+    @classmethod
+    def from_dict(cls, d):
+
+        entries = dict()
+        d_entries = d["entries_dict"]
+        for formula in d_entries.keys():
+            entries[formula] = dict()
+            for bonds in d_entries[formula].keys():
+                int_bonds = int(bonds)
+                entries[formula][int_bonds] = dict()
+                for charge in d_entries[formula][bonds].keys():
+                    int_charge = int(charge)
+                    entries[formula][int_bonds][int_charge] = list()
+                    for entry in d_entries[formula][bonds][charge]:
+                        entries[formula][int_bonds][int_charge].append(MoleculeEntry.from_dict(entry))
+
+        entries_list = [MoleculeEntry.from_dict(e) for e in d["entries_list"]]
+
+        reactions = list()
+        for reaction in d["reactions"]:
+            rclass = load_class(str(cls.__module__), reaction["@class"])
+            reactions.append(rclass.from_dict(reaction))
+
+        families = dict()
+        for category in d["families"].keys():
+            families[category] = dict()
+            for layer_one in d["families"][category].keys():
+                families[category][layer_one] = dict()
+                for layer_two in d["families"][category][layer_one].keys():
+                    families[category][layer_one][layer_two] = list()
+                    for reaction in d["families"][category][layer_one][layer_two]:
+                        families[category][layer_one][layer_two].append(reaction)
+
+        graph = json_graph.adjacency_graph(d["graph"], directed=True)
+
+        return cls(d["electron_free_energy"], d["temperature"], entries,
+                   entries_list, graph, reactions, families,
+                   d["PR_record"], d["min_cost"], d["num_starts"])
 
 
 def graph_rep_2_2(reaction: Reaction) -> nx.DiGraph:
