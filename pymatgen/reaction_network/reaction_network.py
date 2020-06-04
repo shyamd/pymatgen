@@ -1743,7 +1743,7 @@ class ReactionNetwork(MSONable):
         """
 
         self.graph.add_nodes_from(range(len(self.entries_list)), bipartite=0)
-        reaction_types = [load_class(str(self.__module__) + "." + s) for s in reaction_types]
+        reaction_types = [load_class(str(self.__module__), s) for s in reaction_types]
 
         all_reactions = list()
         raw_families = dict()
@@ -1754,7 +1754,7 @@ class ReactionNetwork(MSONable):
                 all_reactions.append(reactions)
                 raw_families[r.__name__] = families
             else:
-                reactions, families = r.generate(self.entries_list)
+                reactions, families = r.generate(self.entries)
                 all_reactions.append(reactions)
                 raw_families[r.__name__] = families
 
