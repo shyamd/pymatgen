@@ -16,9 +16,16 @@ from monty.serialization import dumpfn, loadfn
 
 from pymatgen.analysis.graphs import MolGraphSplitError
 from pymatgen.entries.mol_entry import MoleculeEntry
-from pymatgen.reactions.reaction_rates import (ReactionRateCalculator,
-                                               ExpandedBEPRateCalculator)
+from pymatgen.reaction_network.reaction_rates import (ReactionRateCalculator,
+                                                      ExpandedBEPRateCalculator)
 from pymatgen.util.classes import load_class
+
+
+__author__ = "Sam Blau, Hetal Patel, Xiaowei Xie, Evan Spotte-Smith"
+__version__ = "0.1"
+__maintainer__ = "Sam Blau"
+__status__ = "Alpha"
+
 
 MappingDict = Dict[str, Dict[int, Dict[int, List[MoleculeEntry]]]]
 Mapping_Energy_Dict = Dict[str, float]

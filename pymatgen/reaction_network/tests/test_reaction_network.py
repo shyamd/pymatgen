@@ -5,8 +5,11 @@ import os
 import sys
 import unittest
 from pymatgen.util.testing import PymatgenTest
-from pymatgen.analysis.reaction_network.reaction_network_HP import *
+from pymatgen.reaction_network.reaction_network import *
 from pymatgen.entries.mol_entry import MoleculeEntry
+from pymatgen.analysis.graphs import MoleculeGraph
+from pymatgen.analysis.local_env import OpenBabelNN
+from pymatgen.analysis.fragmenter import metal_edge_extender
 from monty.serialization import dumpfn, loadfn
 from pymatgen.analysis.fragmenter import metal_edge_extender
 
@@ -15,7 +18,7 @@ try:
 except ImportError:
     ob = None
 
-test_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..","..",
+test_dir = os.path.join(os.path.dirname(__file__), "..", "..","..",
                         'test_files', 'reaction_network_files')
 
 
