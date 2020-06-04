@@ -1617,6 +1617,14 @@ class ReactionNetwork(MSONable):
         self.min_cost = min_cost
         self.num_starts = num_starts
 
+        self.reachable_nodes = []
+        self.unsolvable_PRs = []
+        self.entry_ids = {e.entry_id for e in self.entries_list}
+        self.weight = None
+        self.Reactant_record = None
+        self.min_cost = {}
+        self.not_reachable_nodes = []
+
     @classmethod
     def from_input_entries(cls, input_entries, electron_free_energy=-2.15,
                            temperature=298.15):
@@ -1696,7 +1704,7 @@ class ReactionNetwork(MSONable):
         graph = nx.DiGraph()
 
         network = cls(electron_free_energy, temperature, entries, entries_list,
-                      graph, list(), dict(), dict(), dict(), None)
+                      graph, list(), dict(), dict(), dict(), 0)
 
         return network
 

@@ -527,11 +527,11 @@ class TestReactionPath(PymatgenTest):
     def test_characterize_path(self):
 
         # set up input variables
-        path = loadfn(os.path.join(test_dir,"characterize_path_path_IN.json"))
-        graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"characterize_path_self_graph_IN.json")))
-        self_min_cost_str = loadfn(os.path.join(test_dir,"characterize_path_self_min_cost_IN.json"))
-        solved_PRs = loadfn(os.path.join(test_dir,"characterize_path_old_solved_PRs_IN.json"))
-        PR_paths_str = loadfn(os.path.join(test_dir,"characterize_path_final_PR_paths_IN.json"))
+        path = loadfn(os.path.join(test_dir, "characterize_path_path_IN.json"))
+        graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir, "characterize_path_self_graph_IN.json")))
+        self_min_cost_str = loadfn(os.path.join(test_dir, "characterize_path_self_min_cost_IN.json"))
+        solved_PRs = loadfn(os.path.join(test_dir, "characterize_path_old_solved_PRs_IN.json"))
+        PR_paths_str = loadfn(os.path.join(test_dir, "characterize_path_final_PR_paths_IN.json"))
         loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
 
         PR_byproducts = {}
@@ -548,7 +548,7 @@ class TestReactionPath(PymatgenTest):
             self_min_cost[int(node)] = self_min_cost_str[node]
 
         # run calc
-        path_instance = ReactionPath.characterize_path(path , "softplus", self_min_cost, graph,solved_PRs, PR_byproducts, PR_paths)
+        path_instance = ReactionPath.characterize_path(path, "softplus", self_min_cost, graph,solved_PRs, PR_byproducts, PR_paths)
 
         # assert
         self.assertEqual(path_instance.byproducts, [456, 34])
@@ -646,7 +646,8 @@ class TestReactionNetwork(PymatgenTest):
     def test_add_reactions(self):
 
         # set up RN
-        RN = self.RN_cls
+        RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries,
+                                                electron_free_energy=-2.15)
 
         # set up input variables
         EC_0_entry = None
@@ -1004,9 +1005,8 @@ class TestReactionNetwork(PymatgenTest):
         RN = self.RN_cls
 
         RN.weight = "softplus"
-        loaded_graph = loadfn("graph_HP.json")
+        loaded_graph = loadfn(os.path.join(test_dir, "graph.json"))
         RN.graph = json_graph.adjacency_graph(loaded_graph)
-
 
         EC_ind = None
         LEDC_ind = None
