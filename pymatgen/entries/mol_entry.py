@@ -89,7 +89,7 @@ class MoleculeEntry(MSONable):
         """
         return self.uncorrected_energy + self.correction
 
-    def free_energy(self, temp=298.0):
+    def free_energy(self, temp=298.15):
         if self.enthalpy is not None and self.entropy is not None:
             return self.energy * 27.21139 + 0.0433641 * self.enthalpy - temp * self.entropy * 0.0000433641
         else:
@@ -116,7 +116,7 @@ class MoleculeEntry(MSONable):
                   "Correction = {:.4f} Hartree".format(self.correction),
                   "Enthalpy = {:.4f} kcal/mol".format(self.enthalpy),
                   "Entropy = {:.4f} cal/mol.K".format(self.entropy),
-                  "Free Energy = {:.4f} eV".format(self.free_energy),
+                  "Free Energy (298.15 K) = {:.4f} eV".format(self.free_energy()),
                   "Parameters:"]
         for k, v in self.parameters.items():
             output.append("{} = {}".format(k, v))

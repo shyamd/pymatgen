@@ -255,7 +255,7 @@ class RedoxReaction(Reaction):
                             for entry0 in entries[formula][Nbonds][charge0]:
                                 for entry1 in entries[formula][Nbonds][charge1]:
                                     if entry0.mol_graph.isomorphic_to(entry1.mol_graph):
-                                        r = cls([entry0], [entry1])
+                                        r = cls(entry0, entry1)
                                         reactions.append(r)
                                         families[formula][charge0].append(r)
 
@@ -468,7 +468,7 @@ class IntramolSingleBondChangeReaction(Reaction):
                                         if nx.is_weakly_connected(mg.graph):
                                             for entry0 in entries[formula][Nbonds0][charge]:
                                                 if entry0.mol_graph.isomorphic_to(mg):
-                                                    r = cls([entry0], [entry1])
+                                                    r = cls(entry0, entry1)
                                                     reactions.append(r)
                                                     indices = entry1.mol_graph.extract_bond_environment([edge])
                                                     subg = entry1.graph.subgraph(list(indices)).copy().to_undirected()
@@ -692,7 +692,7 @@ class IntermolecularReaction(Reaction):
                                                         if charge1 in entries[formula1][Nbonds1]:
                                                             for entry1 in entries[formula1][Nbonds1][charge1]:
                                                                 if frags[1].isomorphic_to(entry1.mol_graph):
-                                                                    r = cls([entry], [entry0, entry1])
+                                                                    r = cls(entry, [entry0, entry1])
                                                                     indices = entry.mol_graph.extract_bond_environment([edge])
                                                                     subg = entry.graph.subgraph(list(indices)).copy().to_undirected()
 
@@ -948,8 +948,8 @@ class CoordinationBondChangeReaction(Reaction):
                                                                                 entries[nonM_formula][nonM_Nbonds][
                                                                                     nonM_charge]:
                                                                             if frag.isomorphic_to(nonM_entry.mol_graph):
-                                                                                r = cls([entry],[nonM_entry,
-                                                                                                 M_entries[M_formula][M_charge]])
+                                                                                r = cls(entry, [nonM_entry,
+                                                                                                  M_entries[M_formula][M_charge]])
 
                                                                                 indices = entry.mol_graph.extract_bond_environment([edge])
                                                                                 subg = entry.graph.subgraph(list(indices)).copy().to_undirected()
@@ -1168,7 +1168,7 @@ class ConcertedReaction(Reaction):
         if read_file:
             all_concerted_reactions = loadfn(name+'_concerted_rxns.json')
         else:
-            from pymatgen.analysis.reaction_network.extract_reactions import FindConcertedReactions
+            from pymatgen.reaction_network.extract_reactions import FindConcertedReactions
             FCR = FindConcertedReactions(entries_list, name)
             all_concerted_reactions = FCR.get_final_concerted_reactions(name, num_processors, reaction_type)
 
@@ -1655,13 +1655,11 @@ class ReactionNetwork(MSONable):
         for k1, g1 in itertools.groupby(sorted_entries_0, get_formula):
             sorted_entries_1 = sorted(list(g1), key=get_Nbonds)
             entries[k1] = dict()
-
             for k2, g2 in itertools.groupby(sorted_entries_1, get_Nbonds):
                 sorted_entries_2 = sorted(list(g2), key=get_charge)
                 entries[k1][k2] = dict()
                 for k3, g3 in itertools.groupby(sorted_entries_2, get_charge):
-                    entries_3 = list(g3)
-                    sorted_entries_3 = sorted(entries_3, key=get_free_energy)
+                    sorted_entries_3 = sorted(list(g3), key=get_free_energy)
                     if len(sorted_entries_3) > 1:
                         unique = list()
                         for entry in sorted_entries_3:
@@ -1692,7 +1690,8 @@ class ReactionNetwork(MSONable):
             else:
                 entry.parameters["ind"] = ii
 
-        entries_list = sorted(entries_list, key=lambda x: x.parameters["ind"])
+        entries_list = sorted(entries_list,
+                              key=lambda x: x.parameters["ind"])
 
         graph = nx.DiGraph()
 

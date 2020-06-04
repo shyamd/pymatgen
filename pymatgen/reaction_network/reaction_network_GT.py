@@ -1273,7 +1273,7 @@ class ConcertedReaction(Reaction):
         if read_file:
             all_concerted_reactions = loadfn(name+'_concerted_rxns.json')
         else:
-            from pymatgen.analysis.reaction_network.extract_reactions import FindConcertedReactions
+            from pymatgen.reaction_network.extract_reactions import FindConcertedReactions
             FCR = FindConcertedReactions(entries_list, name)
             all_concerted_reactions = FCR.get_final_concerted_reactions(name, num_processors, reaction_type)
 
