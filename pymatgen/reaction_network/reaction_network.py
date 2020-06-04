@@ -46,8 +46,8 @@ class Reaction(MSONable, metaclass=ABCMeta):
        """
 
     def __init__(self, reactants: List[MoleculeEntry], products: List[MoleculeEntry],
-                 transition_state: Optional[MoleculeEntry],
-                 parameters: Optional[Dict]):
+                 transition_state: Optional[MoleculeEntry] = None,
+                 parameters: Optional[Dict] = None):
         self.reactants = reactants
         self.products = products
         self.transition_state = transition_state
@@ -196,8 +196,8 @@ class RedoxReaction(Reaction):
     """
 
     def __init__(self, reactant: MoleculeEntry, product: MoleculeEntry,
-                 transition_state: Optional[MoleculeEntry],
-                 parameters: Optional[Dict]):
+                 transition_state: Optional[MoleculeEntry] = None,
+                 parameters: Optional[Dict] = None):
         """
             Initilizes RedoxReaction.reactant to be in the form of a MoleculeEntry,
             RedoxReaction.product to be in the form of MoleculeEntry,
@@ -411,8 +411,8 @@ class IntramolSingleBondChangeReaction(Reaction):
     """
 
     def __init__(self, reactant: MoleculeEntry, product: MoleculeEntry,
-                 transition_state: Optional[MoleculeEntry],
-                 parameters: Optional[Dict]):
+                 transition_state: Optional[MoleculeEntry] = None,
+                 parameters: Optional[Dict] = None):
         """
             Initilizes IntramolSingleBondChangeReaction.reactant to be in the form of a MoleculeEntry,
             IntramolSingleBondChangeReaction.product to be in the form of MoleculeEntry,
@@ -627,8 +627,8 @@ class IntermolecularReaction(Reaction):
     """
 
     def __init__(self, reactant: MoleculeEntry, product: List[MoleculeEntry],
-                 transition_state: Optional[MoleculeEntry],
-                 parameters: Optional[Dict]):
+                 transition_state: Optional[MoleculeEntry] = None,
+                 parameters: Optional[Dict] = None):
         """
             Initilizes IntermolecularReaction.reactant to be in the form of a MoleculeEntry,
             IntermolecularReaction.product to be in the form of [MoleculeEntry_0, MoleculeEntry_1],
@@ -855,8 +855,8 @@ class CoordinationBondChangeReaction(Reaction):
     """
 
     def __init__(self, reactant: MoleculeEntry, product: List[MoleculeEntry],
-                 transition_state: Optional[MoleculeEntry],
-                 parameters: Optional[Dict]):
+                 transition_state: Optional[MoleculeEntry] = None,
+                 parameters: Optional[Dict] = None):
         """
             Initilizes CoordinationBondChangeReaction.reactant to be in the form of a MoleculeEntry,
             CoordinationBondChangeReaction.product to be in the form of [MoleculeEntry_0, MoleculeEntry_1],
@@ -1108,8 +1108,8 @@ class ConcertedReaction(Reaction):
     """
 
     def __init__(self, reactant: List[MoleculeEntry], product: List[MoleculeEntry],
-                 transition_state: Optional[MoleculeEntry],
-                 parameters: Optional[Dict]):
+                 transition_state: Optional[MoleculeEntry] = None,
+                 parameters: Optional[Dict] = None):
         """
             Initilizes IntermolecularReaction.reactant to be in the form of a MoleculeEntry,
             IntermolecularReaction.product to be in the form of [MoleculeEntry_0, MoleculeEntry_1],
