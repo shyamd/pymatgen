@@ -1325,15 +1325,18 @@ class ConcertedReaction(Reaction):
 
 class ReactionPath(MSONable):
     """
-        A class to define path object within the reaction network which constains all the associated characteristic attributes of a given path
+        A class to define path object within the reaction network which
+        constains all the associated characteristic attributes of a given path
 
-        :param path - a list of nodes that defines a path from node A to B within a graph built using ReactionNetwork.build()
+        :param path - a list of nodes that defines a path from node A to B
+            within a graph built using ReactionNetwork.build()
     """
 
     def __init__(self, path):
         """
         initializes the ReactionPath object attributes for a given path
-        :param path: a list of nodes that defines a path from node A to B within a graph built using ReactionNetwork.build()
+        :param path: a list of nodes that defines a path from node A to B
+            within a graph built using ReactionNetwork.build()
         """
 
         self.path = path
@@ -1404,13 +1407,18 @@ class ReactionPath(MSONable):
         return x
 
     @classmethod
-    def characterize_path(cls, path: List[str], weight: str, min_cost: Dict[str, float], graph: nx.DiGraph,
-                          old_solved_PRs=[], PR_byproduct_dict = {}, actualPRs = {}):  # -> ReactionPath
+    def characterize_path(cls, path: List[str], weight: str,
+                          min_cost: Dict[str, float], graph: nx.DiGraph,
+                          old_solved_PRs=[], PR_byproduct_dict = {},
+                          actualPRs = {}):  # -> ReactionPath
         """
             A method to define ReactionPath attributes based on the inputs
-        :param path: a list of nodes that defines a path from node A to B within a graph built using ReactionNetwork.build()
+
+        :param path: a list of nodes that defines a path from node A to B
+            within a graph built using ReactionNetwork.build()
         :param weight: string (either "softplus" or "exponent")
-        :param min_cost: dict with minimum cost from path start to a node, of from {node: float}
+        :param min_cost: dict with minimum cost from path start to a node, of
+            from {node: float}
         :param graph: nx.Digraph
         :param PR_paths: list of already solved PRs
         :return: ReactionPath object
@@ -1450,7 +1458,9 @@ class ReactionPath(MSONable):
                                         new_path_piece3 = path[ii+1::]
                                         new_path = new_path_piece1+new_path_piece2+new_path_piece3
                                         assert(c == path[ii+1])
-                                        return ReactionPath.characterize_path(new_path, weight, min_cost, graph, old_solved_PRs, PR_byproduct_dict, actualPRs)
+                                        return ReactionPath.characterize_path(new_path, weight, min_cost, graph,
+                                                                              old_solved_PRs, PR_byproduct_dict,
+                                                                              actualPRs)
                                     elif a not in PR_b_byproducts:
                                         pool.remove(a)
                                         pool = pool+PR_b_byproducts
@@ -1491,21 +1501,30 @@ class ReactionPath(MSONable):
         return class_instance
 
     @classmethod
-    def characterize_path_final(cls, path: List[str], weight: str, min_cost: Dict[str, float], graph: nx.DiGraph,
-                                old_solved_PRs=[], PR_byproduct_dict = {}, PR_paths = {}):
+    def characterize_path_final(cls, path: List[str], weight: str,
+                                min_cost: Dict[str, float], graph: nx.DiGraph,
+                                old_solved_PRs=[], PR_byproduct_dict={},
+                                PR_paths={}):
         """
-            A method to define all the attributes of a given path once all the PRs are solved
-        :param path: a list of nodes that defines a path from node A to B within a graph built using ReactionNetwork.build()
+            A method to define all the attributes of a given path once all the
+            PRs are solved
+
+        :param path: a list of nodes that defines a path from node A to B
+            within a graph built using ReactionNetwork.build()
         :param weight: string (either "softplus" or "exponent")
-        :param min_cost: dict with minimum cost from path start to a node, of from {node: float},
-        if no path exist, value is "no_path", if path is unsolved yet, value is "unsolved_path"
+        :param min_cost: dict with minimum cost from path start to a node, of
+            from {node: float}, if no path exist, value is "no_path", if path is
+            unsolved yet, value is "unsolved_path"
         :param graph: nx.Digraph
         :param PR_paths: dict that defines a path from each node to a start,
-               of the form {int(node1): {int(start1}: {ReactionPath object}, int(start2): {ReactionPath object}}, int(node2):...}
+               of the form {int(node1): {int(start1}: {ReactionPath object},
+               int(start2): {ReactionPath object}}, int(node2):...}
         :return: ReactionPath object
         """
 
-        class_instance = cls.characterize_path(path, weight, min_cost, graph, old_solved_PRs, PR_byproduct_dict, PR_paths)
+        class_instance = cls.characterize_path(path, weight, min_cost, graph,
+                                               old_solved_PRs, PR_byproduct_dict,
+                                               PR_paths)
         if path is None:
             class_instance = cls(None)
         else:
@@ -2236,24 +2255,36 @@ class ReactionNetwork(MSONable):
 
         return nx.shortest_simple_paths(valid_graph, hash(start), hash(target), weight=self.weight)
 
-    def find_paths(self, starts, target, weight, num_paths=10, solved_PRs_path=None, ignorenode=[]):  # -> ??
+    def find_paths(self, starts, target, weight, num_paths=10,
+                   solved_PRs_path=None, ignorenode=[]):  # -> ??
         """
             A method to find the shorted parth from given starts to a target
-        :param starts: starts: List(molecular nodes), list of molecular nodes of type int found in the ReactionNetwork.graph
-        :param target: a single molecular node of type int found in the ReactionNetwork.graph
-        :param weight: "softplus" or "exponent", type of cost function to use when calculating edge weights
+
+        :param starts: starts: List(molecular nodes), list of molecular nodes
+            of type int found in the ReactionNetwork.graph
+        :param target: a single molecular node of type int found in the
+            ReactionNetwork.graph
+        :param weight: "softplus" or "exponent", type of cost function to use
+            when calculating edge weights
         :param num_paths: Number (of type int) of paths to find. Defaults to 10.
         :param solved_PRs_path: dict that defines a path from each node to a start,
-                of the form {int(node1): {int(start1}: {ReactionPath object}, int(start2): {ReactionPath object}}, int(node2):...}
+                of the form {int(node1): {int(start1}: {ReactionPath object},
+                                          int(start2): {ReactionPath object}},
+                                          int(node2):...}
                 if None, method will solve PRs
-        :param solved_min_cost: dict with minimum cost from path start to a node, of from {node: float},
-                if no path exist, value is "no_path", if path is unsolved yet, value is "unsolved_path",
+        :param solved_min_cost: dict with minimum cost from path start to a
+                node, of from {node: float}, if no path exist, value is
+                "no_path", if path is unsolved yet, value is "unsolved_path",
                 of None, method will solve for min_cost
-        :param updated_graph: nx.DiGraph with udpated edge weights based on the solved PRs, if none, method will solve for PRs and update graph accordingly
-        :param save: if True method will save PRs paths, min cost and updated graph after all the PRs are solved,
+        :param updated_graph: nx.DiGraph with udpated edge weights based on
+            the solved PRs, if none, method will solve for PRs and update graph
+            accordingly
+        :param save: if True method will save PRs paths, min cost and updated
+                    graph after all the PRs are solved,
                     if False, method will not save anything (default)
         :return: PR_paths: solved dict of PRs
-        :return: paths: list of paths (number of paths based on the value of num_paths)
+        :return: paths: list of paths (number of paths based on the value of
+            num_paths)
         """
 
         self.weight = weight

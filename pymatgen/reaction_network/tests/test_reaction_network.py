@@ -548,7 +548,10 @@ class TestReactionPath(PymatgenTest):
             self_min_cost[int(node)] = self_min_cost_str[node]
 
         # run calc
-        path_instance = ReactionPath.characterize_path(path, "softplus", self_min_cost, graph,solved_PRs, PR_byproducts, PR_paths)
+        path_instance = ReactionPath.characterize_path(path, "softplus",
+                                                       self_min_cost, graph,
+                                                       solved_PRs,
+                                                       PR_byproducts, PR_paths)
 
         # assert
         self.assertEqual(path_instance.byproducts, [456, 34])
@@ -557,18 +560,18 @@ class TestReactionPath(PymatgenTest):
         self.assertEqual(path_instance.cost, 1.0716192089248349)
         self.assertEqual(path_instance.pure_cost, 0.0)
         self.assertEqual(path_instance.hardest_step_deltaG, None)
-        self.assertEqual(path_instance.path,[456, '456+PR_556,424', 424, '424,456+556', 556, '556+PR_563,558', 558,
-                                             '558+PR_250,221', 221, '221+PR_565,232',232, '232,34+83', 83,
-                                             '83+PR_544,131', 131, '131,129', 129, '129+PR_0,310', 310,
-                                             '310+PR_564,322', 322,'322+PR_564,333',333],)
+        self.assertEqual(path_instance.path, [456, '456+PR_556,424', 424, '424,456+556', 556, '556+PR_563,558', 558,
+                                              '558+PR_250,221', 221, '221+PR_565,232',232, '232,34+83', 83,
+                                              '83+PR_544,131', 131, '131,129', 129, '129+PR_0,310', 310,
+                                              '310+PR_564,322', 322, '322+PR_564,333', 333],)
 
     def test_characterize_path_final(self):
 
         #set up input variables
-        path = loadfn(os.path.join(test_dir, "characterize_path_path_IN.json"))
-        graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir, "characterize_path_self_graph_IN.json")))
-        self_min_cost_str = loadfn(os.path.join(test_dir, "characterize_path_self_min_cost_IN.json"))
-        old_solved_PRs = loadfn(os.path.join(test_dir, "characterize_path_old_solved_PRs_IN.json"))
+        path = loadfn(os.path.join(test_dir, "characterize_path_final_path_IN.json"))
+        graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir, "characterize_path_final_self_graph_IN.json")))
+        self_min_cost_str = loadfn(os.path.join(test_dir, "characterize_path_final_self_min_cost_IN.json"))
+        old_solved_PRs = loadfn(os.path.join(test_dir, "solved_PRs_list.json"))
         PR_paths_str = loadfn(os.path.join(test_dir, "characterize_path_final_PR_paths_IN.json"))
         loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
 
@@ -587,7 +590,11 @@ class TestReactionPath(PymatgenTest):
                 PR_paths[int(node)][int(start)] = copy.deepcopy(PR_paths_str[node][start])
 
         # perform calc
-        path_class = ReactionPath.characterize_path_final(path, "softplus", self_min_cost, graph, old_solved_PRs, PR_byproducts, PR_paths)
+        path_class = ReactionPath.characterize_path_final(path, "softplus",
+                                                          self_min_cost, graph,
+                                                          old_solved_PRs,
+                                                          PR_byproducts,
+                                                          PR_paths)
 
         # assert
         self.assertEqual(path_class.byproducts, [164, 164])
@@ -1046,14 +1053,12 @@ class TestReactionNetwork(PymatgenTest):
     def test_find_paths(self):
 
         # set up RN
-        #RN = self.RN_cls
         RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
         RN.build()
         RN.weight = "softplus"
         # set up input variables
         EC_ind = None
         LEDC_ind = None
-
 
         for entry in RN.entries["C3 H4 O3"][10][0]:
             if self.EC_mg.isomorphic_to(entry.mol_graph):
@@ -1065,38 +1070,17 @@ class TestReactionNetwork(PymatgenTest):
                 break
         Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
         print(EC_ind, Li1_ind, LEDC_ind)
-        # loaded_PRs = loadfn("PR_paths_HP.json")
-        #
-        # PR_paths_loaded, paths_loaded = RN.find_paths([EC_ind,Li1_ind],LEDC_ind,weight="softplus",num_paths=10, solved_PRs_path=loaded_PRs)
-        #
-        #
-        # self.assertEqual(paths_loaded[0]["byproducts"],[164])
-        # self.assertEqual(paths_loaded[1]["all_prereqs"],[556,420,556])
-        # self.assertEqual(paths_loaded[0]["cost"],2.313631862390461)
-        # self.assertEqual(paths_loaded[0]["overall_free_energy_change"],-6.240179642711564)
-        # self.assertEqual(paths_loaded[0]["hardest_step_deltaG"],0.3710129384598986)
-        # self.assertEqual(paths_loaded[0]["all_prereqs"],[556,41,556])
-        # for path in paths_loaded:
-        #     self.assertTrue(abs(path["cost"]-path["pure_cost"])<0.000000000001)
 
-        PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind, Li1_ind],LEDC_ind,weight="softplus",num_paths=10)
+        PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind, Li1_ind], LEDC_ind, weight="softplus", num_paths=10)
 
         self.assertEqual(paths_calculated[0]["byproducts"],[164, 164])
         self.assertEqual(paths_calculated[1]["all_prereqs"],[556,420,556])
-        self.assertEqual(paths_calculated[0]["cost"],2.313631862390461)
+        self.assertEqual(paths_calculated[0]["cost"], 2.313631862390461)
         self.assertEqual(paths_calculated[0]["overall_free_energy_change"],-6.240179642711564)
         self.assertEqual(paths_calculated[0]["hardest_step_deltaG"],0.3710129384598986)
         self.assertEqual(paths_calculated[0]["all_prereqs"],[556,41,556])
         for path in paths_calculated:
             self.assertTrue(abs(path["cost"] - path["pure_cost"]) < 0.000000000001)
-
-
-        # self.assertEqual(paths_loaded[0], paths_calculated[0])
-        # self.assertEqual(paths_loaded[1], paths_calculated[1])
-        # self.assertEqual(paths_loaded[3], paths_calculated[3])
-        # self.assertEqual(paths_loaded[5], paths_calculated[5])
-        # self.assertEqual(paths_loaded[7], paths_calculated[7])
-        # self.assertEqual(paths_loaded[9], paths_calculated[9])
 
 
 if __name__ == "__main__":
