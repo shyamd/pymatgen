@@ -16,6 +16,7 @@ from pymatgen.analysis.interface import (
     get_rot_3d_for_2d,
     get_2d_transform,
     from_2d_to_3d,
+    match_strain
 )
 from pymatgen.analysis.substrate_analyzer import ZSLGenerator
 from pymatgen.util.testing import PymatgenTest
@@ -46,8 +47,8 @@ class InterfaceTest(PymatgenTest):
                 termination=termination,
                 gap=2.0,
                 vacuum_over_film=20.0,
-                film_layers=1,
-                sub_layers=1,
+                film_thickness=1,
+                substrate_thickness=1,
             )
         )
 
@@ -62,8 +63,8 @@ class InterfaceTest(PymatgenTest):
         assert interface.gap == 2.0
         assert np.allclose(interface.in_plane_offset, [0, 0])
         assert interface.vacuum_over_film == 20.0
-        assert interface.structure_properties["film_layers"] == 1
-        assert interface.structure_properties["sub_layers"] == 1
+        assert interface.structure_properties["film_thickness"] == 1
+        assert interface.structure_properties["substrate_thickness"] == 1
 
     def test_gap(self):
         interface = self.interface
