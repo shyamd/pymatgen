@@ -339,14 +339,16 @@ class RedoxReaction(Reaction):
         free_energy = self.free_energy(temperature=temperature)
         ea = 10000  # [J/mol] activation barrier for exothermic reactions
         if free_energy["free_energy_A"] < 0:
-            rate_constant["k_A"] = k * temperature / h * np.exp(-1 * ea / (R * temperature) )
+            rate_constant["k_A"] = k * temperature / h * np.exp(-1 * ea / (R * temperature))
         else:
-            rate_constant["k_A"] = k * temperature / h * np.exp(-1 * free_energy["free_energy_A"] * 96487 / (R * temperature))
+            rate_constant["k_A"] = k * temperature / h * np.exp(-1 * free_energy["free_energy_A"] * 96487 /
+                                                                (R * temperature))
 
         if free_energy["free_energy_B"] < 0:
             rate_constant["k_B"] = k * temperature / h * np.exp(-1 * ea / (R * temperature))
         else:
-            rate_constant["k_B"] = k * temperature / h * np.exp(-1 * free_energy["free_energy_B"] * 96487 / (R * temperature))
+            rate_constant["k_B"] = k * temperature / h * np.exp(-1 * free_energy["free_energy_B"] * 96487 /
+                                                                (R * temperature))
 
         return rate_constant
 
@@ -947,8 +949,8 @@ class CoordinationBondChangeReaction(Reaction):
                                                      Mapping_Family_Dict]:
         reactions = list()
         M_entries = dict()
-        families = dict()
-        templates = list()
+        fam = dict()
+        temp = list()
         for formula in entries:
             if formula in ["Li1", "Mg1", "Ca1", "Zn1"]:
                 if formula not in M_entries:
@@ -1010,17 +1012,17 @@ class CoordinationBondChangeReaction(Reaction):
                                                                                 indices = mg.extract_bond_environment(list(bond_pair))
                                                                                 subg = mg.graph.subgraph(list(indices)).copy().to_undirected()
 
-                                                                                families, templates = categorize(r,
-                                                                                                                 families,
-                                                                                                                 templates,
-                                                                                                                 subg,
-                                                                                                                 charge)
+                                                                                fam, temp = categorize(r,
+                                                                                                       fam,
+                                                                                                       temp,
+                                                                                                       subg,
+                                                                                                       charge)
 
                                                                                 reactions.append(r)
                                                                                 break
                                         except MolGraphSplitError:
                                             pass
-        return reactions, families
+        return reactions, fam
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
@@ -1516,8 +1518,8 @@ class ReactionPath(MSONable):
     @classmethod
     def characterize_path(cls, path: List[str], weight: str,
                           min_cost: Dict[str, float], graph: nx.DiGraph,
-                          old_solved_PRs=[], PR_byproduct_dict = {},
-                          actualPRs = {}):  # -> ReactionPath
+                          old_solved_PRs=[], PR_byproduct_dict={},
+                          actualPRs={}):  # -> ReactionPath
         """
             A method to define ReactionPath attributes based on the inputs
 
@@ -2016,7 +2018,6 @@ class ReactionNetwork(MSONable):
             edge weights based on solved PRs
         """
 
-
         PRs = {}
         old_solved_PRs = []
         new_solved_PRs = ["placeholder"]
@@ -2046,7 +2047,7 @@ class ReactionNetwork(MSONable):
             old_solved_PRs.append(PR)
             self.min_cost[PR] = PRs[PR][PR].cost
         for node in self.graph.nodes():
-            if self.graph.nodes[node]["bipartite"] == 0:# and node != target:
+            if self.graph.nodes[node]["bipartite"] == 0:  # and node != target:
                 if node not in PRs:
                     PRs[node] = {}
 
@@ -2061,7 +2062,7 @@ class ReactionNetwork(MSONable):
                 min_cost[PR] = 10000000000000000.0
                 self.PR_byproducts[PR] = {}
                 for start in PRs[PR]:
-                    if PRs[PR][start].path == None:
+                    if PRs[PR][start].path is None:
                         cost_from_start[PR][start] = "no_path"
                     else:
                         cost_from_start[PR][start] = PRs[PR][start].cost
@@ -2174,7 +2175,6 @@ class ReactionNetwork(MSONable):
                 if self.graph.nodes[node]["bipartite"] == 0:
                     if node not in self.reachable_nodes:
                         self.reachable_nodes.append(int(node))
-
 
                     dist_and_path[start][int(node)] = {}
                     dist_and_path[start][node]["cost"] = dist[node]
@@ -2502,8 +2502,9 @@ class ReactionNetwork(MSONable):
             for PR in self.PR_record:
                 for rxn_node in self.PR_record[PR]:
                     non_PR_reactant_node = int(rxn_node.split(",")[0].split("+PR_")[0])
-                    self.graph[non_PR_reactant_node][rxn_node][self.weight] = self.graph[non_PR_reactant_node][rxn_node][
-                                                                              self.weight] + self.min_cost[PR]
+                    self.graph[non_PR_reactant_node][rxn_node][self.weight] = (self.graph[non_PR_reactant_node][
+                                                                                  rxn_node][self.weight] +
+                                                                               self.min_cost[PR])
         print("Finding paths...")
 
         remove_node = []

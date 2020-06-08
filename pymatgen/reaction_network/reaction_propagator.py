@@ -44,7 +44,7 @@ class KineticMonteCarloSimulator:
 
         # Convert initial state from concentrations to numbers of molecules
         for molecule_id, concentration in initial_state.items():
-            num_mols = int(concentration * self.volume * N_A * 1000)# volume in m^3
+            num_mols = int(concentration * self.volume * N_A * 1000)  # volume in m^3
             self.initial_state[molecule_id] = num_mols
             self._state[molecule_id] = num_mols
 
@@ -58,7 +58,7 @@ class KineticMonteCarloSimulator:
         self.coord_array = np.zeros(2 * self.num_rxns)
         self.rxn_ind = np.arange(2 * self.num_rxns)
 
-        self.species_rxn_mapping = dict() ## associating reaction index to each molecule
+        self.species_rxn_mapping = dict()  # associating reaction index to each molecule
         for rid, reaction in enumerate(self.reaction_network.reactions):
             self.reactions[rid] = reaction
             self.rate_constants[2 * rid] = reaction.rate_constant(temperature=temperature)["k_A"]

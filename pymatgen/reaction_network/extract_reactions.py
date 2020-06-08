@@ -11,11 +11,11 @@ import numpy as np
 
 
 def convert_atomic_numbers_to_stoi_dict(atomic_numbers):
-    '''
+    """
 
     :param atomic_numbers: a list of atomic numbers
     :return: {'Li':1, '110':0,'C':3,...} zero padding for non-existing elements
-    '''
+    """
     atomic_num_to_element = {1: 'H', 3: 'Li', 6: 'C', 8: 'O', 9: 'F', 15: 'P'}
     elements = ['H', 'Li', 'C', 'O', 'F', 'P']
     stoi_dict = {}
@@ -39,10 +39,10 @@ def combine_stoi_dict(stoi_dict1, stoi_dict2):
 
 
 def identify_same_stoi_mol_pairs(mol_graphs):
-    '''
+    """
     :param mol_graphs: A list of mol_graphs
     :return: A dictionary with all mol pairs(or single molecule) that adds up to the same stoichiometry
-    '''
+    """
     stoi_list = []
     final_dict = {}
     num_mols = len(mol_graphs)
@@ -84,12 +84,12 @@ def is_equivalent(mol_graph1, mol_graph2):
 
 
 def check_in_list(test_mol_graph, mol_graphs):
-    '''
+    """
     Check is test_mol_graph is in mol_graphs
     :param test_mol_graph:
     :param mol_graphs:
     :return: True or False
-    '''
+    """
     is_in_list = False
     for mol_graph in mol_graphs:
         test_formula = test_mol_graph.molecule.composition.alphabetical_formula
@@ -102,12 +102,12 @@ def check_in_list(test_mol_graph, mol_graphs):
 
 
 def find_one_same_mol(mol_graphs1, mol_graphs2):
-    '''
+    """
     Find one same mol graph in two lists and return two lists eliminating those same mols
     :param mol_graphs1:
     :param mol_graphs2:
     :return:
-    '''
+    """
     found_one_equivalent_graph = False
     mol_graphs1_copy = copy.deepcopy(mol_graphs1)
     mol_graphs2_copy = copy.deepcopy(mol_graphs2)
@@ -122,12 +122,12 @@ def find_one_same_mol(mol_graphs1, mol_graphs2):
 
 
 def check_same_mol_graphs(mol_graphs1, mol_graphs2):
-    '''
+    """
     Check is two mol graphs list are identical, assuming every mol graph in one list is unique
     :param mol_graphs1:
     :param mol_graphs2:
     :return: True or False
-    '''
+    """
     is_the_same = False
     mol_graphs1_copy = copy.deepcopy(mol_graphs1)
     mol_graphs2_copy = copy.deepcopy(mol_graphs2)
@@ -144,12 +144,12 @@ def check_same_mol_graphs(mol_graphs1, mol_graphs2):
 
 
 def check_mol_graphs_in_list(mol_graphs, mol_graphs_list):
-    '''
+    """
     Check if a mol graphs list is in a list of list of mol_graphs
     :param mol_graphs:
     :param mol_graphs_list:
     :return: True or False
-    '''
+    """
     is_in_list = False
     if mol_graphs_list == []:
         return is_in_list
@@ -181,12 +181,12 @@ def break_one_bond_in_one_mol(mol_graph):
 
 
 def break_two_bonds_in_one_mol(mol_graph):
-    '''
+    """
     Break two bonds in one single molecule and generate all the possible fragments, including itself,
     including fragments from breaking only one bond
     :param mol_graph:
     :return: A list of list of fragments
-    '''
+    """
     all_possible_fragments = []
     if len(mol_graph.graph.edges) != 0:
         for edge in mol_graph.graph.edges:
@@ -258,11 +258,12 @@ def break_two_bonds_in_one_mol(mol_graph):
 
 
 def open_ring_in_one_mol(mol_graph):
-    '''
+    """
     Generate all possible ring opened fragments. Have to be ring opening
     :param mol_graph:
     :return: A list of fragments
-    '''
+    """
+    
     all_possible_fragments = []
     if len(mol_graph.find_rings()) != 0:
         for edge in mol_graph.graph.edges:
@@ -277,12 +278,12 @@ def open_ring_in_one_mol(mol_graph):
 
 
 def is_ring_isomorphic(mol_graph1, mol_graph2):
-    '''
+    """
     See if mol_graph1 and mol_graph2 can be equivalent by opening a ring
     :param mol_graph1:
     :param mol_graph2:
     :return:
-    '''
+    """
     is_ring_isomorphic = False
     if mol_graph1.molecule.composition.alphabetical_formula == mol_graph1.molecule.composition.alphabetical_formula:
         if mol_graph1.isormorphic_to(mol_graph2):
@@ -300,12 +301,12 @@ def is_ring_isomorphic(mol_graph1, mol_graph2):
 
 
 def identify_self_reactions(mol_graph1, mol_graph2):
-    '''
+    """
     break A, B once each. Not considering breaking two or more bonds in a mol.
     :param mol_graph1:
     :param mol_graph2:
     :return:
-    '''
+    """
     is_self_reaction = False
     A = mol_graph1
     B = mol_graph2
@@ -320,12 +321,12 @@ def identify_self_reactions(mol_graph1, mol_graph2):
 
 
 def identify_self_reactions_record(mol_graph1, mol_graph2, num1, num2, one_bond_dict):
-    '''
+    """
     break A, B once each. Not considering breaking two or more bonds in a mol.
     :param mol_graph1:
     :param mol_graph2:
     :return:
-    '''
+    """
     is_self_reaction = False
     A = mol_graph1
     B = mol_graph2
@@ -348,12 +349,12 @@ def identify_self_reactions_record(mol_graph1, mol_graph2, num1, num2, one_bond_
 
 
 def identify_self_reactions_record_one_bond_breakage(mol_graph1, mol_graph2, num1, num2, one_bond_dict):
-    '''
+    """
     break A, B once each. Not considering breaking two or more bonds in a mol.
     :param mol_graph1:
     :param mol_graph2:
     :return:
-    '''
+    """
     is_self_reaction = False
     A = mol_graph1
     B = mol_graph2
@@ -380,14 +381,14 @@ def identify_self_reactions_record_one_bond_breakage(mol_graph1, mol_graph2, num
 
 
 def identify_reactions_AB_C(mol_graphs1, mol_graphs2):
-    '''
+    """
     A + B -> C type reactions
     1. A, B each break once, C break twice
     2. A or B break twice, the other intact, C break twice
     :param mol_graphs1: 2 components A and B
     :param mol_graphs2: 1 component C
     :return: True or False
-    '''
+    """
     is_reactions_AB_C = False
     assert len(mol_graphs1) == 2 and len(mol_graphs2) == 1
     A = mol_graphs1[0]
@@ -429,13 +430,13 @@ def identify_reactions_AB_C(mol_graphs1, mol_graphs2):
 
 
 def identify_reactions_AB_C_break1_form1(mol_graphs1, mol_graphs2):
-    '''
+    """
     A + B -> C type reactions
     A or B break once, C break once
     :param mol_graphs1: 2 components A and B
     :param mol_graphs2: 1 component C
     :return: True or False
-    '''
+    """
     is_reactions_AB_C = False
     assert len(mol_graphs1) == 2 and len(mol_graphs2) == 1
     A = mol_graphs1[0]
@@ -466,14 +467,14 @@ def identify_reactions_AB_C_break1_form1(mol_graphs1, mol_graphs2):
 
 
 def identify_reactions_AB_C_record(mol_graphs1, mol_graphs2, nums1, nums2, one_bond_dict, two_bond_dict):
-    '''
+    """
     A + B -> C type reactions
     1. A, B each break once, C break twice
     2. A or B break twice, the other intact, C break twice
     :param mol_graphs1: 2 components A and B
     :param mol_graphs2: 1 component C
     :return: True or False
-    '''
+    """
     is_reactions_AB_C = False
     assert len(mol_graphs1) == 2 and len(mol_graphs2) == 1
     A = mol_graphs1[0]
@@ -541,13 +542,13 @@ def identify_reactions_AB_C_record(mol_graphs1, mol_graphs2, nums1, nums2, one_b
 
 
 def identify_reactions_AB_C_record_one_bond_breakage(mol_graphs1, mol_graphs2, nums1, nums2, one_bond_dict):
-    '''
+    """
     A + B -> C type reactions
     one bond breakage
     :param mol_graphs1: 2 components A and B
     :param mol_graphs2: 1 component C
     :return: True or False
-    '''
+    """
     is_reactions_AB_C = False
     assert len(mol_graphs1) == 2 and len(mol_graphs2) == 1
     A = mol_graphs1[0]
@@ -573,7 +574,7 @@ def identify_reactions_AB_C_record_one_bond_breakage(mol_graphs1, mol_graphs2, n
 
 
 def identify_reactions_AB_CD(mol_graphs1, mol_graphs2):
-    '''
+    """
     Identify reactions type A + B -> C + D
     1. A, B, C, D all break once, creating A1, A2, B1, B2 == C1, C2, D1, D2
     2. one of A, B breaks twice; C, D both break once each. i.e. A + B -> A1 + A2 + A3 + B == C1 + C2 + D1 + D2
@@ -582,7 +583,7 @@ def identify_reactions_AB_CD(mol_graphs1, mol_graphs2):
     :param mol_graphs1:
     :param mol_graphs2:
     :return: True or False
-    '''
+    """
     is_reactions_AB_CD = False
     A = mol_graphs1[0]
     B = mol_graphs1[1]
@@ -674,7 +675,7 @@ def identify_reactions_AB_CD(mol_graphs1, mol_graphs2):
 
 
 def identify_reactions_AB_CD_break1_form1(mol_graphs1, mol_graphs2):
-    '''
+    """
     Identify reactions type A + B -> C + D with break1 form1
     1. break A once, break C once
     2. break A once, break D once
@@ -683,7 +684,7 @@ def identify_reactions_AB_CD_break1_form1(mol_graphs1, mol_graphs2):
     :param mol_graphs1:
     :param mol_graphs2:
     :return: True or False
-    '''
+    """
     is_reactions_AB_CD = False
     A = mol_graphs1[0]
     B = mol_graphs1[1]
@@ -731,7 +732,7 @@ def identify_reactions_AB_CD_break1_form1(mol_graphs1, mol_graphs2):
 
 
 def identify_reactions_AB_CD_record(mol_graphs1, mol_graphs2, nums1, nums2, one_bond_dict, two_bond_dict):
-    '''
+    """
     Identify reactions type A + B -> C + D
     1. A, B, C, D all break once, creating A1, A2, B1, B2 == C1, C2, D1, D2
     2. one of A, B breaks twice; C, D both break once each. i.e. A + B -> A1 + A2 + A3 + B == C1 + C2 + D1 + D2
@@ -740,7 +741,7 @@ def identify_reactions_AB_CD_record(mol_graphs1, mol_graphs2, nums1, nums2, one_
     :param mol_graphs1:
     :param mol_graphs2:
     :return: True or False
-    '''
+    """
     is_reactions_AB_CD = False
     A = mol_graphs1[0]
     B = mol_graphs1[1]
@@ -875,7 +876,7 @@ def identify_reactions_AB_CD_record(mol_graphs1, mol_graphs2, nums1, nums2, one_
 
 
 def identify_reactions_AB_CD_record_one_bond_each(mol_graphs1, mol_graphs2, nums1, nums2, one_bond_dict):
-    '''
+    """
     Identify reactions type A + B -> C + D
     1. A, B, C, D all break once, creating A1, A2, B1, B2 == C1, C2, D1, D2
     no 2. one of A, B breaks twice; C, D both break once each. i.e. A + B -> A1 + A2 + A3 + B == C1 + C2 + D1 + D2
@@ -884,7 +885,7 @@ def identify_reactions_AB_CD_record_one_bond_each(mol_graphs1, mol_graphs2, nums
     :param mol_graphs1:
     :param mol_graphs2:
     :return: True or False
-    '''
+    """
     is_reactions_AB_CD = False
     A = mol_graphs1[0]
     B = mol_graphs1[1]
@@ -946,7 +947,7 @@ class FindConcertedReactions:
         return
 
     def find_concerted_candidates(self):
-        '''
+        """
         Find concerted reaction candidates by finding reactant-product pairs that match the stoichiometry.
         Args:
         :param entries: ReactionNetwork(input_entries).entries_list, entries_list = [MoleculeEntry]
@@ -954,7 +955,7 @@ class FindConcertedReactions:
         :return: self.concerted_rxns_to_determine: [['15_43', '19_43']]: [[str(reactants),str(products)]]
                  reactants and products are separated by "_".
                  The number correspond to the index of a mol_graph in self.unique_mol_graphs_new.
-        '''
+        """
         print("Finding concerted reaction candidates!")
         self.unique_mol_graphs = []
         for entry in self.entries_list:
@@ -1007,7 +1008,7 @@ class FindConcertedReactions:
         return
 
     def find_concerted_break2_form2(self, args):
-        '''
+        """
         Determine whether one reaction in self.concerted_rxns_to_determine is a
         <=2 bond break, <=2 bond formation concerted reaction.
         Note that if a reaction is elementary (in class "RedoxReaction",
@@ -1024,7 +1025,7 @@ class FindConcertedReactions:
                  reactants and products are separated by "_".
                  The number correspond to the index of a mol_graph in
                  self.unique_mol_graphs_new.
-        '''
+        """
         i, name = args[0], args[1]
         valid_reactions = []
 
@@ -1092,7 +1093,7 @@ class FindConcertedReactions:
         return valid_reactions
 
     def find_concerted_break1_form1(self, index):
-        '''
+        """
         Determine whether one reaction in self.concerted_rxns_to_determine is a
         <=1 bond break, <=1 bond formation concerted reaction.
         Note that if a reaction is elementary (in class "RedoxReaction",
@@ -1106,7 +1107,7 @@ class FindConcertedReactions:
                  reactants and products are separated by "_".
                  The number correspond to the index of a mol_graph in
                  self.unique_mol_graphs_new.
-        '''
+        """
         valid_reactions = []
 
         reac = self.concerted_rxns_to_determine[index][0]
@@ -1173,7 +1174,7 @@ class FindConcertedReactions:
         return valid_reactions
 
     def find_concerted_multiprocess(self, num_processors, reaction_type="break2_form2"):
-        '''
+        """
         Use multiprocessing to determine concerted reactions in parallel.
         Args:
         :param num_processors:
@@ -1183,7 +1184,7 @@ class FindConcertedReactions:
                  reactants and products are separated by "_".
                  The number correspond to the index of a mol_graph in
                  self.unique_mol_graphs_new.
-        '''
+        """
         print("Finding concerted reactions!")
         if reaction_type == "break2_form2":
             func = self.find_concerted_break2_form2
@@ -1205,7 +1206,7 @@ class FindConcertedReactions:
 
     def get_final_concerted_reactions(self, name, num_processors,
                                       reaction_type="break2_form2"):
-        '''
+        """
         This is for getting the final set of concerted reactions: entry index
         corresponds to the index in self.entries_list.
         Args:
@@ -1222,7 +1223,7 @@ class FindConcertedReactions:
                  reactants and products are separated by "_".
                  The number correspond to the index of a mol_graph in
                  self.entries_list.
-        '''
+        """
         self.find_concerted_candidates()
         self.find_concerted_multiprocess(num_processors, reaction_type)
         print("Summarizing concerted reactions!")
