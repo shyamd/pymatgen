@@ -2209,12 +2209,12 @@ class MoleculeGraph(MSONable):
                 for frag in frag_dict[key]:
                     matched = False
                     for subgroup in subgroups:
-                        if _isomorphic(frag,subgroup["frag"]):
+                        if _isomorphic(frag, subgroup["frag"]):
                             subgroup["frag_list"].append(frag)
                             matched = True
                             break
                     if not matched:
-                        subgroups.append({"frag":frag,"frag_list":[frag]})
+                        subgroups.append({"frag": frag, "frag_list": [frag]})
 
                 # Separate by M3:
                 unique_frags = []
@@ -2228,7 +2228,7 @@ class MoleculeGraph(MSONable):
                         adj = nx.Graph()
                         tmp_ids = list(range(len(subgroup["frag_list"])))
                         adj.add_nodes_from(tmp_ids)
-                        pairs = combinations(tmp_ids,2)
+                        pairs = combinations(tmp_ids, 2)
                         atoms_list = []
                         for frag in subgroup["frag_list"]:
                             sym_dict = nx.get_node_attributes(frag, "specie")
@@ -2240,8 +2240,8 @@ class MoleculeGraph(MSONable):
                                 positions.append(pos_dict[indkey])
                             atoms_list.append(Atoms(symbols=symbols, positions=positions))
                         for pair in pairs:
-                            if m3(atoms_list[pair[0]],atoms_list[pair[1]]) < m3_cutoff:
-                                adj.add_edge(pair[0],pair[1])
+                            if m3(atoms_list[pair[0]], atoms_list[pair[1]]) < m3_cutoff:
+                                adj.add_edge(pair[0], pair[1])
                         subgraphs = list(nx.connected_components(adj))
                         if len(subgraphs) == 1:
                             unique_frags.append(subgroup["frag"])

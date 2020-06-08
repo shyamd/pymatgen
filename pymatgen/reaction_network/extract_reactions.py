@@ -92,7 +92,9 @@ def check_in_list(test_mol_graph, mol_graphs):
     '''
     is_in_list = False
     for mol_graph in mol_graphs:
-        if test_mol_graph.molecule.composition.alphabetical_formula == mol_graph.molecule.composition.alphabetical_formula:
+        test_formula = test_mol_graph.molecule.composition.alphabetical_formula
+        mg_formula = mol_graph.molecule.composition.alphabetical_formula
+        if test_formula == mg_formula:
             if test_mol_graph.isomorphic_to(mol_graph):
                 is_in_list = True
                 break
@@ -229,7 +231,6 @@ def break_two_bonds_in_one_mol(mol_graph):
                                     frags1_new_new = [frags1_new[0]]
                                 if not check_mol_graphs_in_list([frag2] + frags1_new_new, all_possible_fragments):
                                     all_possible_fragments.append([frag2] + frags1_new_new)
-
 
             except MolGraphSplitError:
                 mol_graph_copy = copy.deepcopy(mol_graph)
@@ -597,7 +598,7 @@ def identify_reactions_AB_CD(mol_graphs1, mol_graphs2):
         for item_B in frags_B_one_step:
             for item_C in frags_C_one_step:
                 for item_D in frags_D_one_step:
-                    if check_same_mol_graphs(item_A + item_B, item_C + item_D) == True:
+                    if check_same_mol_graphs(item_A + item_B, item_C + item_D) is True:
                         is_reactions_AB_CD = True
                         print('ABCD each once!')
                         return is_reactions_AB_CD
@@ -779,7 +780,7 @@ def identify_reactions_AB_CD_record(mol_graphs1, mol_graphs2, nums1, nums2, one_
         for item_B in frags_B_one_step:
             for item_C in frags_C_one_step:
                 for item_D in frags_D_one_step:
-                    if check_same_mol_graphs(item_A + item_B, item_C + item_D) == True:
+                    if check_same_mol_graphs(item_A + item_B, item_C + item_D) is True:
                         is_reactions_AB_CD = True
                         print('ABCD each once!')
                         return str(is_reactions_AB_CD), one_bond_dict, two_bond_dict
@@ -923,7 +924,7 @@ def identify_reactions_AB_CD_record_one_bond_each(mol_graphs1, mol_graphs2, nums
         for item_B in frags_B_one_step:
             for item_C in frags_C_one_step:
                 for item_D in frags_D_one_step:
-                    if check_same_mol_graphs(item_A + item_B, item_C + item_D) == True:
+                    if check_same_mol_graphs(item_A + item_B, item_C + item_D) is True:
                         is_reactions_AB_CD = True
                         print('ABCD each once!')
                         return str(is_reactions_AB_CD), one_bond_dict
@@ -1007,16 +1008,22 @@ class FindConcertedReactions:
 
     def find_concerted_break2_form2(self, args):
         '''
-        Determine whether one reaction in self.concerted_rxns_to_determine is a <=2 bond break, <=2 bond formation concerted reaction.
-        Note that if a reaction is elementary (in class "RedoxReaction", "IntramolSingleBondChangeReaction", "IntermolecularReaction",
-        "CoordinationBondChangeReaction"), it is also considered concerted. It has to be removed later on in the ReactionNetwork class.
+        Determine whether one reaction in self.concerted_rxns_to_determine is a
+        <=2 bond break, <=2 bond formation concerted reaction.
+        Note that if a reaction is elementary (in class "RedoxReaction",
+        "IntramolSingleBondChangeReaction", "IntermolecularReaction",
+        "CoordinationBondChangeReaction"), it is also considered concerted.
+        It has to be removed later on in the ReactionNetwork class.
 
         :param args: [i,name]
                    i: Index in self.concerted_rxns_to_determine
-                   name: This is for calling self.find_concerted_multiprocess later. Name for saving self.valid_reactions.
-        :return: valid_reactions:[['15_43', '19_43']]: [[str(reactants),str(products)]]
+                   name: This is for calling self.find_concerted_multiprocess
+                    later. Name for saving self.valid_reactions.
+        :return: valid_reactions:[['15_43', '19_43']]: [[str(reactants),
+                                                         str(products)]]
                  reactants and products are separated by "_".
-                 The number correspond to the index of a mol_graph in self.unique_mol_graphs_new.
+                 The number correspond to the index of a mol_graph in
+                 self.unique_mol_graphs_new.
         '''
         i, name = args[0], args[1]
         valid_reactions = []
@@ -1086,14 +1093,19 @@ class FindConcertedReactions:
 
     def find_concerted_break1_form1(self, index):
         '''
-        Determine whether one reaction in self.concerted_rxns_to_determine is a <=1 bond break, <=1 bond formation concerted reaction.
-        Note that if a reaction is elementary (in class "RedoxReaction", "IntramolSingleBondChangeReaction", "IntermolecularReaction",
-        "CoordinationBondChangeReaction"), it is also considered concerted. It has to be removed later on in the ReactionNetwork class.
+        Determine whether one reaction in self.concerted_rxns_to_determine is a
+        <=1 bond break, <=1 bond formation concerted reaction.
+        Note that if a reaction is elementary (in class "RedoxReaction",
+        "IntramolSingleBondChangeReaction", "IntermolecularReaction",
+        "CoordinationBondChangeReaction"), it is also considered concerted.
+        It has to be removed later on in the ReactionNetwork class.
 
         :param index: Index in self.concerted_rxns_to_determine
-        :return: valid_reactions:[['15_43', '19_43']]: [[str(reactants),str(products)]]
+        :return: valid_reactions:[['15_43', '19_43']]: [[str(reactants),
+                                                         str(products)]]
                  reactants and products are separated by "_".
-                 The number correspond to the index of a mol_graph in self.unique_mol_graphs_new.
+                 The number correspond to the index of a mol_graph in
+                 self.unique_mol_graphs_new.
         '''
         valid_reactions = []
 
@@ -1166,9 +1178,11 @@ class FindConcertedReactions:
         Args:
         :param num_processors:
         :param reaction_type: Can choose from "break2_form2" and "break1_form1"
-        :return: self.valid_reactions:[['15_43', '19_43']]: [[str(reactants),str(products)]]
+        :return: self.valid_reactions:[['15_43', '19_43']]: [[str(reactants),
+                                                              str(products)]]
                  reactants and products are separated by "_".
-                 The number correspond to the index of a mol_graph in self.unique_mol_graphs_new.
+                 The number correspond to the index of a mol_graph in
+                 self.unique_mol_graphs_new.
         '''
         print("Finding concerted reactions!")
         if reaction_type == "break2_form2":
@@ -1189,19 +1203,25 @@ class FindConcertedReactions:
         # dumpfn(self.valid_reactions, name + "_valid_concerted_rxns.json")
         return
 
-    def get_final_concerted_reactions(self, name, num_processors, reaction_type="break2_form2"):
+    def get_final_concerted_reactions(self, name, num_processors,
+                                      reaction_type="break2_form2"):
         '''
-        This is for getting the final set of concerted reactions: entry index corresponds to the index in self.entries_list.
+        This is for getting the final set of concerted reactions: entry index
+        corresponds to the index in self.entries_list.
         Args:
-        :param name: name for saving self.valid_reactions. self.valid_reactions has the following form:
-               [["0_1", "6_46"]]: [[str(reactants), str(products)]] reactants and products are separated by "_".
-               The number correspond to the index of a mol_graph in self.unique_mol_graphs_new.
+        :param name: name for saving self.valid_reactions. self.valid_reactions
+        has the following form:
+               [["0_1", "6_46"]]: [[str(reactants), str(products)]] reactants
+               and products are separated by "_".
+               The number correspond to the index of a mol_graph in
+               self.unique_mol_graphs_new.
         :param num_processors:
         :param reaction_type: Can choose from "break2_form2" and "break1_form1"
 
         :return: [['15_43', '19_43']]: [[str(reactants),str(products)]]
                  reactants and products are separated by "_".
-                 The number correspond to the index of a mol_graph in self.entries_list.
+                 The number correspond to the index of a mol_graph in
+                 self.entries_list.
         '''
         self.find_concerted_candidates()
         self.find_concerted_multiprocess(num_processors, reaction_type)
@@ -1241,7 +1261,8 @@ class FindConcertedReactions:
                                 reactant_name = str(j) + '_' + str(k)
                             else:
                                 reactant_name = str(k) + '_' + str(j)
-                            self.final_concerted_reactions.append([reactant_name, str(m)])
+                            self.final_concerted_reactions.append([reactant_name,
+                                                                   str(m)])
 
             elif len(reactant_candidates) == 1 and len(product_candidates) == 2:
                 for j in reactant_candidates[0]:
@@ -1251,7 +1272,8 @@ class FindConcertedReactions:
                                 product_name = str(m) + '_' + str(n)
                             else:
                                 product_name = str(n) + '_' + str(m)
-                            self.final_concerted_reactions.append([str(j), product_name])
+                            self.final_concerted_reactions.append([str(j),
+                                                                   product_name])
 
             elif len(reactant_candidates) == 2 and len(product_candidates) == 2:
                 for j in reactant_candidates[0]:
@@ -1266,7 +1288,8 @@ class FindConcertedReactions:
                                     product_name = str(m) + '_' + str(n)
                                 else:
                                     product_name = str(n) + '_' + str(m)
-                                self.final_concerted_reactions.append([reactant_name, product_name])
+                                self.final_concerted_reactions.append([reactant_name,
+                                                                       product_name])
         dumpfn(self.final_concerted_reactions, name + '_concerted_rxns.json')
         return self.final_concerted_reactions
 
@@ -1293,8 +1316,3 @@ if __name__ == '__main__':
     for item_A in frags_A_two_step:
         for item_D in frags_D_two_step:
             print(check_same_mol_graphs(item_A + [B], [C] + item_D))
-
-
-
-
-

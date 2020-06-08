@@ -28,7 +28,7 @@ try:
 except ImportError:
     ob = None
 
-test_dir = os.path.join(os.path.dirname(__file__), "..", "..","..",
+test_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..",
                         'test_files', 'reaction_network_files')
 
 
@@ -65,14 +65,18 @@ class TestRedoxReaction(PymatgenTest):
         cls.EC_1_entry = None
 
         for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C3 H4 O3" and entry.charge == 0 and entry.Nbonds == 10 and cls.EC_mg.isomorphic_to(entry.mol_graph):
+            if entry.formula == "C3 H4 O3" and entry.charge == 0 and entry.Nbonds == 10 \
+                    and cls.EC_mg.isomorphic_to(entry.mol_graph):
                 cls.EC_0_entry = entry
-            elif entry.formula == "C3 H4 O3" and entry.charge == -1 and entry.Nbonds == 10 and cls.EC_mg.isomorphic_to(entry.mol_graph):
+            elif entry.formula == "C3 H4 O3" and entry.charge == -1 and entry.Nbonds == 10 \
+                    and cls.EC_mg.isomorphic_to(entry.mol_graph):
                 cls.EC_minus_entry = entry
-            elif entry.formula == "C3 H4 O3" and entry.charge == 1 and entry.Nbonds == 10 and cls.EC_mg.isomorphic_to(
+            elif entry.formula == "C3 H4 O3" and entry.charge == 1 and entry.Nbonds == 10 \
+                    and cls.EC_mg.isomorphic_to(
                     entry.mol_graph):
                 cls.EC_1_entry = entry
-            if cls.EC_0_entry is not None and cls.EC_minus_entry is not None and cls.EC_1_entry is not None:
+            if cls.EC_0_entry is not None and cls.EC_minus_entry is not None \
+                    and cls.EC_1_entry is not None:
                 break
     def test_graph_representation(self):
 
@@ -97,9 +101,12 @@ class TestRedoxReaction(PymatgenTest):
         reaction.electron_free_energy = -2.15
         graph = reaction.graph_representation()
 
-        self.assertCountEqual(list(graph.nodes), [EC_0_ind, EC_1_ind,str(EC_0_ind)+","+str(EC_1_ind), str(EC_1_ind)+","+str(EC_0_ind)])
+        self.assertCountEqual(list(graph.nodes), [EC_0_ind, EC_1_ind, str(EC_0_ind) + "," + str(EC_1_ind),
+                                                  str(EC_1_ind) + "," + str(EC_0_ind)])
         self.assertEqual(len(graph.edges), 4)
-        self.assertEqual(graph.get_edge_data(EC_0_ind, str(EC_0_ind)+","+str(EC_1_ind))["softplus"], 5.629805462349386)
+        self.assertEqual(graph.get_edge_data(EC_0_ind,
+                                             str(EC_0_ind) + "," + str(EC_1_ind))["softplus"],
+                         5.629805462349386)
 
     def test_generate(self):
 
@@ -119,20 +126,24 @@ class TestRedoxReaction(PymatgenTest):
         reaction = RedoxReaction(self.EC_0_entry, self.EC_1_entry)
         reaction.electron_free_energy = -2.15
         free_energy_dict = reaction.free_energy()
-        self.assertEqual(free_energy_dict, {'free_energy_A': 6.231346035181195, 'free_energy_B': -6.231346035181195})
+        self.assertEqual(free_energy_dict, {'free_energy_A': 6.231346035181195,
+                                            'free_energy_B': -6.231346035181195})
 
     def test_energy(self):
 
         reaction = RedoxReaction(self.EC_0_entry, self.EC_1_entry)
         reaction.electron_free_energy = -2.15
         energy_dict = reaction.energy()
-        self.assertEqual(energy_dict, {'energy_A': 0.3149076465170424, 'energy_B': -0.3149076465170424})
+        self.assertEqual(energy_dict, {'energy_A': 0.3149076465170424,
+                                       'energy_B': -0.3149076465170424})
 
     def test_reaction_type(self):
 
         reaction = RedoxReaction(self.EC_0_entry, self.EC_1_entry)
         type_dict = reaction.reaction_type()
-        self.assertEqual(type_dict, {'class': 'RedoxReaction', 'rxn_type_A': 'One electron oxidation', 'rxn_type_B': 'One electron reduction'})
+        self.assertEqual(type_dict, {'class': 'RedoxReaction',
+                                     'rxn_type_A': 'One electron oxidation',
+                                     'rxn_type_B': 'One electron reduction'})
 
 
 class TestIntramolSingleBondChangeReaction(PymatgenTest):
@@ -149,7 +160,8 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
             E = float(entry["output"]["final_energy"])
             H = float(entry["output"]["enthalpy"])
             S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H, entropy=S, entry_id=entry["task_id"])
+            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                      entropy=S, entry_id=entry["task_id"])
             if mol_entry.formula == "Li1":
                 if mol_entry.charge == 1:
                     cls.LiEC_reextended_entries.append(mol_entry)
@@ -171,10 +183,12 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
         cls.LiEC_RO_entry = None
 
         for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
+            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                    and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
                     entry.mol_graph):
                 cls.LiEC_entry = entry
-            elif entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
+            elif entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                    and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
                     entry.mol_graph):
                 cls.LiEC_RO_entry = entry
             if cls.LiEC_entry is not None and cls.LiEC_RO_entry is not None:
@@ -199,14 +213,18 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
                 LiEC_RO_ind = entry.parameters["ind"]
                 LiEC_RO_RN_entry = entry
                 break
-        reaction = IntramolSingleBondChangeReaction(LiEC_RN_entry, LiEC_RO_RN_entry)
+        reaction = IntramolSingleBondChangeReaction(LiEC_RN_entry,
+                                                    LiEC_RO_RN_entry)
         reaction.electron_free_energy = -2.15
         graph = reaction.graph_representation()
         print(graph.nodes, graph.edges)
-        print(graph.get_edge_data(LiEC_ind, str(LiEC_ind)+","+str(LiEC_RO_ind)))
-        self.assertCountEqual(list(graph.nodes), [LiEC_ind, LiEC_RO_ind,str(LiEC_ind)+","+str(LiEC_RO_ind), str(LiEC_RO_ind)+","+str(LiEC_ind)])
+        print(graph.get_edge_data(LiEC_ind, str(LiEC_ind) + "," + str(LiEC_RO_ind)))
+        self.assertCountEqual(list(graph.nodes), [LiEC_ind, LiEC_RO_ind,
+                                                  str(LiEC_ind) + "," + str(LiEC_RO_ind),
+                                                  str(LiEC_RO_ind)+","+str(LiEC_ind)])
         self.assertEqual(len(graph.edges), 4)
-        self.assertEqual(graph.get_edge_data(LiEC_ind, str(LiEC_ind)+","+str(LiEC_RO_ind))["softplus"],
+        self.assertEqual(graph.get_edge_data(LiEC_ind,
+                                             str(LiEC_ind) + "," + str(LiEC_RO_ind))["softplus"],
                          0.15092362164364986)
 
     def test_generate(self):
@@ -223,13 +241,15 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
 
         reaction = IntramolSingleBondChangeReaction(self.LiEC_entry, self.LiEC_RO_entry)
         free_energy_dict = reaction.free_energy()
-        self.assertEqual(free_energy_dict, {'free_energy_A': -1.1988634269218892, 'free_energy_B': 1.1988634269218892})
+        self.assertEqual(free_energy_dict, {'free_energy_A': -1.1988634269218892,
+                                            'free_energy_B': 1.1988634269218892})
 
     def test_energy(self):
 
         reaction = IntramolSingleBondChangeReaction(self.LiEC_entry, self.LiEC_RO_entry)
         energy_dict = reaction.energy()
-        self.assertEqual(energy_dict, {'energy_A': -0.03746218086303088, 'energy_B': 0.03746218086303088})
+        self.assertEqual(energy_dict, {'energy_A': -0.03746218086303088,
+                                       'energy_B': 0.03746218086303088})
 
     def test_reaction_type(self):
 
@@ -254,7 +274,8 @@ class TestIntermolecularReaction(PymatgenTest):
             E = float(entry["output"]["final_energy"])
             H = float(entry["output"]["enthalpy"])
             S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H, entropy=S, entry_id=entry["task_id"])
+            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                      entropy=S, entry_id=entry["task_id"])
             if mol_entry.formula == "Li1":
                 if mol_entry.charge == 1:
                     cls.LiEC_reextended_entries.append(mol_entry)
@@ -281,7 +302,8 @@ class TestIntermolecularReaction(PymatgenTest):
         cls.C1Li1O3_entry = None
 
         for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C2 H4" and entry.charge == 0 and entry.Nbonds == 5 and cls.C2H4_mg.isomorphic_to(
+            if entry.formula == "C2 H4" and entry.charge == 0 \
+                    and entry.Nbonds == 5 and cls.C2H4_mg.isomorphic_to(
                     entry.mol_graph):
                 if cls.C2H4_entry is not None:
                     if cls.C2H4_entry.free_energy() >= entry.free_energy():
@@ -289,7 +311,8 @@ class TestIntermolecularReaction(PymatgenTest):
                 else:
                     cls.C2H4_entry = entry
 
-            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
+            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                    and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
                     entry.mol_graph):
                 if cls.LiEC_RO_entry is not None:
                     if cls.LiEC_RO_entry.free_energy() >= entry.free_energy():
@@ -297,7 +320,8 @@ class TestIntermolecularReaction(PymatgenTest):
                 else:
                     cls.LiEC_RO_entry = entry
 
-            if entry.formula == "C1 Li1 O3" and entry.charge == 0 and entry.Nbonds == 5 and cls.C1Li1O3_mg.isomorphic_to(
+            if entry.formula == "C1 Li1 O3" and entry.charge == 0 \
+                    and entry.Nbonds == 5 and cls.C1Li1O3_mg.isomorphic_to(
                     entry.mol_graph):
                 if cls.C1Li1O3_entry is not None:
                     if cls.C1Li1O3_entry.free_energy() >= entry.free_energy():
@@ -336,18 +360,22 @@ class TestIntermolecularReaction(PymatgenTest):
                 break
 
         # perform calc
-        reaction = IntermolecularReaction(LiEC_RO_RN_entry, [C2H4_RN_entry, C1Li1O3_RN_entry])
+        reaction = IntermolecularReaction(LiEC_RO_RN_entry, [C2H4_RN_entry,
+                                                             C1Li1O3_RN_entry])
         graph = reaction.graph_representation()
 
         # assert
         self.assertCountEqual(list(graph.nodes), [LiEC_RO_ind, C2H4_ind,C1Li1O3_ind,
-                                                  str(LiEC_RO_ind)+","+str(C1Li1O3_ind)+"+"+str(C2H4_ind),
-                                                  str(C2H4_ind)+"+PR_"+str(C1Li1O3_ind)+","+str(LiEC_RO_ind),
-                                                  str(C1Li1O3_ind)+"+PR_"+str(C2H4_ind)+","+str(LiEC_RO_ind)])
+                                                  str(LiEC_RO_ind) + "," + str(C1Li1O3_ind) + "+" + str(C2H4_ind),
+                                                  str(C2H4_ind) + "+PR_" + str(C1Li1O3_ind) + "," + str(LiEC_RO_ind),
+                                                  str(C1Li1O3_ind) + "+PR_" + str(C2H4_ind) + "," + str(LiEC_RO_ind)])
         self.assertEqual(len(graph.edges), 7)
-        self.assertEqual(graph.get_edge_data(LiEC_RO_ind, str(LiEC_RO_ind)+","+str(C1Li1O3_ind)+"+"+str(C2H4_ind))["softplus"],
+        self.assertEqual(graph.get_edge_data(LiEC_RO_ind,
+                                             str(LiEC_RO_ind) + "," + str(C1Li1O3_ind) + "+"
+                                             + str(C2H4_ind))["softplus"],
                          0.5828092060367285)
-        self.assertEqual(graph.get_edge_data(LiEC_RO_ind, str(C2H4_ind)+"+PR_"+str(C1Li1O3_ind)+","+str(LiEC_RO_ind)),
+        self.assertEqual(graph.get_edge_data(LiEC_RO_ind, str(C2H4_ind) + "+PR_" + str(C1Li1O3_ind) + ","
+                                             + str(LiEC_RO_ind)),
                          None)
 
     def test_generate(self):
@@ -359,26 +387,33 @@ class TestIntermolecularReaction(PymatgenTest):
 
         for r in reactions:
             if r.reactant.entry_id == self.LiEC_RO_entry.entry_id:
-                if r.products[0].entry_id == self.C2H4_entry.entry_id or r.products[0].entry_id == self.C2H4_entry.entry_id:
+                if r.products[0].entry_id == self.C2H4_entry.entry_id \
+                        or r.products[0].entry_id == self.C2H4_entry.entry_id:
                     self.assertTrue(r.products[0].formula == "C1 Li1 O3" or r.products[1].formula == "C1 Li1 O3")
                     self.assertTrue(r.products[0].charge == 0 or r.products[1].charge == 0)
-                    self.assertTrue(r.products[0].free_energy() == self.C1Li1O3_entry.free_energy() or r.products[1].free_energy() == self.C1Li1O3_entry.free_energy())
+                    self.assertTrue(r.products[0].free_energy() == self.C1Li1O3_entry.free_energy()
+                                    or r.products[1].free_energy() == self.C1Li1O3_entry.free_energy())
 
     def test_free_energy(self):
 
-        reaction = IntermolecularReaction(self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry])
+        reaction = IntermolecularReaction(self.LiEC_RO_entry,
+                                          [self.C1Li1O3_entry, self.C2H4_entry])
         free_energy_dict = reaction.free_energy()
-        self.assertEqual(free_energy_dict, {'free_energy_A': 0.37075842588456, 'free_energy_B': -0.37075842588410524})
+        self.assertEqual(free_energy_dict, {'free_energy_A': 0.37075842588456,
+                                            'free_energy_B': -0.37075842588410524})
 
     def test_energy(self):
 
-        reaction = IntermolecularReaction(self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry])
+        reaction = IntermolecularReaction(self.LiEC_RO_entry,
+                                          [self.C1Li1O3_entry, self.C2H4_entry])
         energy_dict = reaction.energy()
-        self.assertEqual(energy_dict, {'energy_A': 0.035409666514283344, 'energy_B': -0.035409666514283344})
+        self.assertEqual(energy_dict, {'energy_A': 0.035409666514283344,
+                                       'energy_B': -0.035409666514283344})
 
     def test_reaction_type(self):
 
-        reaction = IntermolecularReaction(self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry])
+        reaction = IntermolecularReaction(self.LiEC_RO_entry,
+                                          [self.C1Li1O3_entry, self.C2H4_entry])
         type_dict = reaction.reaction_type()
         self.assertEqual(type_dict, {'class': 'IntermolecularReaction',
                                      'rxn_type_A': 'Molecular decomposition breaking one bond A -> B+C',
@@ -399,7 +434,8 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
             E = float(entry["output"]["final_energy"])
             H = float(entry["output"]["enthalpy"])
             S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H, entropy=S, entry_id=entry["task_id"])
+            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                      entropy=S, entry_id=entry["task_id"])
             if mol_entry.formula == "Li1":
                 if mol_entry.charge == 1:
                     cls.LiEC_reextended_entries.append(mol_entry)
@@ -416,13 +452,13 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
             OpenBabelNN())
         cls.LiEC_mg = metal_edge_extender(LiEC_mg)
 
-
         cls.LiEC_entry = None
         cls.EC_minus_entry = None
         cls.Li_entry = None
 
         for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C3 H4 O3" and entry.charge == -1 and entry.Nbonds == 10 and cls.EC_mg.isomorphic_to(
+            if entry.formula == "C3 H4 O3" and entry.charge == -1 \
+                    and entry.Nbonds == 10 and cls.EC_mg.isomorphic_to(
                     entry.mol_graph):
                 if cls.EC_minus_entry is not None:
                     if cls.EC_minus_entry.free_energy() >= entry.free_energy():
@@ -430,7 +466,8 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
                 else:
                     cls.EC_minus_entry = entry
 
-            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
+            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                    and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
                     entry.mol_graph):
                 if cls.LiEC_entry is not None:
                     if cls.LiEC_entry.free_energy() >= entry.free_energy():
@@ -474,7 +511,8 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
                 break
 
         # perform calc
-        reaction = CoordinationBondChangeReaction(LiEC_RN_entry, [EC_minus_RN_entry, Li_RN_entry])
+        reaction = CoordinationBondChangeReaction(LiEC_RN_entry,
+                                                  [EC_minus_RN_entry, Li_RN_entry])
         graph = reaction.graph_representation()
 
         # assert
@@ -498,24 +536,31 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
         for r in reactions:
             if r.reactant.entry_id == self.LiEC_entry.entry_id:
                 if r.products[0].entry_id == self.Li_entry.entry_id or r.products[1].entry_id == self.Li_entry.entry_id:
-                    self.assertTrue(r.products[0].entry_id == self.EC_minus_entry.entry_id or r.products[1].entry_id == self.EC_minus_entry.entry_id)
-                    self.assertTrue(r.products[0].free_energy() == self.EC_minus_entry.free_energy() or r.products[1].free_energy() == self.EC_minus_entry.free_energy())
+                    self.assertTrue(r.products[0].entry_id == self.EC_minus_entry.entry_id
+                                    or r.products[1].entry_id == self.EC_minus_entry.entry_id)
+                    self.assertTrue(r.products[0].free_energy() == self.EC_minus_entry.free_energy()
+                                    or r.products[1].free_energy() == self.EC_minus_entry.free_energy())
 
     def test_free_energy(self):
 
-        reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry, self.Li_entry])
+        reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry,
+                                                                    self.Li_entry])
         free_energy_dict = reaction.free_energy()
-        self.assertEqual(free_energy_dict, {'free_energy_A': 1.857340187929367, 'free_energy_B': -1.8573401879297649})
+        self.assertEqual(free_energy_dict, {'free_energy_A': 1.857340187929367,
+                                            'free_energy_B': -1.8573401879297649})
 
     def test_energy(self):
 
-        reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry, self.Li_entry])
+        reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry,
+                                                                    self.Li_entry])
         energy_dict = reaction.energy()
-        self.assertEqual(energy_dict, {'energy_A': 0.08317397598398202, 'energy_B': -0.08317397598399001})
+        self.assertEqual(energy_dict, {'energy_A': 0.08317397598398202,
+                                       'energy_B': -0.08317397598399001})
 
     def test_reaction_type(self):
 
-        reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry, self.Li_entry])
+        reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry,
+                                                                    self.Li_entry])
         type_dict = reaction.reaction_type()
         self.assertEqual(type_dict, {'class': 'CoordinationBondChangeReaction',
                                      'rxn_type_A': 'Coordination bond breaking AM -> A+M',
@@ -561,7 +606,7 @@ class TestReactionPath(PymatgenTest):
         self.assertEqual(path_instance.pure_cost, 0.0)
         self.assertEqual(path_instance.hardest_step_deltaG, None)
         self.assertEqual(path_instance.path, [456, '456+PR_556,424', 424, '424,456+556', 556, '556+PR_563,558', 558,
-                                              '558+PR_250,221', 221, '221+PR_565,232',232, '232,34+83', 83,
+                                              '558+PR_250,221', 221, '221+PR_565,232', 232, '232,34+83', 83,
                                               '83+PR_544,131', 131, '131,129', 129, '129+PR_0,310', 310,
                                               '310+PR_564,322', 322, '322+PR_564,333', 333],)
 
@@ -569,11 +614,16 @@ class TestReactionPath(PymatgenTest):
 
         #set up input variables
         path = loadfn(os.path.join(test_dir, "characterize_path_final_path_IN.json"))
-        graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir, "characterize_path_final_self_graph_IN.json")))
-        self_min_cost_str = loadfn(os.path.join(test_dir, "characterize_path_final_self_min_cost_IN.json"))
-        old_solved_PRs = loadfn(os.path.join(test_dir, "solved_PRs_list.json"))
-        PR_paths_str = loadfn(os.path.join(test_dir, "characterize_path_final_PR_paths_IN.json"))
-        loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
+        graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,
+                                                               "characterize_path_final_self_graph_IN.json")))
+        self_min_cost_str = loadfn(os.path.join(test_dir,
+                                                "characterize_path_final_self_min_cost_IN.json"))
+        old_solved_PRs = loadfn(os.path.join(test_dir,
+                                             "solved_PRs_list.json"))
+        PR_paths_str = loadfn(os.path.join(test_dir,
+                                           "characterize_path_final_PR_paths_IN.json"))
+        loaded_PR_byproducts = loadfn(os.path.join(test_dir,
+                                                   "PR_byproducts_dict.json"))
 
         PR_byproducts = {}
         for node in loaded_PR_byproducts:
@@ -641,7 +691,8 @@ class TestReactionNetwork(PymatgenTest):
             E = float(entry["output"]["final_energy"])
             H = float(entry["output"]["enthalpy"])
             S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol,energy=E,enthalpy=H,entropy=S,entry_id=entry["task_id"])
+            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                      entropy=S ,entry_id=entry["task_id"])
             if mol_entry.formula == "Li1":
                 if mol_entry.charge == 1:
                     cls.LiEC_reextended_entries.append(mol_entry)
@@ -680,12 +731,14 @@ class TestReactionNetwork(PymatgenTest):
 
         # assert
         self.assertEqual(list(RN.graph.nodes), ['456,455', 456, 455, '455,456'])
-        self.assertEqual(list(RN.graph.edges), [('456,455', 455), (456, '456,455'), (455, '455,456'), ('455,456', 456)])
+        self.assertEqual(list(RN.graph.edges), [('456,455', 455), (456, '456,455'),
+                                                (455, '455,456'), ('455,456', 456)])
 
     def test_build(self):
 
         # set up RN
-        RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries, electron_free_energy=-2.15)
+        RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries,
+                                                electron_free_energy=-2.15)
 
         # perfrom calc
         RN.build()
@@ -745,7 +798,8 @@ class TestReactionNetwork(PymatgenTest):
 
         # assert
         self.assertEqual(len(reactant_record[0]), 43)
-        self.assertCountEqual(reactant_record[44], ['44+PR_165,434', '44,43', '44,40+556'])
+        self.assertCountEqual(reactant_record[44], ['44+PR_165,434', '44,43',
+                                                    '44,40+556'])
         self.assertEqual(len(reactant_record[529]), 0)
         self.assertEqual(len(reactant_record[556]), 104)
         self.assertEqual(len(reactant_record[564]), 167)
@@ -772,7 +826,10 @@ class TestReactionNetwork(PymatgenTest):
 
         # perfrom calc
         PRs_filename = "xx_PRs_unittest.json"
-        PRs_calc, old_solved_PRs = RN.solve_prerequisites([EC_ind,Li1_ind], weight="softplus", save=True, filename=PRs_filename)
+        PRs_calc, old_solved_PRs = RN.solve_prerequisites([EC_ind, Li1_ind],
+                                                          weight="softplus",
+                                                          save=True,
+                                                          filename=PRs_filename)
 
         # assert
         loaded_PRs = loadfn(PRs_filename)
@@ -784,16 +841,20 @@ class TestReactionNetwork(PymatgenTest):
 
         for node in PRs_calc:
             for start in PRs_calc[node]:
-                self.assertEqual(PRs_calc[node][start].path_dict, PR_paths[node][start].path_dict)
+                self.assertEqual(PRs_calc[node][start].path_dict,
+                                 PR_paths[node][start].path_dict)
 
     def test_find_path_cost(self):
 
         # set up RN
         RN = self.RN_cls
         RN.weight = "softplus"
-        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"find_path_cost_self_graph_IN.json")))
-        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"find_path_cost_self_min_cost_IN.json"))
-        loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,
+                                                                  "find_path_cost_self_graph_IN.json")))
+        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,
+                                                       "find_path_cost_self_min_cost_IN.json"))
+        loaded_PR_byproducts = loadfn(os.path.join(test_dir,
+                                                   "PR_byproducts_dict.json"))
 
         RN.PR_byproducts = {}
         for node in loaded_PR_byproducts:
@@ -817,10 +878,14 @@ class TestReactionNetwork(PymatgenTest):
         Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
 
 
-        loaded_cost_from_start_str = loadfn(os.path.join(test_dir,"find_path_cost_cost_from_start_IN.json"))
-        old_solved_PRs = loadfn(os.path.join(test_dir,"find_path_cost_old_solved_PRs_IN.json"))
-        loaded_min_cost_str = loadfn(os.path.join(test_dir,"find_path_cost_min_cost_IN.json"))
-        loaded_PRs_str = loadfn(os.path.join(test_dir,"find_path_cost_PRs_IN.json"))
+        loaded_cost_from_start_str = loadfn(os.path.join(test_dir,
+                                                         "find_path_cost_cost_from_start_IN.json"))
+        old_solved_PRs = loadfn(os.path.join(test_dir,
+                                             "find_path_cost_old_solved_PRs_IN.json"))
+        loaded_min_cost_str = loadfn(os.path.join(test_dir,
+                                                  "find_path_cost_min_cost_IN.json"))
+        loaded_PRs_str = loadfn(os.path.join(test_dir,
+                                             "find_path_cost_PRs_IN.json"))
 
         loaded_cost_from_start = {}
         for node in loaded_cost_from_start_str:
@@ -840,7 +905,8 @@ class TestReactionNetwork(PymatgenTest):
 
         # perform calc
         PRs_cal, cost_from_start_cal, min_cost_cal = RN.find_path_cost([EC_ind, Li1_ind], RN.weight,
-                                                                       old_solved_PRs,loaded_cost_from_start,
+                                                                       old_solved_PRs,
+                                                                       loaded_cost_from_start,
                                                                        loaded_min_cost, loaded_PRs)
 
         # assert
@@ -866,16 +932,22 @@ class TestReactionNetwork(PymatgenTest):
         RN = self.RN_cls
         RN.num_starts = 2
         RN.weight = "softplus"
-        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"identify_solved_PRs_self_graph_IN.json")))
-        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"identify_solved_PRs_self_min_cost_IN.json"))
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,
+                                                                  "identify_solved_PRs_self_graph_IN.json")))
+        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,
+                                                       "identify_solved_PRs_self_min_cost_IN.json"))
         for node in loaded_self_min_cost_str:
             RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
 
         # set up input variables
-        cost_from_start_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_cost_from_start_OUT.json"))
-        min_cost_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_min_cost_OUT.json"))
-        PRs_IN_str = loadfn(os.path.join(test_dir,"find_path_cost_PRs_OUT.json"))
-        solved_PRs = loadfn(os.path.join(test_dir,"find_path_cost_old_solved_PRs_IN.json"))
+        cost_from_start_IN_str = loadfn(os.path.join(test_dir,
+                                                     "find_path_cost_cost_from_start_OUT.json"))
+        min_cost_IN_str = loadfn(os.path.join(test_dir,
+                                              "find_path_cost_min_cost_OUT.json"))
+        PRs_IN_str = loadfn(os.path.join(test_dir,
+                                         "find_path_cost_PRs_OUT.json"))
+        solved_PRs = loadfn(os.path.join(test_dir,
+                                         "find_path_cost_old_solved_PRs_IN.json"))
 
         PRs = {}
         for node in PRs_IN_str:
@@ -892,7 +964,8 @@ class TestReactionNetwork(PymatgenTest):
             min_cost[int(node)] = min_cost_IN_str[node]
 
         # perform calc
-        solved_PRs_cal, new_solved_PRs_cal, cost_from_start_cal = RN.identify_solved_PRs(PRs, solved_PRs, cost_from_start)
+        solved_PRs_cal, new_solved_PRs_cal, cost_from_start_cal = RN.identify_solved_PRs(PRs, solved_PRs,
+                                                                                         cost_from_start)
 
         # assert
         self.assertEqual(len(solved_PRs_cal), 34)
@@ -909,11 +982,14 @@ class TestReactionNetwork(PymatgenTest):
         # set up RN
         RN = self.RN_cls
         RN.weight = "softplus"
-        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"update_edge_weights_self_graph_IN.json")))
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,
+                                                                  "update_edge_weights_self_graph_IN.json")))
 
         # set up input variables
-        min_cost_str = loadfn(os.path.join(test_dir,"update_edge_weights_min_cost_IN.json"))
-        orig_graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"update_edge_weights_orig_graph_IN.json")))
+        min_cost_str = loadfn(os.path.join(test_dir,
+                                           "update_edge_weights_min_cost_IN.json"))
+        orig_graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,
+                                                                    "update_edge_weights_orig_graph_IN.json")))
         min_cost = {}
         for key in min_cost_str:
             min_cost[int(key)] = min_cost_str[key]
@@ -933,9 +1009,9 @@ class TestReactionNetwork(PymatgenTest):
         RN = self.RN_cls
         RN.weight = "softplus"
         loaded_PRs = loadfn(os.path.join(test_dir, "finalPRcheck_PRs_HP_IN.json"))
-        loaded_self_min_cost_str = loadfn(os.path.join(test_dir,"finalPRcheck_self_min_cost.json"))
-        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir,"finalPRcheck_self_graph.json")))
-        RN.solved_PRs = loadfn(os.path.join(test_dir,"solved_PRs_list.json"))
+        loaded_self_min_cost_str = loadfn(os.path.join(test_dir, "finalPRcheck_self_min_cost.json"))
+        RN.graph = json_graph.adjacency_graph(loadfn(os.path.join(test_dir, "finalPRcheck_self_graph.json")))
+        RN.solved_PRs = loadfn(os.path.join(test_dir, "solved_PRs_list.json"))
         loaded_PR_byproducts = loadfn(os.path.join(test_dir, "PR_byproducts_dict.json"))
 
         RN.PR_byproducts = {}
@@ -997,11 +1073,12 @@ class TestReactionNetwork(PymatgenTest):
         nodes = [LEDC_ind, LiEC_ind, Li1_ind, EC_ind]
 
         # perform calc & assert
-        bad_nodes_list = RN.find_or_remove_bad_nodes(nodes, remove_nodes = False)
+        bad_nodes_list = RN.find_or_remove_bad_nodes(nodes, remove_nodes=False)
         self.assertEqual(len(bad_nodes_list), 231)
-        self.assertTrue({'511,108+112', '46+PR_556,34', '556+PR_199,192','456,399+543', '456,455'} <= set(bad_nodes_list))
+        self.assertTrue({'511,108+112', '46+PR_556,34', '556+PR_199,192',
+                         '456,399+543', '456,455'} <= set(bad_nodes_list))
 
-        bad_nodes_pruned_graph = RN.find_or_remove_bad_nodes(nodes, remove_nodes = True)
+        bad_nodes_pruned_graph = RN.find_or_remove_bad_nodes(nodes, remove_nodes=True)
         self.assertEqual(len(bad_nodes_pruned_graph.nodes), 10254)
         self.assertEqual(len(bad_nodes_pruned_graph.edges), 22424)
         for node_ind in nodes:
@@ -1032,14 +1109,14 @@ class TestReactionNetwork(PymatgenTest):
             [456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
             [456, '456,455', 455, '455,448', 448, '448,51+164', 51, '51+PR_556,41', 41, '41+PR_420,511', 511],
             [456, '456+PR_556,421', 421, '421,424', 424, '424,423', 423, '423,420', 420, '420+PR_41,511', 511],
-            [456, '456+PR_556,421', 421, '421,424', 424, '424,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511',
-            511],
+            [456, '456+PR_556,421', 421, '421,424', 424, '424,423', 423, '423,420', 420,
+             '420,41+164', 41, '41+PR_420,511', 511],
             [456, '456,455', 455, '455,448', 448, '448+PR_556,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
             [456, '456,455', 455, '455,448', 448, '448+PR_556,420', 420, '420+PR_41,511', 511],
             [456, '456,455', 455, '455+PR_556,423', 423, '423,420', 420, '420+PR_41,511', 511],
             [456, '456,455', 455, '455+PR_556,423', 423, '423,420', 420, '420,41+164', 41, '41+PR_420,511', 511],
-            [456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420,419', 419, '419+PR_41,510', 510, '510,511',
-            511]]
+            [456, '456+PR_556,424', 424, '424,423', 423, '423,420', 420, '420,419', 419, '419+PR_41,510', 510,
+             '510,511', 511]]
 
         ind = 0
         for path in paths:
@@ -1071,7 +1148,8 @@ class TestReactionNetwork(PymatgenTest):
         Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
         print(EC_ind, Li1_ind, LEDC_ind)
 
-        PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind, Li1_ind], LEDC_ind, weight="softplus", num_paths=10)
+        PR_paths_calculated, paths_calculated = RN.find_paths([EC_ind, Li1_ind], LEDC_ind,
+                                                              weight="softplus", num_paths=10)
 
         if 420 in paths_calculated[0]["all_prereqs"]:
             self.assertEqual(paths_calculated[0]["byproducts"], [164])

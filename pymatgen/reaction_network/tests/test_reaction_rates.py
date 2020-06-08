@@ -10,8 +10,6 @@ from scipy.constants import h, k
 
 from pymatgen.core.structure import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
-from pymatgen.io.qchem.inputs import QCInput
-from pymatgen.io.qchem.outputs import QCOutput
 from pymatgen.reaction_network.reaction_rates import (
     ReactionRateCalculator,
     BEPRateCalculator,
@@ -111,9 +109,14 @@ class ReactionRateCalculatorTest(unittest.TestCase):
         self.assertEqual(self.calc.calculate_act_entropy(reverse=True),
                          (trans_entropy - sum(pro_entropies)) * 0.0000433641)
 
-        gibbs_300 = self.calc.calculate_act_energy() + self.calc.calculate_act_enthalpy() - 300 * self.calc.calculate_act_entropy()
-        gibbs_300_rev = self.calc.calculate_act_energy(reverse=True) + self.calc.calculate_act_enthalpy(reverse=True) - 300 * self.calc.calculate_act_entropy(reverse=True)
-        gibbs_100 = self.calc.calculate_act_energy() + self.calc.calculate_act_enthalpy() - 100 * self.calc.calculate_act_entropy()
+        gibbs_300 = self.calc.calculate_act_energy() + (self.calc.calculate_act_enthalpy() -
+                                                        300 * self.calc.calculate_act_entropy())
+        gibbs_300_rev = (self.calc.calculate_act_energy(reverse=True) +
+                         (self.calc.calculate_act_enthalpy(reverse=True) -
+                          300 * self.calc.calculate_act_entropy(reverse=True)))
+        gibbs_100 = (self.calc.calculate_act_energy() +
+                     self.calc.calculate_act_enthalpy() -
+                     100 * self.calc.calculate_act_entropy())
         self.assertEqual(self.calc.calculate_act_gibbs(300), gibbs_300)
         self.assertEqual(self.calc.calculate_act_gibbs(300, reverse=True), gibbs_300_rev)
         self.assertEqual(self.calc.calculate_act_gibbs(100), gibbs_100)
@@ -181,10 +184,12 @@ class BEPReactionRateCalculatorTest(unittest.TestCase):
 
     def test_act_properties(self):
         self.assertAlmostEqual(self.calc.calculate_act_energy(),
-                               self.calc.ea_reference + 0.5 * (self.calc.net_enthalpy - self.calc.delta_h_reference),
+                               self.calc.ea_reference + 0.5 * (self.calc.net_enthalpy -
+                                                               self.calc.delta_h_reference),
                                6)
         self.assertAlmostEqual(self.calc.calculate_act_energy(reverse=True),
-                               self.calc.ea_reference + 0.5 * (-1 * self.calc.net_enthalpy - self.calc.delta_h_reference),
+                               self.calc.ea_reference + 0.5 * (-1 * self.calc.net_enthalpy -
+                                                               self.calc.delta_h_reference),
                                6)
 
         with self.assertRaises(NotImplementedError):
@@ -249,8 +254,10 @@ class ExpandedBEPReactionRateCalculatorTest(unittest.TestCase):
         delta_g_ref_600 = self.calc.delta_e_reference + self.calc.delta_h_reference - 600 * self.calc.delta_s_reference
         delta_g_600 = self.calc.calculate_net_gibbs(600)
 
-        delta_ga_ref_300 = self.calc.delta_ea_reference + self.calc.delta_ha_reference - 300 * self.calc.delta_sa_reference
-        delta_ga_ref_600 = self.calc.delta_ea_reference + self.calc.delta_ha_reference - 600 * self.calc.delta_sa_reference
+        delta_ga_ref_300 = self.calc.delta_ea_reference + (self.calc.delta_ha_reference -
+                                                           300 * self.calc.delta_sa_reference)
+        delta_ga_ref_600 = self.calc.delta_ea_reference + (self.calc.delta_ha_reference -
+                                                           600 * self.calc.delta_sa_reference)
 
         self.assertAlmostEqual(self.calc.calculate_act_gibbs(300),
                                delta_ga_ref_300 + self.calc.alpha * (delta_g - delta_g_ref))

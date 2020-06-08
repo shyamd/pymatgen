@@ -61,7 +61,7 @@ class MoleculeEntry(MSONable):
             self.entropy = self.mol_doc["entropy_cal/molK"]
             self.entry_id = self.mol_doc["task_id"]
             if "mol_graph" in self.mol_doc:
-                if isinstance(self.mol_doc["mol_graph"],MoleculeGraph):
+                if isinstance(self.mol_doc["mol_graph"], MoleculeGraph):
                     self.mol_graph = self.mol_doc["mol_graph"]
                 else:
                     self.mol_graph = MoleculeGraph.from_dict(self.mol_doc["mol_graph"])
@@ -109,9 +109,9 @@ class MoleculeEntry(MSONable):
 
     def __repr__(self):
         output = ["MoleculeEntry {} - {} - E{} - C{}".format(self.entry_id,
-                                                      self.formula,
-                                                      self.Nbonds,
-                                                      self.charge),
+                                                             self.formula,
+                                                             self.Nbonds,
+                                                             self.charge),
                   "Energy = {:.4f} Hartree".format(self.uncorrected_energy),
                   "Correction = {:.4f} Hartree".format(self.correction),
                   "Enthalpy = {:.4f} kcal/mol".format(self.enthalpy),
