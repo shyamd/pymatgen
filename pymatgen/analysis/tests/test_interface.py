@@ -167,6 +167,25 @@ class InterfaceUtilsTest(PymatgenTest):
         assert np.allclose(
             from_2d_to_3d(test_matrix), [[1, 1, 0], [1, 1, 0], [0, 0, 1]]
         )
+        
+    def test_match_strain(self):
+
+        assert np.isclose(
+            match_strain([[1.0, 0, 0], [0, 1, 0]], [[1.0, 0, 0], [0, 1, 0]]), 0.0
+        )
+
+        assert np.isclose(
+            match_strain([[1, 0, 0], [0, 1, 0]], [[0.95, 0, 0], [0, 1, 0]]), 0.0325
+        )
+        assert np.isclose(
+            match_strain([[1, 0, 0], [0, 1, 0]], [[1, 0, 0], [0, 0.95, 0]]), 0.0325
+        )
+        assert np.isclose(
+            match_strain([[1, 0, 0], [0, 1, 0]], [[0.95, 0, 0], [0, 0.95, 0]]), 0.0325
+        )
+        assert np.isclose(
+            match_strain([[1, 0, 0], [0, 1, 0]], [[0, 0.95, 0], [0.95, 0, 0]]), 0.0325
+        )
 
 
 if __name__ == "__main__":
