@@ -24,14 +24,17 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y swig
         python -m pip install --upgrade pip
+        conda create -q -n test-environment python=3.7 numpy scipy matplotlib sympy cython pandas==0.25.3 networkx pytest h5py git wheel
         pip install -r requirements.txt
         pip install -r requirements-optional.txt
         pip install -r requirements-dev.txt
+        conda install -c conda-forge openbabel
     - name: Install binary dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
         export PATH=$PATH:`pwd`/cmd_line/bader/Linux_64bit:`pwd`/cmd_line/aconvasp/Linux_64bit:`pwd`/cmd_line/boltztrap/Linux_64bit
     - name: Test with pytest
       run: |
+        conda activate test-environment
         pip install -e .
         pytest pymatgen --color=yes
