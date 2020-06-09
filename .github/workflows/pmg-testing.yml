@@ -24,6 +24,7 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y swig
         python -m pip install --upgrade pip
+        conda init bash
         conda create -q -n test-environment python=3.7 numpy scipy matplotlib sympy cython pandas==0.25.3 networkx pytest h5py git wheel
         pip install -r requirements.txt
         pip install -r requirements-optional.txt
