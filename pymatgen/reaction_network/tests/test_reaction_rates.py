@@ -16,6 +16,11 @@ from pymatgen.reaction_network.reaction_rates import (
     ExpandedBEPRateCalculator
 )
 
+try:
+    import openbabel as ob
+except ImportError:
+    ob = None
+
 __author__ = "Evan Spotte-Smith"
 __version__ = "0.1"
 __maintainer__ = "Evan Spotte-Smith"
@@ -33,35 +38,37 @@ mol_placeholder = Molecule(["H"], [[0., 0., 0.]])
 class ReactionRateCalculatorTest(unittest.TestCase):
 
     def setUp(self) -> None:
+        if ob:
+            self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
+            self.enthalpies = [13.917, 34.596, 49.515]
+            self.entropies = [67.357, 55.047, 84.265]
 
-        self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
-        self.enthalpies = [13.917, 34.596, 49.515]
-        self.entropies = [67.357, 55.047, 84.265]
+            self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
+                                       enthalpy=self.enthalpies[0], entropy=self.entropies[0])
+            self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
+                                       enthalpy=self.enthalpies[1],
+                                       entropy=self.entropies[1])
+            self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
+                                     enthalpy=self.enthalpies[2],
+                                     entropy=self.entropies[2])
 
-        self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
-                                   enthalpy=self.enthalpies[0], entropy=self.entropies[0])
-        self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
-                                   enthalpy=self.enthalpies[1],
-                                   entropy=self.entropies[1])
-        self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
-                                 enthalpy=self.enthalpies[2],
-                                 entropy=self.entropies[2])
+            self.ts = MoleculeEntry(mol_placeholder, -350.099875862606,
+                                    enthalpy=48.560, entropy=83.607)
 
-        self.ts = MoleculeEntry(mol_placeholder, -350.099875862606,
-                                enthalpy=48.560, entropy=83.607)
-
-        self.calc = ReactionRateCalculator([self.rct_1, self.rct_2], [self.pro], self.ts)
+            self.calc = ReactionRateCalculator([self.rct_1, self.rct_2], [self.pro], self.ts)
 
     def tearDown(self) -> None:
-        del self.calc
-        del self.ts
-        del self.pro
-        del self.rct_2
-        del self.rct_1
-        del self.entropies
-        del self.enthalpies
-        del self.energies
+        if ob:
+            del self.calc
+            del self.ts
+            del self.pro
+            del self.rct_2
+            del self.rct_1
+            del self.entropies
+            del self.enthalpies
+            del self.energies
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_net_properties(self):
         self.assertAlmostEqual(self.calc.net_energy, (self.energies[2] - (self.energies[0] +
                                                                           self.energies[1])) * 27.2116, 6)
@@ -82,6 +89,7 @@ class ReactionRateCalculatorTest(unittest.TestCase):
                                                                 "entropy": self.calc.net_entropy,
                                                                 "gibbs": self.calc.calculate_net_gibbs()})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_act_properties(self):
         trans_energy = self.ts.energy
         trans_enthalpy = self.ts.enthalpy
@@ -130,6 +138,7 @@ class ReactionRateCalculatorTest(unittest.TestCase):
                                                                                             "entropy": self.calc.calculate_act_entropy(reverse=True),
                                                                                             "gibbs": self.calc.calculate_act_gibbs(300, reverse=True)})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_rate_constant(self):
 
         gibbs_300 = self.calc.calculate_act_gibbs(300)
@@ -149,6 +158,7 @@ class ReactionRateCalculatorTest(unittest.TestCase):
         self.assertEqual(self.calc.calculate_rate_constant(),
                          self.calc.calculate_rate_constant(kappa=0.5) * 2)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_rates(self):
 
         rate_constant = self.calc.calculate_rate_constant()
@@ -167,21 +177,23 @@ class ReactionRateCalculatorTest(unittest.TestCase):
 class BEPReactionRateCalculatorTest(unittest.TestCase):
     def setUp(self) -> None:
 
-        self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
-        self.enthalpies = [13.917, 34.596, 49.515]
-        self.entropies = [67.357, 55.047, 84.265]
+        if ob:
+            self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
+            self.enthalpies = [13.917, 34.596, 49.515]
+            self.entropies = [67.357, 55.047, 84.265]
 
-        self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
-                                   enthalpy=self.enthalpies[0], entropy=self.entropies[0])
-        self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
-                                   enthalpy=self.enthalpies[1],
-                                   entropy=self.entropies[1])
-        self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
-                                 enthalpy=self.enthalpies[2],
-                                 entropy=self.entropies[2])
+            self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
+                                       enthalpy=self.enthalpies[0], entropy=self.entropies[0])
+            self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
+                                       enthalpy=self.enthalpies[1],
+                                       entropy=self.entropies[1])
+            self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
+                                     enthalpy=self.enthalpies[2],
+                                     entropy=self.entropies[2])
 
-        self.calc = BEPRateCalculator([self.rct_1, self.rct_2], [self.pro], 1.718386088799889, 1.722)
+            self.calc = BEPRateCalculator([self.rct_1, self.rct_2], [self.pro], 1.718386088799889, 1.722)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_act_properties(self):
         self.assertAlmostEqual(self.calc.calculate_act_energy(),
                                self.calc.ea_reference + 0.5 * (self.calc.net_enthalpy -
@@ -201,6 +213,7 @@ class BEPReactionRateCalculatorTest(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.calc.calculate_act_thermo(temperature=300.00)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_rate_constant(self):
         rate_constant = np.exp(-self.calc.calculate_act_energy() / (8.617333262 * 10 ** -5 * 300))
         rate_constant_600 = np.exp(-self.calc.calculate_act_energy() / (8.617333262 * 10 ** -5 * 600))
@@ -208,6 +221,7 @@ class BEPReactionRateCalculatorTest(unittest.TestCase):
         self.assertEqual(self.calc.calculate_rate_constant(temperature=300), rate_constant)
         self.assertEqual(self.calc.calculate_rate_constant(temperature=600), rate_constant_600)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_rates(self):
         base_rate = self.calc.calculate_rate([1, 1])
         rate_600 = self.calc.calculate_rate([1, 1], temperature=600)
@@ -229,22 +243,24 @@ class BEPReactionRateCalculatorTest(unittest.TestCase):
 class ExpandedBEPReactionRateCalculatorTest(unittest.TestCase):
     def setUp(self) -> None:
 
-        self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
-        self.enthalpies = [13.917, 34.596, 49.515]
-        self.entropies = [67.357, 55.047, 84.265]
+        if ob:
+            self.energies = [-271.553636516598, -78.5918513462683, -350.105998350078]
+            self.enthalpies = [13.917, 34.596, 49.515]
+            self.entropies = [67.357, 55.047, 84.265]
 
-        self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
-                                   enthalpy=self.enthalpies[0], entropy=self.entropies[0])
-        self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
-                                   enthalpy=self.enthalpies[1],
-                                   entropy=self.entropies[1])
-        self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
-                                 enthalpy=self.enthalpies[2],
-                                 entropy=self.entropies[2])
+            self.rct_1 = MoleculeEntry(mol_placeholder, self.energies[0],
+                                       enthalpy=self.enthalpies[0], entropy=self.entropies[0])
+            self.rct_2 = MoleculeEntry(mol_placeholder, self.energies[1],
+                                       enthalpy=self.enthalpies[1],
+                                       entropy=self.entropies[1])
+            self.pro = MoleculeEntry(mol_placeholder, self.energies[2],
+                                     enthalpy=self.enthalpies[2],
+                                     entropy=self.entropies[2])
 
-        self.calc = ExpandedBEPRateCalculator([self.rct_1, self.rct_2], [self.pro],
-                                              1.71, 0.1, -0.05, 1.8, 0.1, 0.05)
+            self.calc = ExpandedBEPRateCalculator([self.rct_1, self.rct_2], [self.pro],
+                                                  1.71, 0.1, -0.05, 1.8, 0.1, 0.05)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_act_properties(self):
 
         delta_g_ref = self.calc.delta_e_reference + self.calc.delta_h_reference - 300 * self.calc.delta_s_reference
@@ -275,6 +291,7 @@ class ExpandedBEPReactionRateCalculatorTest(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.calc.calculate_act_thermo(temperature=300.00)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_rate_constant(self):
         gibbs_300 = self.calc.calculate_act_gibbs(300)
         gibbs_600 = self.calc.calculate_act_gibbs(600)
