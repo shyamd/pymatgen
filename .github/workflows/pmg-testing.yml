@@ -36,6 +36,7 @@ jobs:
         export PATH=$PATH:`pwd`/cmd_line/bader/Linux_64bit:`pwd`/cmd_line/aconvasp/Linux_64bit:`pwd`/cmd_line/boltztrap/Linux_64bit
     - name: Test with pytest
       run: |
-        conda activate test-environment
+        export PATH=$HOME/miniconda3/bin:$PATH
+        source activate test-environment
         pip install -e .
         pytest pymatgen --color=yes
