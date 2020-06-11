@@ -34,6 +34,6 @@ jobs:
     - name: Test with pytest
       run: |
         export PATH=$HOME/miniconda3/bin:$PATH
-        source activate test-environment
+        conda activate test-environment
         pip install -e .
         pytest pymatgen --color=yes
