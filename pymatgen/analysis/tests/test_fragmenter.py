@@ -114,11 +114,12 @@ class TestFragmentMolecule(PymatgenTest):
         self.assertEqual(fragmenter10.total_unique_fragments, 295)
 
         fragments_by_level = fragmenter10.fragments_by_level
-        num_frags_by_level = [8, 12, 15, 14, 9, 4, 1]
+        num_frags_by_level = [25, 49, 65, 64, 50, 28, 12]
         for ii in range(7):
             num_frags = 0
             for key in fragments_by_level[str(ii)]:
                 num_frags += len(fragments_by_level[str(ii)][key])
+            # print(num_frags, num_frags_by_level[ii])
             self.assertEqual(num_frags, num_frags_by_level[ii])
 
     def test_PC_frag1_then_PC(self):
