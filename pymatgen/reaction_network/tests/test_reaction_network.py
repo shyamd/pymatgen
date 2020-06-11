@@ -36,48 +36,51 @@ class TestRedoxReaction(PymatgenTest):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.LiEC_reextended_entries = []
-        entries = loadfn(os.path.join(test_dir,"LiEC_reextended_entries.json"))
-        for entry in entries:
-            if "optimized_molecule" in entry["output"]:
-                mol = entry["output"]["optimized_molecule"]
-            else:
-                mol = entry["output"]["initial_molecule"]
-            E = float(entry["output"]["final_energy"])
-            H = float(entry["output"]["enthalpy"])
-            S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
-                                      entropy=S, entry_id=entry["task_id"])
-            if mol_entry.formula == "Li1":
-                if mol_entry.charge == 1:
+        if ob:
+            cls.LiEC_reextended_entries = []
+            entries = loadfn(os.path.join(test_dir,"LiEC_reextended_entries.json"))
+            for entry in entries:
+                if "optimized_molecule" in entry["output"]:
+                    mol = entry["output"]["optimized_molecule"]
+                else:
+                    mol = entry["output"]["initial_molecule"]
+                E = float(entry["output"]["final_energy"])
+                H = float(entry["output"]["enthalpy"])
+                S = float(entry["output"]["entropy"])
+                mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                          entropy=S, entry_id=entry["task_id"])
+                if mol_entry.formula == "Li1":
+                    if mol_entry.charge == 1:
+                        cls.LiEC_reextended_entries.append(mol_entry)
+                else:
                     cls.LiEC_reextended_entries.append(mol_entry)
-            else:
-                cls.LiEC_reextended_entries.append(mol_entry)
 
-        EC_mg = MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
-            OpenBabelNN())
-        cls.EC_mg = metal_edge_extender(EC_mg)
+            EC_mg = MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
+                OpenBabelNN())
+            cls.EC_mg = metal_edge_extender(EC_mg)
 
 
-        cls.EC_0_entry = None
-        cls.EC_minus_entry = None
-        cls.EC_1_entry = None
+            cls.EC_0_entry = None
+            cls.EC_minus_entry = None
+            cls.EC_1_entry = None
 
-        for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C3 H4 O3" and entry.charge == 0 and entry.Nbonds == 10 \
-                    and cls.EC_mg.isomorphic_to(entry.mol_graph):
-                cls.EC_0_entry = entry
-            elif entry.formula == "C3 H4 O3" and entry.charge == -1 and entry.Nbonds == 10 \
-                    and cls.EC_mg.isomorphic_to(entry.mol_graph):
-                cls.EC_minus_entry = entry
-            elif entry.formula == "C3 H4 O3" and entry.charge == 1 and entry.Nbonds == 10 \
-                    and cls.EC_mg.isomorphic_to(
-                    entry.mol_graph):
-                cls.EC_1_entry = entry
-            if cls.EC_0_entry is not None and cls.EC_minus_entry is not None \
-                    and cls.EC_1_entry is not None:
-                break
+            for entry in cls.LiEC_reextended_entries:
+                if entry.formula == "C3 H4 O3" and entry.charge == 0 and entry.Nbonds == 10 \
+                        and cls.EC_mg.isomorphic_to(entry.mol_graph):
+                    cls.EC_0_entry = entry
+                elif entry.formula == "C3 H4 O3" and entry.charge == -1 and entry.Nbonds == 10 \
+                        and cls.EC_mg.isomorphic_to(entry.mol_graph):
+                    cls.EC_minus_entry = entry
+                elif entry.formula == "C3 H4 O3" and entry.charge == 1 and entry.Nbonds == 10 \
+                        and cls.EC_mg.isomorphic_to(
+                        entry.mol_graph):
+                    cls.EC_1_entry = entry
+                if cls.EC_0_entry is not None and cls.EC_minus_entry is not None \
+                        and cls.EC_1_entry is not None:
+                    break
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_graph_representation(self):
 
         RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
@@ -108,6 +111,7 @@ class TestRedoxReaction(PymatgenTest):
                                              str(EC_0_ind) + "," + str(EC_1_ind))["softplus"],
                          5.629805462349386)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_generate(self):
 
         RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
@@ -121,6 +125,7 @@ class TestRedoxReaction(PymatgenTest):
             if r.reactant == self.EC_minus_entry:
                 self.assertEqual(r.product.entry_id, self.EC_0_entry.entry_id)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
 
         reaction = RedoxReaction(self.EC_0_entry, self.EC_1_entry)
@@ -129,6 +134,7 @@ class TestRedoxReaction(PymatgenTest):
         self.assertEqual(free_energy_dict, {'free_energy_A': 6.231346035181195,
                                             'free_energy_B': -6.231346035181195})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_energy(self):
 
         reaction = RedoxReaction(self.EC_0_entry, self.EC_1_entry)
@@ -137,6 +143,7 @@ class TestRedoxReaction(PymatgenTest):
         self.assertEqual(energy_dict, {'energy_A': 0.3149076465170424,
                                        'energy_B': -0.3149076465170424})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_reaction_type(self):
 
         reaction = RedoxReaction(self.EC_0_entry, self.EC_1_entry)
@@ -150,50 +157,51 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.LiEC_reextended_entries = []
-        entries = loadfn(os.path.join(test_dir, "LiEC_reextended_entries.json"))
-        for entry in entries:
-            if "optimized_molecule" in entry["output"]:
-                mol = entry["output"]["optimized_molecule"]
-            else:
-                mol = entry["output"]["initial_molecule"]
-            E = float(entry["output"]["final_energy"])
-            H = float(entry["output"]["enthalpy"])
-            S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
-                                      entropy=S, entry_id=entry["task_id"])
-            if mol_entry.formula == "Li1":
-                if mol_entry.charge == 1:
+        if ob:
+            cls.LiEC_reextended_entries = []
+            entries = loadfn(os.path.join(test_dir, "LiEC_reextended_entries.json"))
+            for entry in entries:
+                if "optimized_molecule" in entry["output"]:
+                    mol = entry["output"]["optimized_molecule"]
+                else:
+                    mol = entry["output"]["initial_molecule"]
+                E = float(entry["output"]["final_energy"])
+                H = float(entry["output"]["enthalpy"])
+                S = float(entry["output"]["entropy"])
+                mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                          entropy=S, entry_id=entry["task_id"])
+                if mol_entry.formula == "Li1":
+                    if mol_entry.charge == 1:
+                        cls.LiEC_reextended_entries.append(mol_entry)
+                else:
                     cls.LiEC_reextended_entries.append(mol_entry)
-            else:
-                cls.LiEC_reextended_entries.append(mol_entry)
 
-        LiEC_mg =  MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
-            OpenBabelNN())
-        cls.LiEC_mg = metal_edge_extender(LiEC_mg)
+            LiEC_mg =  MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
+                OpenBabelNN())
+            cls.LiEC_mg = metal_edge_extender(LiEC_mg)
 
-        LiEC_RO_mg = MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir, "LiEC_RO.xyz")),
-            OpenBabelNN())
-        cls.LiEC_RO_mg = metal_edge_extender(LiEC_RO_mg)
+            LiEC_RO_mg = MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir, "LiEC_RO.xyz")),
+                OpenBabelNN())
+            cls.LiEC_RO_mg = metal_edge_extender(LiEC_RO_mg)
 
+            cls.LiEC_entry = None
+            cls.LiEC_RO_entry = None
 
-        cls.LiEC_entry = None
-        cls.LiEC_RO_entry = None
+            for entry in cls.LiEC_reextended_entries:
+                if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                        and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
+                        entry.mol_graph):
+                    cls.LiEC_entry = entry
+                elif entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                        and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
+                        entry.mol_graph):
+                    cls.LiEC_RO_entry = entry
+                if cls.LiEC_entry is not None and cls.LiEC_RO_entry is not None:
+                    break
 
-        for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
-                    and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
-                    entry.mol_graph):
-                cls.LiEC_entry = entry
-            elif entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
-                    and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
-                    entry.mol_graph):
-                cls.LiEC_RO_entry = entry
-            if cls.LiEC_entry is not None and cls.LiEC_RO_entry is not None:
-                break
-
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_graph_representation(self):
 
         RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
@@ -227,6 +235,7 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
                                              str(LiEC_ind) + "," + str(LiEC_RO_ind))["softplus"],
                          0.15092362164364986)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_generate(self):
 
         RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
@@ -237,6 +246,7 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
             if r.reactant == self.LiEC_entry:
                 self.assertEqual(r.product.entry_id, self.LiEC_RO_entry.entry_id)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
 
         reaction = IntramolSingleBondChangeReaction(self.LiEC_entry, self.LiEC_RO_entry)
@@ -244,6 +254,7 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
         self.assertEqual(free_energy_dict, {'free_energy_A': -1.1988634269218892,
                                             'free_energy_B': 1.1988634269218892})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_energy(self):
 
         reaction = IntramolSingleBondChangeReaction(self.LiEC_entry, self.LiEC_RO_entry)
@@ -251,6 +262,7 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
         self.assertEqual(energy_dict, {'energy_A': -0.03746218086303088,
                                        'energy_B': 0.03746218086303088})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_reaction_type(self):
 
         reaction = IntramolSingleBondChangeReaction(self.LiEC_entry, self.LiEC_RO_entry)
@@ -264,71 +276,73 @@ class TestIntermolecularReaction(PymatgenTest):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.LiEC_reextended_entries = []
-        entries = loadfn(os.path.join(test_dir, "LiEC_reextended_entries.json"))
-        for entry in entries:
-            if "optimized_molecule" in entry["output"]:
-                mol = entry["output"]["optimized_molecule"]
-            else:
-                mol = entry["output"]["initial_molecule"]
-            E = float(entry["output"]["final_energy"])
-            H = float(entry["output"]["enthalpy"])
-            S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
-                                      entropy=S, entry_id=entry["task_id"])
-            if mol_entry.formula == "Li1":
-                if mol_entry.charge == 1:
+        if ob:
+            cls.LiEC_reextended_entries = []
+            entries = loadfn(os.path.join(test_dir, "LiEC_reextended_entries.json"))
+            for entry in entries:
+                if "optimized_molecule" in entry["output"]:
+                    mol = entry["output"]["optimized_molecule"]
+                else:
+                    mol = entry["output"]["initial_molecule"]
+                E = float(entry["output"]["final_energy"])
+                H = float(entry["output"]["enthalpy"])
+                S = float(entry["output"]["entropy"])
+                mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                          entropy=S, entry_id=entry["task_id"])
+                if mol_entry.formula == "Li1":
+                    if mol_entry.charge == 1:
+                        cls.LiEC_reextended_entries.append(mol_entry)
+                else:
                     cls.LiEC_reextended_entries.append(mol_entry)
-            else:
-                cls.LiEC_reextended_entries.append(mol_entry)
 
-        C2H4_mg = MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir, "C2H4.xyz")),
-            OpenBabelNN())
-        cls.C2H4_mg = metal_edge_extender(C2H4_mg)
+            C2H4_mg = MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir, "C2H4.xyz")),
+                OpenBabelNN())
+            cls.C2H4_mg = metal_edge_extender(C2H4_mg)
 
-        LiEC_RO_mg = MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir, "LiEC_RO.xyz")),
-            OpenBabelNN())
-        cls.LiEC_RO_mg = metal_edge_extender(LiEC_RO_mg)
+            LiEC_RO_mg = MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir, "LiEC_RO.xyz")),
+                OpenBabelNN())
+            cls.LiEC_RO_mg = metal_edge_extender(LiEC_RO_mg)
 
-        C1Li1O3_mg = MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir, "C1Li1O3.xyz")),
-            OpenBabelNN())
-        cls.C1Li1O3_mg = metal_edge_extender(C1Li1O3_mg)
+            C1Li1O3_mg = MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir, "C1Li1O3.xyz")),
+                OpenBabelNN())
+            cls.C1Li1O3_mg = metal_edge_extender(C1Li1O3_mg)
 
-        cls.C2H4_entry = None
-        cls.LiEC_RO_entry = None
-        cls.C1Li1O3_entry = None
+            cls.C2H4_entry = None
+            cls.LiEC_RO_entry = None
+            cls.C1Li1O3_entry = None
 
-        for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C2 H4" and entry.charge == 0 \
-                    and entry.Nbonds == 5 and cls.C2H4_mg.isomorphic_to(
-                    entry.mol_graph):
-                if cls.C2H4_entry is not None:
-                    if cls.C2H4_entry.free_energy() >= entry.free_energy():
+            for entry in cls.LiEC_reextended_entries:
+                if entry.formula == "C2 H4" and entry.charge == 0 \
+                        and entry.Nbonds == 5 and cls.C2H4_mg.isomorphic_to(
+                        entry.mol_graph):
+                    if cls.C2H4_entry is not None:
+                        if cls.C2H4_entry.free_energy() >= entry.free_energy():
+                            cls.C2H4_entry = entry
+                    else:
                         cls.C2H4_entry = entry
-                else:
-                    cls.C2H4_entry = entry
 
-            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
-                    and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
-                    entry.mol_graph):
-                if cls.LiEC_RO_entry is not None:
-                    if cls.LiEC_RO_entry.free_energy() >= entry.free_energy():
+                if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                        and entry.Nbonds == 11 and cls.LiEC_RO_mg.isomorphic_to(
+                        entry.mol_graph):
+                    if cls.LiEC_RO_entry is not None:
+                        if cls.LiEC_RO_entry.free_energy() >= entry.free_energy():
+                            cls.LiEC_RO_entry = entry
+                    else:
                         cls.LiEC_RO_entry = entry
-                else:
-                    cls.LiEC_RO_entry = entry
 
-            if entry.formula == "C1 Li1 O3" and entry.charge == 0 \
-                    and entry.Nbonds == 5 and cls.C1Li1O3_mg.isomorphic_to(
-                    entry.mol_graph):
-                if cls.C1Li1O3_entry is not None:
-                    if cls.C1Li1O3_entry.free_energy() >= entry.free_energy():
+                if entry.formula == "C1 Li1 O3" and entry.charge == 0 \
+                        and entry.Nbonds == 5 and cls.C1Li1O3_mg.isomorphic_to(
+                        entry.mol_graph):
+                    if cls.C1Li1O3_entry is not None:
+                        if cls.C1Li1O3_entry.free_energy() >= entry.free_energy():
+                            cls.C1Li1O3_entry = entry
+                    else:
                         cls.C1Li1O3_entry = entry
-                else:
-                    cls.C1Li1O3_entry = entry
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_graph_representation(self):
 
         # set up RN
@@ -341,7 +355,6 @@ class TestIntermolecularReaction(PymatgenTest):
         C2H4_RN_entry = None
         LiEC_RO_RN_entry = None
         C1Li1O3_RN_entry = None
-
 
         for entry in RN.entries["C2 H4"][5][0]:
             if self.C2H4_mg.isomorphic_to(entry.mol_graph):
@@ -378,6 +391,7 @@ class TestIntermolecularReaction(PymatgenTest):
                                              + str(LiEC_RO_ind)),
                          None)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_generate(self):
 
         RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
@@ -394,6 +408,7 @@ class TestIntermolecularReaction(PymatgenTest):
                     self.assertTrue(r.products[0].free_energy() == self.C1Li1O3_entry.free_energy()
                                     or r.products[1].free_energy() == self.C1Li1O3_entry.free_energy())
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
 
         reaction = IntermolecularReaction(self.LiEC_RO_entry,
@@ -402,6 +417,7 @@ class TestIntermolecularReaction(PymatgenTest):
         self.assertEqual(free_energy_dict, {'free_energy_A': 0.37075842588456,
                                             'free_energy_B': -0.37075842588410524})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_energy(self):
 
         reaction = IntermolecularReaction(self.LiEC_RO_entry,
@@ -410,6 +426,7 @@ class TestIntermolecularReaction(PymatgenTest):
         self.assertEqual(energy_dict, {'energy_A': 0.035409666514283344,
                                        'energy_B': -0.035409666514283344})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_reaction_type(self):
 
         reaction = IntermolecularReaction(self.LiEC_RO_entry,
@@ -424,64 +441,66 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.LiEC_reextended_entries = []
-        entries = loadfn(os.path.join(test_dir, "LiEC_reextended_entries.json"))
-        for entry in entries:
-            if "optimized_molecule" in entry["output"]:
-                mol = entry["output"]["optimized_molecule"]
-            else:
-                mol = entry["output"]["initial_molecule"]
-            E = float(entry["output"]["final_energy"])
-            H = float(entry["output"]["enthalpy"])
-            S = float(entry["output"]["entropy"])
-            mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
-                                      entropy=S, entry_id=entry["task_id"])
-            if mol_entry.formula == "Li1":
-                if mol_entry.charge == 1:
+        if ob:
+            cls.LiEC_reextended_entries = []
+            entries = loadfn(os.path.join(test_dir, "LiEC_reextended_entries.json"))
+            for entry in entries:
+                if "optimized_molecule" in entry["output"]:
+                    mol = entry["output"]["optimized_molecule"]
+                else:
+                    mol = entry["output"]["initial_molecule"]
+                E = float(entry["output"]["final_energy"])
+                H = float(entry["output"]["enthalpy"])
+                S = float(entry["output"]["entropy"])
+                mol_entry = MoleculeEntry(molecule=mol, energy=E, enthalpy=H,
+                                          entropy=S, entry_id=entry["task_id"])
+                if mol_entry.formula == "Li1":
+                    if mol_entry.charge == 1:
+                        cls.LiEC_reextended_entries.append(mol_entry)
+                else:
                     cls.LiEC_reextended_entries.append(mol_entry)
-            else:
-                cls.LiEC_reextended_entries.append(mol_entry)
 
-        EC_mg = MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
-            OpenBabelNN())
-        cls.EC_mg = metal_edge_extender(EC_mg)
+            EC_mg = MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir,"EC.xyz")),
+                OpenBabelNN())
+            cls.EC_mg = metal_edge_extender(EC_mg)
 
-        LiEC_mg =  MoleculeGraph.with_local_env_strategy(
-            Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
-            OpenBabelNN())
-        cls.LiEC_mg = metal_edge_extender(LiEC_mg)
+            LiEC_mg =  MoleculeGraph.with_local_env_strategy(
+                Molecule.from_file(os.path.join(test_dir,"LiEC.xyz")),
+                OpenBabelNN())
+            cls.LiEC_mg = metal_edge_extender(LiEC_mg)
 
-        cls.LiEC_entry = None
-        cls.EC_minus_entry = None
-        cls.Li_entry = None
+            cls.LiEC_entry = None
+            cls.EC_minus_entry = None
+            cls.Li_entry = None
 
-        for entry in cls.LiEC_reextended_entries:
-            if entry.formula == "C3 H4 O3" and entry.charge == -1 \
-                    and entry.Nbonds == 10 and cls.EC_mg.isomorphic_to(
-                    entry.mol_graph):
-                if cls.EC_minus_entry is not None:
-                    if cls.EC_minus_entry.free_energy() >= entry.free_energy():
+            for entry in cls.LiEC_reextended_entries:
+                if entry.formula == "C3 H4 O3" and entry.charge == -1 \
+                        and entry.Nbonds == 10 and cls.EC_mg.isomorphic_to(
+                        entry.mol_graph):
+                    if cls.EC_minus_entry is not None:
+                        if cls.EC_minus_entry.free_energy() >= entry.free_energy():
+                            cls.EC_minus_entry = entry
+                    else:
                         cls.EC_minus_entry = entry
-                else:
-                    cls.EC_minus_entry = entry
 
-            if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
-                    and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
-                    entry.mol_graph):
-                if cls.LiEC_entry is not None:
-                    if cls.LiEC_entry.free_energy() >= entry.free_energy():
+                if entry.formula == "C3 H4 Li1 O3" and entry.charge == 0 \
+                        and entry.Nbonds == 12 and cls.LiEC_mg.isomorphic_to(
+                        entry.mol_graph):
+                    if cls.LiEC_entry is not None:
+                        if cls.LiEC_entry.free_energy() >= entry.free_energy():
+                            cls.LiEC_entry = entry
+                    else:
                         cls.LiEC_entry = entry
-                else:
-                    cls.LiEC_entry = entry
 
-            if entry.formula == "Li1" and entry.charge == 1 and entry.Nbonds == 0:
-                if cls.Li_entry is not None:
-                    if cls.Li_entry.free_energy() >= entry.free_energy():
+                if entry.formula == "Li1" and entry.charge == 1 and entry.Nbonds == 0:
+                    if cls.Li_entry is not None:
+                        if cls.Li_entry.free_energy() >= entry.free_energy():
+                            cls.Li_entry = entry
+                    else:
                         cls.Li_entry = entry
-                else:
-                    cls.Li_entry = entry
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_graph_representation(self):
 
         # set up RN
@@ -527,6 +546,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
         self.assertEqual(
             graph.get_edge_data(LiEC_ind, str(Li_ind) + "+PR_" + str(EC_minus_ind) + "," + str(LiEC_ind)), None)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_generate(self):
 
         RN = ReactionNetwork.from_input_entries(self.LiEC_reextended_entries)
@@ -541,6 +561,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
                     self.assertTrue(r.products[0].free_energy() == self.EC_minus_entry.free_energy()
                                     or r.products[1].free_energy() == self.EC_minus_entry.free_energy())
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
 
         reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry,
@@ -549,6 +570,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
         self.assertEqual(free_energy_dict, {'free_energy_A': 1.857340187929367,
                                             'free_energy_B': -1.8573401879297649})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_energy(self):
 
         reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry,
@@ -557,6 +579,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
         self.assertEqual(energy_dict, {'energy_A': 0.08317397598398202,
                                        'energy_B': -0.08317397598399001})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_reaction_type(self):
 
         reaction = CoordinationBondChangeReaction(self.LiEC_entry, [self.EC_minus_entry,
@@ -569,6 +592,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
 
 class TestReactionPath(PymatgenTest):
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_characterize_path(self):
 
         # set up input variables
@@ -610,6 +634,7 @@ class TestReactionPath(PymatgenTest):
                                               '83+PR_544,131', 131, '131,129', 129, '129+PR_0,310', 310,
                                               '310+PR_564,322', 322, '322+PR_564,333', 333],)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_characterize_path_final(self):
 
         #set up input variables
@@ -701,6 +726,7 @@ class TestReactionNetwork(PymatgenTest):
         dumpfn(cls.LiEC_reextended_entries, "unittest_input_molentries.json")
         cls.RN_cls = loadfn(os.path.join(test_dir, "RN.json"))
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_add_reactions(self):
 
         # set up RN
@@ -734,6 +760,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(list(RN.graph.edges), [('456,455', 455), (456, '456,455'),
                                                 (455, '455,456'), ('455,456', 456)])
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_build(self):
 
         # set up RN
@@ -772,6 +799,7 @@ class TestReactionNetwork(PymatgenTest):
 
         # dumpfn(RN, os.path.join(test_dir, "RN.json"))
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_build_PR_record(self):
         # set up RN
         RN = self.RN_cls
@@ -787,6 +815,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(len(PR_record[556]), 104)
         self.assertEqual(len(PR_record[564]), 165)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_build_reactant_record(self):
 
         # set up RN
@@ -804,6 +833,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(len(reactant_record[556]), 104)
         self.assertEqual(len(reactant_record[564]), 167)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_solve_prerequisites(self):
 
         # set up RN
@@ -844,6 +874,7 @@ class TestReactionNetwork(PymatgenTest):
                 self.assertEqual(PRs_calc[node][start].path_dict,
                                  PR_paths[node][start].path_dict)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_find_path_cost(self):
 
         # set up RN
@@ -860,7 +891,6 @@ class TestReactionNetwork(PymatgenTest):
         for node in loaded_PR_byproducts:
             RN.PR_byproducts[int(node)] = loaded_PR_byproducts[node]
 
-
         for node in loaded_self_min_cost_str:
             RN.min_cost[int(node)] = loaded_self_min_cost_str[node]
 
@@ -876,7 +906,6 @@ class TestReactionNetwork(PymatgenTest):
                 LEDC_ind = entry.parameters["ind"]
                 break
         Li1_ind = RN.entries["Li1"][0][1][0].parameters["ind"]
-
 
         loaded_cost_from_start_str = loadfn(os.path.join(test_dir,
                                                          "find_path_cost_cost_from_start_IN.json"))
@@ -926,6 +955,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(PRs_cal[29][456].path, None)
         self.assertEqual(PRs_cal[313], {})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_identify_solved_PRs(self):
 
         # set up RN
@@ -977,6 +1007,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(cost_from_start_cal[7][456], 1.0022887913156873)
         self.assertEqual(cost_from_start_cal[30][556], "no_path")
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_update_edge_weights(self):
 
         # set up RN
@@ -1003,6 +1034,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(attrs_cal[(41, '41+PR_556,42')]['softplus'], 0.2606224897665045)
         self.assertEqual(attrs_cal[(308, '308+PR_556,277')]['softplus'], 0.0866554990833896)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_final_PR_check(self):
 
         # set up RN
@@ -1043,6 +1075,7 @@ class TestReactionNetwork(PymatgenTest):
         self.assertTrue(output.__contains__("No path found from any start to PR 513"))
         self.assertTrue(output.__contains__("No path found from any start to PR 539"))
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_find_or_remove_bad_nodes(self):
 
         # set up RN
@@ -1084,6 +1117,7 @@ class TestReactionNetwork(PymatgenTest):
         for node_ind in nodes:
             self.assertEqual(bad_nodes_pruned_graph[node_ind], {})
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_valid_shortest_simple_paths(self):
 
         RN = self.RN_cls
@@ -1127,6 +1161,7 @@ class TestReactionNetwork(PymatgenTest):
                 self.assertEqual(path, p[ind])
                 ind += 1
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_find_paths(self):
 
         # set up RN
