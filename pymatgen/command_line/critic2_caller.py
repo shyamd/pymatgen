@@ -388,7 +388,8 @@ class Critic2Output(MSONable):
             for idx, node in self.nodes.items():
                 cp = self.critical_points[node["unique_idx"]]
                 if cp.type.value in include_critical_points:
-                    specie = DummySpecie("{}cp".format(cp.type.value[0]), oxidation_state=None)
+                    # X prefix added because "b" will cause error ("B" is a valid element)
+                    specie = DummySpecie("x{}cp".format(cp.type.value[0]), oxidation_state=None)
                     structure.append(specie, node["frac_coords"],
                                      properties={"ellipticity": cp.ellipticity,
                                                  "laplacian": cp.laplacian,
