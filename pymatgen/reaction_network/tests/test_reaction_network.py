@@ -6,7 +6,7 @@ import unittest
 import copy
 
 from pymatgen.util.testing import PymatgenTest
-from pymatgen.reaction_network.reaction_network import (Reaction, RedoxReaction,
+from pymatgen.reaction_network.reaction_network import (RedoxReaction,
                                                         IntramolSingleBondChangeReaction,
                                                         IntermolecularReaction,
                                                         CoordinationBondChangeReaction,
@@ -17,7 +17,6 @@ from pymatgen.core.structure import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.analysis.graphs import MoleculeGraph
 from pymatgen.analysis.local_env import OpenBabelNN
-from pymatgen.analysis.fragmenter import metal_edge_extender
 from pymatgen.analysis.fragmenter import metal_edge_extender
 
 from monty.serialization import dumpfn, loadfn

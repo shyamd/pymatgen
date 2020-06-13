@@ -949,6 +949,7 @@ class CoordinationBondChangeReaction(Reaction):
                                                      Mapping_Family_Dict]:
         reactions = list()
         M_entries = dict()
+        families = dict()
         fam = dict()
         temp = list()
         for formula in entries:
@@ -2997,14 +2998,21 @@ def categorize(reaction, families, templates, environment, charge):
         if nx.is_isomorphic(environment, template, node_match=nm):
             match = True
             label = e
-            if label in families[charge]:
-                families[charge][label].append(reaction)
+            if charge in families:
+                if label in families[charge]:
+                    families[charge][label].append(reaction)
+                else:
+                    families[charge][label] = [reaction]
+                break
             else:
-                families[charge][label] = [reaction]
-            break
+                families[charge] = {label: [reaction]}
+                break
     if not match:
         label = len(templates)
-        families[charge][label] = [reaction]
+        if charge in families:
+            families[charge][label] = [reaction]
+        else:
+            families[charge] = {label: [reaction]}
 
         templates.append(environment)
 
