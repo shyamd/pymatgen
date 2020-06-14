@@ -23,6 +23,7 @@ from pymatgen.core import Molecule
 
 from pymatgen.analysis.graphs import MoleculeGraph
 from pymatgen.analysis.local_env import OpenBabelNN
+from pymatgen.analysis.fragmenter import metal_edge_extender
 import networkx as nx
 
 try:
@@ -392,7 +393,7 @@ class QCOutput(MSONable):
         Parses species and initial geometry.
         """
         header_pattern = r"Standard Nuclear Orientation \(Angstroms\)\s+I\s+Atom\s+X\s+Y\s+Z\s+-+"
-        table_pattern = r"\s*\d+\s+([a-zA-Z]+)\s*([\d\-\.]+)\s*([\d\-\.]+)\s*([\d\-\.]+)\s*"
+        table_pattern = r"\s*\d+\s+([a-zA-Z]+)\s*([\d\-\.\*]+)\s*([\d\-\.\*]+)\s*([\d\-\.\*]+)\s*"
         footer_pattern = r"\s*-+"
         temp_geom = read_table_pattern(self.text, header_pattern,
                                        table_pattern, footer_pattern)
@@ -418,7 +419,10 @@ class QCOutput(MSONable):
             for ii, entry in enumerate(temp_geom):
                 species += [entry[0]]
                 for jj in range(3):
-                    geometry[ii, jj] = float(entry[jj + 1])
+                    if "*" in entry[jj + 1]:
+                        geometry[ii, jj] = 10000000000.0
+                    else:
+                        geometry[ii, jj] = float(entry[jj + 1])
             self.data["species"] = species
             self.data["initial_geometry"] = geometry
             if self.data["charge"] is not None and self.data["multiplicity"] is not None:
@@ -443,7 +447,7 @@ class QCOutput(MSONable):
                              r"(?:\s*\-+\s+OpenMP\s+Integral\s+computing\s+Module\s+" \
                              r"(?:Release:\s+version\s+[\d\-\.]+\,\s+\w+\s+[\d\-\.]+\, " \
                              r"Q-Chem Inc\. Pittsburgh\s+)*\-+)*\n"
-            table_pattern = r"(?:\n[a-zA-Z_\s/]+\.C::(?:WARNING energy changes are now smaller than effective " \
+            table_pattern = r"(?:\n[a-zA-Z_\s/]+(?:\.C)*::(?:WARNING energy changes are now smaller than effective " \
                             r"accuracy\.)*(?:\s+calculation will continue, but THRESH should be increased)*" \
                             r"(?:\s+or SCF_CONVERGENCE decreased\. )*(?:\s+effective_thresh = [\d\-\.]+e[\d\-]+)*)*" \
                             r"(?:\s*Nonlocal correlation = [\d\-\.]+e[\d\-]+)*" \
@@ -682,6 +686,8 @@ class QCOutput(MSONable):
         for scf in self.data["SCF"]:
             if abs(scf[0][0] - scf[1][0]) > 10.0:
                 self.data["warnings"]["bad_roothaan"] = True
+                if abs(scf[0][0] - scf[1][0]) > 100.0:
+                    self.data["warnings"]["very_bad_roothaan"] = True
 
     def _read_geometries(self):
         """
@@ -1141,10 +1147,22 @@ class QCOutput(MSONable):
             self.data["errors"] += ["licensing_error"]
         elif read_pattern(
                 self.text, {
+                    "key": r"Unable to validate license"
+                },
+                terminate_on_match=True).get('key') == [[]]:
+            self.data["errors"] += ["licensing_error"]
+        elif read_pattern(
+                self.text, {
                     "key": r"Could not open driver file in ReadDriverFromDisk"
                 },
                 terminate_on_match=True).get('key') == [[]]:
             self.data["errors"] += ["driver_error"]
+        elif read_pattern(
+                self.text, {
+                    "key": r"gen_scfman_exception:  GDM:: Zero or negative preconditioner scaling factor"
+                },
+                terminate_on_match=True).get('key') == [[]]:
+            self.data["errors"] += ["gdm_neg_precon_error"]
         else:
             tmp_failed_line_searches = read_pattern(
                 self.text, {

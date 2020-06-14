@@ -9,7 +9,7 @@ import copy
 
 from monty.serialization import loadfn  # , dumpfn
 
-from pymatgen.command_line.critic2_caller import Critic2Analysis
+from pymatgen.command_line.critic2_caller import Critic2Output
 from pymatgen.core.structure import Molecule, Structure, FunctionalGroups, Site
 from pymatgen.analysis.graphs import *
 from pymatgen.analysis.local_env import (
@@ -39,6 +39,8 @@ __status__ = "Beta"
 __date__ = "August 2017"
 
 module_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+molecule_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..",
+                            "test_files", "molecules")
 
 
 class StructureGraphTest(PymatgenTest):
@@ -111,9 +113,9 @@ class StructureGraphTest(PymatgenTest):
                 "test_files/critic2/MoS2.cif",
             )
         )
-        c2o = Critic2Analysis(self.structure, reference_stdout)
+        c2o = Critic2Output(self.structure, reference_stdout)
         self.mos2_sg = c2o.structure_graph(
-            include_critical_points=False
+            edge_weight="bond_length", edge_weight_units="Å", include_critical_points=False
         )
 
         latt = Lattice.cubic(4.17)
@@ -815,6 +817,48 @@ class MoleculeGraphTest(unittest.TestCase):
         self.assertEqual(eth_copy.graph.number_of_nodes(), 5)
         self.assertEqual(eth_copy.graph.number_of_edges(), 2)
 
+    @unittest.skipIf(not nx, "NetworkX not present. Skipping... ")
+    def test_get_disconnected(self):
+        disconnected = Molecule(["C", "H", "H", "H", "H", "He"],
+                                [
+                                    [0.0000, 0.0000, 0.0000],
+                                    [-0.3633, -0.5138, -0.8900],
+                                    [1.0900, 0.0000, 0.0000],
+                                    [-0.3633, 1.0277, 0.0000],
+                                    [-0.3633, -0.5138, -0.8900],
+                                    [5.0000, 5.0000, 5.0000]
+                                ])
+
+        no_he = Molecule(["C", "H", "H", "H", "H"],
+                         [
+                            [0.0000, 0.0000, 0.0000],
+                            [-0.3633, -0.5138, -0.8900],
+                            [1.0900, 0.0000, 0.0000],
+                            [-0.3633, 1.0277, 0.0000],
+                            [-0.3633, -0.5138, -0.8900]
+                         ])
+
+        just_he = Molecule(["He"], [[5.0000, 5.0000, 5.0000]])
+
+        dis_mg = MoleculeGraph.with_empty_graph(disconnected)
+        dis_mg.add_edge(0, 1)
+        dis_mg.add_edge(0, 2)
+        dis_mg.add_edge(0, 3)
+        dis_mg.add_edge(0, 4)
+
+        fragments = dis_mg.get_disconnected_fragments()
+        self.assertEqual(len(fragments), 2)
+        self.assertEqual(fragments[0].molecule, no_he)
+        self.assertEqual(fragments[1].molecule, just_he)
+
+        con_mg = MoleculeGraph.with_empty_graph(no_he)
+        con_mg.add_edge(0, 1)
+        con_mg.add_edge(0, 2)
+        con_mg.add_edge(0, 3)
+        con_mg.add_edge(0, 4)
+        fragments = con_mg.get_disconnected_fragments()
+        self.assertEqual(len(fragments), 1)
+
     @unittest.skipIf(not nx, "NetworkX not present. Skipping...")
     def test_split(self):
         bonds = [(0, 1), (4, 5)]
@@ -941,16 +985,6 @@ class MoleculeGraphTest(unittest.TestCase):
         # switch carbons
         ethylene[0], ethylene[1] = ethylene[1], ethylene[0]
 
-        eth_copy = MoleculeGraph.with_edges(
-            ethylene,
-            {
-                (0, 1): {"weight": 2},
-                (1, 2): {"weight": 1},
-                (1, 3): {"weight": 1},
-                (0, 4): {"weight": 1},
-                (0, 5): {"weight": 1},
-            },
-        )
         # If they are equal, they must also be isomorphic
         eth_copy = copy.deepcopy(self.ethylene)
         self.assertTrue(self.ethylene.isomorphic_to(eth_copy))
@@ -1013,6 +1047,25 @@ class MoleculeGraphTest(unittest.TestCase):
         mg = MoleculeGraph.from_dict(d)
         d2 = mg.as_dict()
         self.assertEqual(str(d), str(d2))
+
+
+class GraphUtilsTest(unittest.TestCase):
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    def test_disconnected_isomorphism(self):
+        liec0 = Molecule.from_file(os.path.join(molecule_dir, "liec0.mol"))
+        ro_liec0 = Molecule.from_file(os.path.join(molecule_dir, "ro_liec0.mol"))
+
+        rct_mg = MoleculeGraph.with_local_env_strategy(liec0, OpenBabelNN())
+
+        pro_mg = MoleculeGraph.with_local_env_strategy(ro_liec0, OpenBabelNN())
+
+        self.assertEqual(disconnected_isomorphic(rct_mg.graph, pro_mg.graph,
+                                                 num_allowed=0),
+                         (False, None))
+        self.assertEqual(disconnected_isomorphic(rct_mg.graph, pro_mg.graph,
+                                                 num_allowed=1),
+                         (True, [(4, 5)]))
 
 
 if __name__ == "__main__":
