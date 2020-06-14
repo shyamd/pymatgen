@@ -67,7 +67,8 @@ class TestFragmentMolecule(PymatgenTest):
         self.assertEqual(fragmenter.opt_steps, 10000)
         default_mol_graph = MoleculeGraph.with_local_env_strategy(self.pc, OpenBabelNN())
         self.assertEqual(fragmenter.mol_graph, default_mol_graph)
-        self.assertEqual(fragmenter.total_unique_fragments, 8)
+        # self.assertEqual(fragmenter.total_unique_fragments, 8)
+        self.assertEqual(fragmenter.total_unique_fragments, 25)
 
     def test_edges_given_PC_not_defaults(self):
         fragmenter = Fragmenter(molecule=self.pc, edges=self.pc_edges, depth=2, open_rings=False, opt_steps=0)
@@ -76,7 +77,8 @@ class TestFragmentMolecule(PymatgenTest):
         edges = {(e[0], e[1]): None for e in self.pc_edges}
         default_mol_graph = MoleculeGraph.with_edges(self.pc, edges=edges)
         self.assertEqual(fragmenter.mol_graph, default_mol_graph)
-        self.assertEqual(fragmenter.total_unique_fragments, 20)
+        # self.assertEqual(fragmenter.total_unique_fragments, 20)
+        self.assertEqual(fragmenter.total_unique_fragments, 74)
 
     def test_edges_given_TFSI(self):
         fragmenter = Fragmenter(molecule=self.tfsi, edges=self.tfsi_edges, depth=0)
@@ -108,14 +110,16 @@ class TestFragmentMolecule(PymatgenTest):
         self.assertEqual(fragmenter0.total_unique_fragments, 295)
 
         fragmenter10 = Fragmenter(molecule=self.pc, edges=self.pc_edges, depth=10, open_rings=False)
-        self.assertEqual(fragmenter10.total_unique_fragments, 63)
+        # self.assertEqual(fragmenter10.total_unique_fragments, 63)
+        self.assertEqual(fragmenter10.total_unique_fragments, 295)
 
         fragments_by_level = fragmenter10.fragments_by_level
-        num_frags_by_level = [8, 12, 15, 14, 9, 4, 1]
+        num_frags_by_level = [25, 49, 65, 64, 50, 28, 12]
         for ii in range(7):
             num_frags = 0
             for key in fragments_by_level[str(ii)]:
                 num_frags += len(fragments_by_level[str(ii)][key])
+            # print(num_frags, num_frags_by_level[ii])
             self.assertEqual(num_frags, num_frags_by_level[ii])
 
     def test_PC_frag1_then_PC(self):
