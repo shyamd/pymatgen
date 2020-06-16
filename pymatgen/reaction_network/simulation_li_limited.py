@@ -1,17 +1,9 @@
 import numpy as np
-from pymatgen.core import Molecule
-from pymatgen.entries.mol_entry import MoleculeEntry
-from pymatgen.analysis.local_env import OpenBabelNN
-from pymatgen.analysis.graphs import MoleculeGraph
-from pymatgen.reactions.reaction_propagator_new import ReactionPropagator
-from monty.serialization import dumpfn, loadfn
-from pymatgen.reactions.reaction_network import ReactionNetwork
+from pymatgen.reaction_network.reaction_propagator_new import ReactionPropagator
 import time
 import matplotlib.pyplot as plt
 import pickle
-from scipy.constants import h, k, R, N_A, pi
-
-
+from scipy.constants import N_A
 
 __author__ = "Ronald Kam, Evan Spotte-Smith"
 __email__ = "kamronald@berkeley.edu"
@@ -77,7 +69,7 @@ class Simulation_Li_Limited:
         conc_to_amt = lambda c:  int(c * self.volume * N_A * 1000)
         self.initial_state_dict = {li_id: conc_to_amt(self.li_conc), ec_id: conc_to_amt(self.ec_conc),
                                    emc_id: conc_to_amt(self.emc_conc), h2o_id: conc_to_amt(self.h2o_conc)}
-        self.num_entries = len(self.reaction_network.entries_list)
+        self.num_entries = 5732 # number of entries used to create reaction network, not equivalent to the number of entries in the network
         self.initial_state = np.zeros(self.num_entries)
         for initial_molecule_id in self.initial_state_dict:
             self.initial_state[initial_molecule_id] = self.initial_state_dict[initial_molecule_id]
@@ -89,7 +81,7 @@ class Simulation_Li_Limited:
         self.rate_constants = np.zeros(2 * self.num_rxns)
         self.coord_array = np.zeros(2 * self.num_rxns)
         self.rxn_ind = np.arange(2 * self.num_rxns) # [r1_f, r1_r, r2_f, r2_r, ... ]
-        self.species_rxn_mapping = [[] for entry in range(5732)] # a list of arrays of reaction inds which molecule is reactant of
+        self.species_rxn_mapping = [np.array([]) for entry in range(self.num_entries)] # a list of arrays of reaction inds which molecule is reactant of
         for id, reaction in enumerate(self.reaction_network.reactions):
             this_reactant_list = list()
             this_product_list = list()
@@ -99,11 +91,11 @@ class Simulation_Li_Limited:
             self.rate_constants[2 * id + 1] = reaction.rate_constant()["k_B"]
             for react in reaction.reactants:
                 this_reactant_list.append(react.entry_id)
-                self.species_rxn_mapping[react.entry_id].append(2 * id)
+                self.species_rxn_mapping[react.entry_id] = np.append(self.species_rxn_mapping[react.entry_id], 2 * id)
                 num_reactants_for.append(self.initial_state_dict.get(react.entry_id, 0))
             for prod in reaction.products:
                 this_product_list.append(prod.entry_id)
-                self.species_rxn_mapping[prod.entry_id].append(2*id + 1)
+                self.species_rxn_mapping[prod.entry_id] = np.append(self.species_rxn_mapping[prod.entry_id], 2*id + 1)
                 num_reactants_rev.append(self.initial_state_dict.get(prod.entry_id, 0))
 
             self.reactants.append(np.array(this_reactant_list))
