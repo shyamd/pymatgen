@@ -1,5 +1,6 @@
 import numpy as np
 from pymatgen.reaction_network.reaction_propagator_new import ReactionPropagator
+from pymatgen.reaction_network.reaction_network import ReactionNetwork
 import time
 import matplotlib.pyplot as plt
 import pickle
@@ -50,11 +51,12 @@ class Simulation_Li_Limited:
         # pickle.dump(self.entries, pickle_out)
         # pickle_out.close()
 
-        # time_start = time.time()
+        # pickle_in = open("pickle_mol_entries_limited_two_IDs", "rb")
+        # self.entries = pickle.load(pickle_in)
+        #
         # self.reaction_network = ReactionNetwork.from_input_entries(self.entries, electron_free_energy = -2.15)
         # self.reaction_network.build()
-        # time_end = time.time()
-        #print("Time to generate rxn network: ", time_end-time_start)
+        #
         # pickle_out = open("pickle_rxnnetwork_Li-limited", "wb")
         # pickle.dump(self.reaction_network, pickle_out)
         # pickle_out.close()
@@ -119,7 +121,7 @@ class Simulation_Li_Limited:
                 self.coord_array[2 * id + 1] = num_reactants_rev[0] * num_reactants_rev[1]
             else:
                 raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
-        print("rxn mapping", self.species_rxn_mapping)
+        # print("rxn mapping", self.species_rxn_mapping)
         self.propensity_array = np.multiply(self.rate_constants, self.coord_array)
         self.total_propensity = np.sum(self.propensity_array)
         print("Initial total propensity = ", self.total_propensity)
