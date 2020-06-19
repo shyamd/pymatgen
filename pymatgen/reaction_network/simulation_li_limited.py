@@ -72,36 +72,38 @@ class Simulation_Li_Limited:
         self.initial_state_dict = {li_id: conc_to_amt(self.li_conc), ec_id: conc_to_amt(self.ec_conc),
                                    emc_id: conc_to_amt(self.emc_conc), h2o_id: conc_to_amt(self.h2o_conc)}
         self.num_entries = 5732 # number of entries used to create reaction network, not equivalent to the number of entries in the network
-        self.initial_state = np.zeros(self.num_entries)
+        self.initial_state = np.zeros(self.num_entries, dtype = int)
         for initial_molecule_id in self.initial_state_dict:
             self.initial_state[initial_molecule_id] = self.initial_state_dict[initial_molecule_id]
 
-        self.reactants = list()
-        self.products = list()
         self.num_rxns = len(self.reaction_network.reactions)
+        self.reactants = -1 * np.ones((self.num_rxns, 2), dtype = int)
+        self.products = -1 * np.ones((self.num_rxns, 2), dtype = int)
 
         self.rate_constants = np.zeros(2 * self.num_rxns)
         self.coord_array = np.zeros(2 * self.num_rxns)
         self.rxn_ind = np.arange(2 * self.num_rxns) # [r1_f, r1_r, r2_f, r2_r, ... ]
-        self.species_rxn_mapping = [np.array([]) for entry in range(self.num_entries)] # a list of arrays of reaction inds which molecule is reactant of
+        self.species_rxn_mapping_list = [np.array([]) for entry in range(self.num_entries)] # a list of arrays of reaction inds which molecule is reactant of
         for id, reaction in enumerate(self.reaction_network.reactions):
-            this_reactant_list = list()
-            this_product_list = list()
+            # this_reactant_list = list()
+            # this_product_list = list()
             num_reactants_for = list()
             num_reactants_rev = list()
             self.rate_constants[2 * id] = reaction.rate_constant()["k_A"]
             self.rate_constants[2 * id + 1] = reaction.rate_constant()["k_B"]
-            for react in reaction.reactants:
-                this_reactant_list.append(react.entry_id)
-                self.species_rxn_mapping[react.entry_id] = np.append(self.species_rxn_mapping[react.entry_id], 2 * id)
+            for idx, react in enumerate(reaction.reactants):
+                #this_reactant_list.append(react.entry_id)
+                self.reactants[id, idx] = react.entry_id
+                self.species_rxn_mapping_list[react.entry_id] = np.append(self.species_rxn_mapping_list[react.entry_id], 2 * id)
                 num_reactants_for.append(self.initial_state_dict.get(react.entry_id, 0))
-            for prod in reaction.products:
-                this_product_list.append(prod.entry_id)
-                self.species_rxn_mapping[prod.entry_id] = np.append(self.species_rxn_mapping[prod.entry_id], 2*id + 1)
+            for idx, prod in enumerate(reaction.products):
+                #this_product_list.append(prod.entry_id)
+                self.products[id, idx] = prod.entry_id
+                self.species_rxn_mapping_list[prod.entry_id] = np.append(self.species_rxn_mapping_list[prod.entry_id], 2*id + 1)
                 num_reactants_rev.append(self.initial_state_dict.get(prod.entry_id, 0))
 
-            self.reactants.append(np.array(this_reactant_list))
-            self.products.append(np.array(this_product_list))
+            # self.reactants.append(np.array(this_reactant_list))
+            # self.products.append(np.array(this_product_list))
 
             ## Obtain coordination value for forward reaction
             if len(reaction.reactants) == 1:
@@ -121,7 +123,18 @@ class Simulation_Li_Limited:
                 self.coord_array[2 * id + 1] = num_reactants_rev[0] * num_reactants_rev[1]
             else:
                 raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
-        # print("rxn mapping", self.species_rxn_mapping)
+        # print("rxn mapping", self.species_rxn_mapping_list)
+        rxn_mapping_lengths = [rxn_array.shape[0] for rxn_array in self.species_rxn_mapping_list ]
+        max_mapping_length = max(rxn_mapping_lengths)
+        self.species_rxn_mapping = -1 * np.ones((self.num_entries, max_mapping_length), dtype = int)
+        for index, rxn_array in enumerate(self.species_rxn_mapping_list):
+            this_map_length = rxn_mapping_lengths[index]
+            # print(rxn_array)
+            if this_map_length == max_mapping_length:
+                self.species_rxn_mapping[index, :] = rxn_array
+            else:
+                self.species_rxn_mapping[index, : this_map_length - max_mapping_length] = rxn_array
+
         self.propensity_array = np.multiply(self.rate_constants, self.coord_array)
         self.total_propensity = np.sum(self.propensity_array)
         print("Initial total propensity = ", self.total_propensity)
@@ -131,14 +144,14 @@ class Simulation_Li_Limited:
 
         time_start = time.time()
         #self.simulation_data = self.propagator.simulate(self.t_end)
-        self.propagator.simulate(self.t_end)
+        self.state_history = self.propagator.simulate(self.t_end)
         time_end = time.time()
         self.runtime = time_end - time_start
         print("Total simulation time is: ", self.runtime)
 
 
         #self.propagator.plot_trajectory(self.simulation_data,"Simulation Results", self.file_name)
-        print("Final state is: ", self.propagator._state)
+        print("Final state is: ", self.propagator.state)
         # self.rxn_analysis = self.propagator.reaction_analysis()
         # print("Reaction Analysis")
         # for analysis_key in self.rxn_analysis:
@@ -150,10 +163,10 @@ class Simulation_Li_Limited:
 
     def time_analysis(self):
         time_dict = dict()
-        time_dict["t_avg"] = np.average(self.simulation_data["times"])
-        time_dict["t_std"] = np.std(self.simulation_data["times"])
-        time_dict["steps"] = len(self.simulation_data["times"])
-        time_dict["total_t"] = self.simulation_data["times"][-1]
+        time_dict["t_avg"] = np.average(self.propagator.times)
+        time_dict["t_std"] = np.std(self.propagator.times)
+        time_dict["steps"] = len(self.propagator.times)
+        time_dict["total_t"] = self.propagator.times[-1]
         return time_dict
 
     def plot_trajectory(self, name=None, filename=None, num_label=10):
@@ -189,7 +202,7 @@ class Simulation_Li_Limited:
         # We assume that we're interested in the most prominent products
         # ids_sorted = sorted([(k, v) for k, v in data["state"].items()],
         #                     key=lambda x: x[1][-1][-1])
-        ids_sorted = sorted(range(len(self.propagator.state)), key = lambda k: data[k], reverse = True)
+        ids_sorted = sorted(range(len(self.propagator.state)), key = lambda k: self.propagator.state[k], reverse = True)
 
         # ids_sorted = [i[0] for i in ids_sorted][::-1]
         print("top 15 species ids: ", ids_sorted[0:15])
@@ -197,8 +210,8 @@ class Simulation_Li_Limited:
         colors = plt.cm.get_cmap('hsv', num_label)
         id = 0
         for mol_id in ids_sorted[0:num_label]:
-            ts = np.array([e[0] for e in self.propagator.state_history[mol_id]])
-            nums = np.array([e[1] for e in self.propagator.state_history[mol_id]])
+            ts = np.array([e[0] for e in self.state_history[mol_id]])
+            nums = np.array([e[1] for e in self.state_history[mol_id]])
             # if mol_id in ids_sorted[0:num_label]:
             #     for entry in self.reaction_network.entries_list:
             #         if mol_id == entry.entry_id:
@@ -206,7 +219,7 @@ class Simulation_Li_Limited:
             #             this_charge = entry.molecule.charge
             #             this_label = this_composition + " " + str(this_charge)
             #             this_color = colors(id)
-            #             id +=1
+            #             id += 1
             #             #this_label = entry.entry_id
             #             break
             for entry in self.reaction_network.entries_list:
@@ -215,13 +228,10 @@ class Simulation_Li_Limited:
                     this_charge = entry.molecule.charge
                     this_label = this_composition + " " + str(this_charge)
                     this_color = colors(id)
-                    id +=1
+                    id += 1
                     #this_label = entry.entry_id
+                    ax.plot(ts, nums, label=this_label, color=this_color)
                     break
-
-                ax.plot(ts, nums, label = this_label, color = this_color)
-            else:
-                ax.plot(ts, nums)
         if name is None:
             title = "KMC simulation, total time {}".format(data["times"][-1])
         else:
@@ -321,7 +331,7 @@ ec_conc = 3.57
 emc_conc = 7.0555
 
 # Testing parameters
-volumes = [10**-24]
+volumes = [10**-24, 10**-23, 10**-22]
 times = [10**-12]
 
 for v in volumes:

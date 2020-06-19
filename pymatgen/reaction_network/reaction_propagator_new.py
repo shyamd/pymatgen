@@ -8,7 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import h, k, R, N_A, pi
 import time
-from numba import jit
+from numba import int64, float64
+from numba.experimental import jitclass
 
 
 __author__ = "Ronald Kam, Evan Spotte-Smith"
@@ -17,8 +18,25 @@ __copyright__ = "Copyright 2020, The Materials Project"
 __version__ = "0.1"
 __credit__ = "Xiaowei Xie"
 
+spec = [('products', int64[:,:]),
+        ('reactants', int64[:,:]),
+        ('initial_state', int64[:]),
+        ('state', int64[:]),
+        ('rate_constants', float64[:]),
+        ('coord_array', float64[:]),
+        ('species_rxn_mapping', int64[:, :]),
+        ('volume', float64),
+        ('num_species', int64),
+        ('num_rxns', int64),
+        ('rxn_ind', int64[:]),
+        ('propensity_array', float64[:]),
+        ('total_propensity', float64),
+        ('state', int64[:]),
+        ('times', float64[:]),
+        ('reaction_history', int64[:])
+        ]
 
-
+@jitclass(spec)
 class ReactionPropagator:
     """
     Class for stochastic kinetic Monte Carlo simulation, with reactions provided
@@ -55,8 +73,11 @@ class ReactionPropagator:
         self.volume = volume
 
         # Variables to update during simulate()
-        self.times = list()
-        self.reaction_history = list()
+        self.times = np.array([0.])
+        self.reaction_history = np.array([-1])
+        # state_history = [(0.0, self.state[mol_id]) for mol_id in range(self.num_species)]
+        # print(state_history)
+        print("Finished instantiating objects with Numba jitclass")
 
         # self._state = list()
         # self.initial_state = list()
@@ -121,7 +142,7 @@ class ReactionPropagator:
     # @property
     # def state(self):
     #     return self._state
-    @jit(nopython = True)
+    # @jit(nopython = True)
     def get_coordination(self, rxn_id, reverse):
         """
         Calculate the coordination number for a particular reaction, based on the reaction type
@@ -138,12 +159,12 @@ class ReactionPropagator:
         """
         #rate_constant = reaction.rate_constant()
         if reverse:
-            reactant_array = self.products[rxn_id] # Numpy array of reactant molecule IDs
-            num_reactants = len(reactant_array)
+            reactant_array = self.products[rxn_id, :] # Numpy array of reactant molecule IDs
+            num_reactants = len(np.where(reactant_array != -1)[0])
 
         else:
-            reactant_array = self.reactants[rxn_id]
-            num_reactants = len(reactant_array)
+            reactant_array = self.reactants[rxn_id, :]
+            num_reactants = len(np.where(reactant_array != -1)[0])
 
         num_mols_list = list()
         #entry_ids = list() # for testing
@@ -158,14 +179,13 @@ class ReactionPropagator:
             h_prop = num_mols_list[0] * num_mols_list[1]
         else:
             raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
-        #propensity = h_prop * self.rate_constants[reaction_ind]
-        #propensity = h_prop * k
+
         return h_prop
         # for testing:
         #return [reaction.reaction_type, reaction.reactants, reaction.products, reaction.rate_calculator.alpha , reaction.transition_state, "propensity = " + str(propensity), "free energy from code = " + str(reaction.free_energy()["free_energy_A"]), "calculated free energy ="  + str(-sum([r.free_energy() for r in reaction.reactants]) +  sum([p.free_energy() for p in reaction.products])),
                 #"calculated k = " +  str(k_b * 298.15 / h * np.exp(-1 * (-sum([r.free_energy() for r in reaction.reactants]) +  sum([p.free_energy() for p in reaction.products]) ) * 96487 / (R * 298.15))), "k from Rxn class = " +  str(k)  ]
 
-    jit(nopython = True)
+    # @jit(nopython = True)
     def update_state(self, rxn_ind, reverse):
         """ Update the system based on the reaction chosen
         Args:
@@ -176,17 +196,31 @@ class ReactionPropagator:
         Returns:
             None
         """
+        if rxn_ind == -1:
+            raise RuntimeError("Incorrect reaction index when updating state")
         if reverse:
-            for reactant_id in self.products[rxn_ind]:
-                self.state[reactant_id] -= 1
-            for product_id in self.reactants[rxn_ind]:
-                self.state[product_id] += 1
+            for reactant_id in self.products[rxn_ind, :]:
+                if reactant_id == -1:
+                    continue
+                else:
+                    self.state[reactant_id] -= 1
+            for product_id in self.reactants[rxn_ind, :]:
+                if product_id == -1:
+                    continue
+                else:
+                    self.state[product_id] += 1
 
         else:
-            for reactant_id in self.reactants[rxn_ind]:
-                self.state[reactant_id] -= 1
-            for product_id in self.products[rxn_ind]:
-                self.state[product_id] += 1
+            for reactant_id in self.reactants[rxn_ind, :]:
+                if reactant_id == -1:
+                    continue
+                else:
+                    self.state[reactant_id] -= 1
+            for product_id in self.products[rxn_ind, :]:
+                if product_id == -1:
+                    continue
+                else:
+                    self.state[product_id] += 1
 
     # def alter_rxn_by_product(self, product_id, k_factor_change, reaction_classes = None):
     #     """Alter the rate constant of a reaction, based on the product(s) formed. For example, decreasing the rate
@@ -239,7 +273,7 @@ class ReactionPropagator:
     #     total_propensity = np.sum(propensity_array)
     #     return [propensity_array, np.array([total_propensity])]
 
-    @jit(nopython = True)
+    # @jit(nopython = True)
     def simulate(self, t_end):
         """
         Main body code of the KMC simulation. Propagates time and updates species amounts.
@@ -262,7 +296,7 @@ class ReactionPropagator:
         #     self.data["state"][mol_id] = [(0.0, self._state[mol_id])]
 
         step_counter = 0
-        self.state_history = [[0.0, self.state[mol_id]] for mol_id in range(self.num_species)]
+        state_history = [[(0.0, self.state[mol_id])] for mol_id in range(self.num_species)]
         while t < t_end:
             step_counter += 1
             r1 = random.random()
@@ -292,50 +326,75 @@ class ReactionPropagator:
             # print("Time to choose reaction = ", time_end - time_start)
 
             self.update_state(converted_rxn_ind, reverse)
+            #print("State Updated")
             # time_start = time.time()
-            reactions_to_change = list()
-            for reactant_id in self.reactants[converted_rxn_ind]:
-                reactions_to_change.extend(list(self.species_rxn_mapping[reactant_id]))
-            for product_id in self.products[converted_rxn_ind]:
-                reactions_to_change.extend(list(self.species_rxn_mapping[product_id]))
-
+            reactions_to_change = [-1]
+            for reactant_id in self.reactants[converted_rxn_ind, :]:
+                if reactant_id == -1:
+                    continue
+                else:
+                    reactions_to_change.extend(list(self.species_rxn_mapping[reactant_id, :]))
+            for product_id in self.products[converted_rxn_ind, :]:
+                if product_id == -1:
+                    continue
+                else:
+                    reactions_to_change.extend(list(self.species_rxn_mapping[product_id, :]))
             reactions_to_change = set(reactions_to_change)
+            #print(reactions_to_change)
 
             for rxn_ind in reactions_to_change:
-                if rxn_ind % 2:
+                if rxn_ind == -1:
+                    continue
+                elif rxn_ind % 2:
                     this_reverse = True
                 else:
                     this_reverse = False
-                this_h = self.get_coordination(rxn_ind, this_reverse)
+                #print(rxn_ind)
+                this_h = self.get_coordination(math.floor(rxn_ind/2), this_reverse)
+                #print(this_h)
                 self.coord_array[rxn_ind] = this_h
-
+            #print(self.coord_array)
             self.propensity_array = np.multiply(self.rate_constants, self.coord_array)
+            #print(self.propensity_array)
             self.total_propensity = np.sum(self.propensity_array)
             #[self.propensity_array, total_prop_array] = self.calculate_total_prop(self.rate_constants, self.coord_array)
             #self.total_propensity = total_prop_array[0]
 
             # time_end = time.time()
-            # print("Total prop = ", self.total_propensity)
+            #print("Total prop = ", self.total_propensity)
             # print("Time to calculate total propensity = ", time_end - time_start)
 
-            self.times.append(tau)
             # self.data["reaction_ids"].append({"reaction": reaction_mu, "reverse": reverse})
-            self.reaction_history.append(reaction_choice_ind)
+            self.reaction_history = np.append(self.reaction_history, reaction_choice_ind)
 
             t += tau
+            self.times = np.append(self.times, tau)
             #print(t)
             if reverse:
-                for reactant_id in self.products[converted_rxn_ind]:
-                    self.state_history[reactant_id].append((t, self.state[reactant_id]))
+                for reactant_id in self.products[converted_rxn_ind, :]:
+                    if reactant_id == -1:
+                        continue
+                    else:
+                        state_history[reactant_id].append((t, self.state[reactant_id]))
                 for product_id in self.reactants[converted_rxn_ind]:
-                    self.state_history[product_id].append((t, self.state[product_id]))
+                    if reactant_id == -1:
+                        continue
+                    else:
+                        state_history[product_id].append((t, self.state[product_id]))
 
             else:
                 for reactant_id in self.reactants[converted_rxn_ind]:
-                    self.state_history[reactant_id].append((t, self.state[reactant_id]))
+                    if reactant_id == -1:
+                        continue
+                    else:
+                        state_history[reactant_id].append((t, self.state[reactant_id]))
 
                 for product_id in self.products[converted_rxn_ind]:
-                    self.state_history[product_id].append((t, self.state[product_id]))
+                    if reactant_id == -1:
+                        continue
+                    else:
+                        state_history[product_id].append((t, self.state[product_id]))
+        return state_history
 
         # for mol_id in self.data["state"]:
         #     self.data["state"][mol_id].append((t, self._state[mol_id]))
