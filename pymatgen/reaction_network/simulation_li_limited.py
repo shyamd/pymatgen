@@ -1,10 +1,13 @@
 import numpy as np
+import math
+import random
 from pymatgen.reaction_network.reaction_propagator_new import ReactionPropagator
 from pymatgen.reaction_network.reaction_network import ReactionNetwork
 import time
 import matplotlib.pyplot as plt
 import pickle
 from scipy.constants import N_A
+from numba import jit
 
 __author__ = "Ronald Kam, Evan Spotte-Smith"
 __email__ = "kamronald@berkeley.edu"
@@ -75,11 +78,9 @@ class Simulation_Li_Limited:
         self.initial_state = np.zeros(self.num_entries, dtype = int)
         for initial_molecule_id in self.initial_state_dict:
             self.initial_state[initial_molecule_id] = self.initial_state_dict[initial_molecule_id]
-
         self.num_rxns = len(self.reaction_network.reactions)
         self.reactants = -1 * np.ones((self.num_rxns, 2), dtype = int)
         self.products = -1 * np.ones((self.num_rxns, 2), dtype = int)
-
         self.rate_constants = np.zeros(2 * self.num_rxns)
         self.coord_array = np.zeros(2 * self.num_rxns)
         self.rxn_ind = np.arange(2 * self.num_rxns) # [r1_f, r1_r, r2_f, r2_r, ... ]
@@ -325,13 +326,14 @@ runtime_data["t_avg"] = list()
 runtime_data["t_std"] = list()
 runtime_data["steps"] = list()
 
+# Concentrations in molarity
 li_conc = 1.0
 # 3:7 EC:EMC
 ec_conc = 3.57
 emc_conc = 7.0555
 
 # Testing parameters
-volumes = [10**-24, 10**-23, 10**-22]
+volumes = [10**-24]
 times = [10**-12]
 
 for v in volumes:

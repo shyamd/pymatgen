@@ -10,6 +10,7 @@ from scipy.constants import h, k, R, N_A, pi
 import time
 from numba import int64, float64
 from numba.experimental import jitclass
+from numba import jit
 
 
 __author__ = "Ronald Kam, Evan Spotte-Smith"
@@ -36,7 +37,7 @@ spec = [('products', int64[:,:]),
         ('reaction_history', int64[:])
         ]
 
-@jitclass(spec)
+#@jitclass(spec)
 class ReactionPropagator:
     """
     Class for stochastic kinetic Monte Carlo simulation, with reactions provided
@@ -142,7 +143,7 @@ class ReactionPropagator:
     # @property
     # def state(self):
     #     return self._state
-    # @jit(nopython = True)
+    @jit(nopython = True)
     def get_coordination(self, rxn_id, reverse):
         """
         Calculate the coordination number for a particular reaction, based on the reaction type
@@ -185,7 +186,7 @@ class ReactionPropagator:
         #return [reaction.reaction_type, reaction.reactants, reaction.products, reaction.rate_calculator.alpha , reaction.transition_state, "propensity = " + str(propensity), "free energy from code = " + str(reaction.free_energy()["free_energy_A"]), "calculated free energy ="  + str(-sum([r.free_energy() for r in reaction.reactants]) +  sum([p.free_energy() for p in reaction.products])),
                 #"calculated k = " +  str(k_b * 298.15 / h * np.exp(-1 * (-sum([r.free_energy() for r in reaction.reactants]) +  sum([p.free_energy() for p in reaction.products]) ) * 96487 / (R * 298.15))), "k from Rxn class = " +  str(k)  ]
 
-    # @jit(nopython = True)
+    @jit(nopython = True)
     def update_state(self, rxn_ind, reverse):
         """ Update the system based on the reaction chosen
         Args:
@@ -273,7 +274,7 @@ class ReactionPropagator:
     #     total_propensity = np.sum(propensity_array)
     #     return [propensity_array, np.array([total_propensity])]
 
-    # @jit(nopython = True)
+    @jit(nopython = True)
     def simulate(self, t_end):
         """
         Main body code of the KMC simulation. Propagates time and updates species amounts.

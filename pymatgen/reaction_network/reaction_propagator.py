@@ -31,7 +31,7 @@ class KineticMonteCarloSimulator:
 
     """
     def __init__(self, reaction_network, initial_state, volume=1.0*10**-24,
-                 temperature=298.15):
+                 temperature = 298.15):
         self.reaction_network = reaction_network
 
         self.num_rxns = len(self.reaction_network.reactions)
