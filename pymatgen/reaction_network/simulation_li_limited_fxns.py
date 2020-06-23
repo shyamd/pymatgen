@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 import pickle
 from scipy.constants import N_A
 from numba import jit
+
 """Simulation parameters setup"""
 # Concentrations of electrolyte species in molarity
+
 li_conc = 1.0
 # 3:7 EC:EMC
 ec_conc = 3.57
@@ -17,9 +19,9 @@ emc_conc = 7.0555
 h2o_conc = 1.665*10**-4
 
 # Testing parameters
-iterations = 4
-volumes_list = [10**-24]
-timesteps_list = [19450] # number of time steps in simulation
+iterations = 3
+volumes_list = [10**-23]
+timesteps_list = [194500] # number of time steps in simulation
 
 # Reaction network set-up
 pickle_in = open("pickle_rxnnetwork_Li-limited", "rb")
@@ -115,7 +117,7 @@ def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 
 @jit(nopython = True, parallel = True)
 def simulate(time_steps, num_species, coord_array, rate_constants, propensity_array,
              total_propensity, species_rxn_mapping, reactants, products, state):
-    state = list(state)
+    #state = list(state)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     #times = [0.0 for k in range(time_steps)]
@@ -134,7 +136,7 @@ def simulate(time_steps, num_species, coord_array, rate_constants, propensity_ar
         else:
             reverse = False
 
-        state = update_state(reactants, products, state, converted_rxn_ind, reverse) ## write code for fxn
+        state = update_state(reactants, products, state, converted_rxn_ind, reverse)
 
         # Log the reactions that need to be altered after reaction is performed, for the coordination array
         reactions_to_change = list()
@@ -165,8 +167,8 @@ def simulate(time_steps, num_species, coord_array, rate_constants, propensity_ar
 
         reaction_history[step_counter] = reaction_choice_ind
         times[step_counter] = tau
-        #t += tau
-        #print(t)
+        # t += tau
+        # print(t)
 
         # if reverse:
         #     for reactant_id in products[converted_rxn_ind]:
@@ -185,7 +187,7 @@ def simulate(time_steps, num_species, coord_array, rate_constants, propensity_ar
     #data =
     return np.vstack((np.array(reaction_history), np.array(times)))
 
-@jit(nopython = True, parallel = True)
+@jit(nopython = True)
 def update_state(reactants, products, state, rxn_ind, reverse):
     """ Update the system based on the reaction chosen
             Args:
@@ -226,7 +228,7 @@ def update_state(reactants, products, state, rxn_ind, reverse):
                 state[product_id] += 1
     return state
 
-@jit(nopython = True, parallel = True)
+@jit(nopython = True)
 def get_coordination(reactants, products, state, rxn_id, reverse):
     """
     Calculate the coordination number for a particular reaction, based on the reaction type
@@ -395,12 +397,12 @@ for volume in volumes_list:
             reaction_history = data[0, :]
             times = data[1, :]
             t_end = np.sum(times)
-            print("Final time: ", t_end)
-            print("Simulation time: ", sim_time)
+            print("Final simulated time: ", t_end)
+            print("Simulation time (min): ", sim_time)
             t3 = time.time()
             plot_trajectory(initial_state_dict, products, reactants, reaction_history, times, num_label, file_name, iter)
             t4 = time.time()
-            print("Plotting time: ", t4 - t3)
+            print("Plotting time (sec): ", t4 - t3)
 
             time_data = time_analysis(times)
             runtime_data["t_avg"].append(time_data["t_avg"])
