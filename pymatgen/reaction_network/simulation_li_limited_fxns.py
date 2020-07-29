@@ -19,7 +19,7 @@ emc_conc = 7.0555
 h2o_conc = 1.665*10**-4
 
 # Testing parameters
-iterations = 3
+iterations = 4
 volumes_list = [10**-23]
 timesteps_list = [194500] # number of time steps in simulation
 
@@ -39,7 +39,19 @@ runtime_data["steps"] = list()
 
 
 def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 3.5706, emc_conc = 7.0555, h2o_conc = 1.665*10**-4, volume = 10**-24, timesteps = 1):
-    """Initial loop through reactions to create product/reactant id arrays, mapping of each species to the reactions it participates in"""
+    """Initial loop through reactions to create product/reactant id arrays, mapping of each species to the reactions it participates in. Step is required
+    to eliminate object usage during actual simulation.
+
+    Args:
+        reaction_network (ReactionNetwork): Fully generated reaction network
+        file_name (str): File name to save simulation results as
+        li_conc (float): Concentration of Li+ ions initially in electrolyte mix
+        ec_conc (float): Concentration of ethylene carbonate
+        emc_conc (float): Concentration of ethyl methyl carbonate
+        h2o_conc (float): Concentration of water
+        volume (float)
+
+    """
     li_id = 2335
     ec_id = 2606
     emc_id = 1877
@@ -117,18 +129,37 @@ def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 
 @jit(nopython = True, parallel = True)
 def simulate(time_steps, num_species, coord_array, rate_constants, propensity_array,
              total_propensity, species_rxn_mapping, reactants, products, state):
+    """ KMC Simulation of reaction network and specified initial conditions.
+
+    Args:
+         time_steps (int): Number of time steps/iterations desired to run.
+         coord_array (array): Numpy array containing coordination numbers of forward and reverse reactions. [h1f, h1r, h2f, h2r, ...]
+         rate_constants (array): Numpy array containing rate constants of forward and reverse reactions.
+         propensity_array (array): Numpy array containing propensities of for and rev reactions.
+         total_propensity (float): Sum of all reaction propensities.
+         species_rxn_mapping (2d array): Contains all the reaction indexes that each species takes part in
+         reactants (2d array): Species IDs corresponding to the reactants of each forward reaction
+         products (2d array): Species IDs corresponding to products of each forward reaction
+         state (array): Array containing molecular amounts of each species in the reaction network
+
+    Returns:
+        A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred. Second row are the time steps generated at each iterations.
+    """
     #state = list(state)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     #times = [0.0 for k in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
     #state_history = [[(0.0, state[mol_id])] for mol_id in range(num_species)]
+    relevant_ind = np.where(propensity_array > 0)[0]
     for step_counter in range(time_steps):
         r1 = random.random()
         r2 = random.random()
         tau = -np.log(r1) / total_propensity
         random_propensity = r2 * total_propensity
-        reaction_choice_ind = np.where(np.cumsum(propensity_array) >= random_propensity)[0][0]
+        #irrelevant_ind = np.where(propensity_array == 0)[0]
+        abrgd_reaction_choice_ind = np.where(np.cumsum(propensity_array[relevant_ind]) >= random_propensity)[0][0]
+        reaction_choice_ind = relevant_ind[abrgd_reaction_choice_ind]
         converted_rxn_ind = math.floor(reaction_choice_ind / 2)
 
         if reaction_choice_ind % 2:
@@ -162,8 +193,11 @@ def simulate(time_steps, num_species, coord_array, rate_constants, propensity_ar
             this_h = get_coordination(reactants, products, state, math.floor(rxn_ind/2), this_reverse)
             coord_array[rxn_ind] = this_h
 
+        # new_irrelevant_ind = np.where(coord_array == 0)[0]
         propensity_array = np.multiply(rate_constants, coord_array)
-        total_propensity = np.sum(propensity_array)
+        relevant_ind = np.where(propensity_array > 0)[0]
+
+        total_propensity = np.sum(propensity_array[relevant_ind])
 
         reaction_history[step_counter] = reaction_choice_ind
         times[step_counter] = tau
