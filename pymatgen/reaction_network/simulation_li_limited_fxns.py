@@ -19,17 +19,26 @@ emc_conc = 7.0555
 h2o_conc = 1.665*10**-4
 
 # Testing parameters
-iterations = 4
-volumes_list = [10**-23]
-timesteps_list = [194500] # number of time steps in simulation
+iterations = 5
+volumes_list = [10**-24]
+timesteps_list = [19450] # number of time steps in simulation
+
 
 # Reaction network set-up
 pickle_in = open("pickle_rxnnetwork_Li-limited", "rb")
 reaction_network = pickle.load(pickle_in)
+
+# For testing varying rxn network size:
+num_rxns = len(reaction_network.reactions)
+num_rxns_order = math.floor(math.log(num_rxns, 10))
+network_size_testing = [10**i for i in range(1, num_rxns_order + 1)]
+network_size_testing.append(num_rxns)
+
 num_species = 5732
 num_label = 15 # number of top species listed in chart legend
 
 runtime_data = dict()
+runtime_data["network size"] = network_size_testing
 runtime_data["runtime"] = list()
 runtime_data["end sim time"] = list()
 runtime_data["label"] = list()
@@ -38,7 +47,7 @@ runtime_data["t_std"] = list()
 runtime_data["steps"] = list()
 
 
-def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 3.5706, emc_conc = 7.0555, h2o_conc = 1.665*10**-4, volume = 10**-24, timesteps = 1):
+def initialize_simulation(reaction_network, network_size = None, file_name = None, li_conc = 1.0, ec_conc = 3.5706, emc_conc = 7.0555, h2o_conc = 1.665*10**-4, volume = 10**-24, timesteps = 1):
     """Initial loop through reactions to create product/reactant id arrays, mapping of each species to the reactions it participates in. Step is required
     to eliminate object usage during actual simulation.
 
@@ -52,6 +61,13 @@ def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 
         volume (float)
 
     """
+    # if network_size is None:
+    #     reactions_list = reaction_network.reactions
+    #     num_rxns = len(reaction_network.reactions)
+    # else:
+    #     reactions_list = reaction_network.reactions[:network_size]
+    #     num_rxns = network_size
+    reactions_list = reaction_network.reactions
     li_id = 2335
     ec_id = 2606
     emc_id = 1877
@@ -61,7 +77,7 @@ def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 
     initial_state_dict = {li_id: conc_to_amt(li_conc), ec_id: conc_to_amt(ec_conc),
                           emc_id: conc_to_amt(emc_conc), h2o_id: conc_to_amt(h2o_conc)}
     num_entries = 5732
-    num_rxns = len(reaction_network.reactions)
+
     initial_state = [0 for i in range(num_entries)]
     for mol_id in initial_state_dict:
         initial_state[mol_id] = initial_state_dict[mol_id]
@@ -71,7 +87,7 @@ def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 
     coord_array = np.zeros(2 * num_rxns)
     rate_constants = np.zeros(2 * num_rxns)
 
-    for id, reaction in enumerate(reaction_network.reactions):
+    for id, reaction in enumerate(reactions_list):
         #this_reactant_list = list()
         #this_product_list = list()
         num_reactants_for = list()
@@ -124,6 +140,7 @@ def initialize_simulation(reaction_network, file_name, li_conc = 1.0, ec_conc = 
         else:
             species_rxn_mapping[index, : this_map_length - max_mapping_length] = rxn_list
     #print(species_rxn_mapping)
+    print("num nonzero propensities: ", len(np.where(np.multiply(coord_array, rate_constants) > 0)[0]))
     return [initial_state_dict, initial_state, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants]
 
 @jit(nopython = True, parallel = True)
@@ -416,40 +433,43 @@ def time_analysis(time_array):
 
 for volume in volumes_list:
     for t_steps in timesteps_list:
-        for iter in range(iterations):
-            file_name = "li_limited_t_" + str(t_steps) + "_V_" + str(volume) + "_ea_10000_Numba_Run" + str(iter + 1)
-            [initial_state_dict, initial_state, species_rxn_mapping, reactants, products, coord_array, rate_constants] = initialize_simulation(reaction_network, file_name, li_conc, ec_conc, emc_conc, h2o_conc, volume)
-            state = np.array(initial_state, dtype = int)
-            propensity_array = np.multiply(coord_array, rate_constants)
-            total_propensity = np.sum(propensity_array)
-            print("Initial total propensity = ", total_propensity)
-            t1 = time.time()
-            data = simulate(t_steps, num_species, coord_array, rate_constants, propensity_array,
-                 total_propensity, species_rxn_mapping, reactants, products, state) # Data in lists
-            t2 = time.time()
-            sim_time = (t2 - t1)/60
-            reaction_history = data[0, :]
-            times = data[1, :]
-            t_end = np.sum(times)
-            print("Final simulated time: ", t_end)
-            print("Simulation time (min): ", sim_time)
-            t3 = time.time()
-            plot_trajectory(initial_state_dict, products, reactants, reaction_history, times, num_label, file_name, iter)
-            t4 = time.time()
-            print("Plotting time (sec): ", t4 - t3)
+        for size in network_size_testing:
+            for iter in range(iterations):
+                file_name = "li_limited_t_" + str(t_steps) + "_V_" + str(volume) + "_ea_10000_Numba_Run" + str(iter + 1)
+                [initial_state_dict, initial_state, species_rxn_mapping, reactants, products, coord_array, rate_constants] = initialize_simulation(reaction_network, size, file_name, li_conc, ec_conc, emc_conc, h2o_conc, volume)
+                state = np.array(initial_state, dtype = int)
+                propensity_array = np.multiply(coord_array, rate_constants)
+                total_propensity = np.sum(propensity_array)
+                print("Network size: ", size, " reactions")
+                print("Initial total propensity = ", total_propensity)
+                t1 = time.time()
+                data = simulate(t_steps, num_species, coord_array, rate_constants, propensity_array,
+                     total_propensity, species_rxn_mapping, reactants, products, state) # Data in lists
+                t2 = time.time()
+                sim_time = (t2 - t1)/60
+                reaction_history = data[0, :]
+                times = data[1, :]
+                t_end = np.sum(times)
+                print("Final simulated time: ", t_end)
+                print("Simulation time (min): ", sim_time)
+                t3 = time.time()
+                plot_trajectory(initial_state_dict, products, reactants, reaction_history, times, num_label, file_name, iter)
+                t4 = time.time()
+                print("Plotting time (sec): ", t4 - t3)
 
-            time_data = time_analysis(times)
-            runtime_data["t_avg"].append(time_data["t_avg"])
-            runtime_data["t_std"].append(time_data["t_std"])
-            runtime_data["steps"].append(time_data["steps"])
-            runtime_data["runtime"].append(sim_time)
-            runtime_data["label"].append("V_" + str(volume) + "_t_" + str(t_end))
-            runtime_data["end sim time"].append(t_end)
+                time_data = time_analysis(times)
+                runtime_data["t_avg"].append(time_data["t_avg"])
+                runtime_data["t_std"].append(time_data["t_std"])
+                runtime_data["steps"].append(time_data["steps"])
+                runtime_data["runtime"].append(sim_time)
+                runtime_data["label"].append("V_" + str(volume) + "_t_" + str(t_end))
+                runtime_data["end sim time"].append(t_end)
 
 # convenient print statements for pasting into Excel
 dict_keys = ["runtime", "end sim time", "t_avg", "t_std"]
-for ind in range(len(volumes_list)):
-    print("Volume = ", volumes_list[ind])
+for ind in range(len(network_size_testing)):
+    #print("Volume = ", volumes_list[ind])
+    print("Network size = ", network_size_testing[ind])
     for k in dict_keys:
         print(k)
         for iter in range(iterations):
@@ -462,4 +482,3 @@ print(runtime_data["label"])
 # print("Number of rxns: ", runtime_data["steps"])
 print("Average sim time: ", np.average(np.array(runtime_data["runtime"])), "     Std sim time: ", np.std(np.array(runtime_data["runtime"])))
 print("Average sim end time: ", np.average(np.array(runtime_data["end sim time"])), "        Std sim end time: ", np.std(np.array(runtime_data["end sim time"])))
-

@@ -258,17 +258,18 @@ class Simulation_Li_Limited:
             plt.savefig(filename)
 
     def reaction_analysis(self, data = None):
-        if data == None:
-            data = self.data
+        # if data == None:
+        #     data = self.propagator.data
+        data = list(self.propagator.reaction_history)
         reaction_analysis_results = dict()
         reaction_analysis_results["endo_rxns"] = dict()
         rxn_count = np.zeros(2*self.num_rxns)
         endothermic_rxns_count = 0
-        fired_reaction_ids = set(self.data["reaction_ids"])
+        fired_reaction_ids = set(data)
         for ind in fired_reaction_ids:
-            this_count = data["reaction_ids"].count(ind)
+            this_count = data.count(ind)
             rxn_count[ind] = this_count
-            this_rxn = self.reactions[math.floor(ind/2)]
+            this_rxn = self.reaction_network.reactions[math.floor(ind/2)]
             if ind % 2: # reverse rxn
                 if this_rxn.free_energy()["free_energy_B"] > 0: # endothermic reaction
                     endothermic_rxns_count += this_count
@@ -276,14 +277,23 @@ class Simulation_Li_Limited:
                 if this_rxn.free_energy()["free_energy_A"] > 0: # endothermic reaction
                     endothermic_rxns_count += this_count
         reaction_analysis_results["endo_rxns"]["endo_count"] = endothermic_rxns_count
-        sorted_rxn_ids = sorted(self.rxn_ind, key = lambda k: rxn_count[k], reverse = True)
+        sorted_rxn_ids = np.array(sorted(self.rxn_ind, key = lambda k: rxn_count[k], reverse = True))
+        sorted_rxn_ids = np.where(sorted_rxn_ids > 0)[0]
+        print("Number of fired reactions: ", len(sorted_rxn_ids))
+        print("Sorted rxn ids: ", sorted_rxn_ids)
+
+        #Just for saving the reaction ids fired
+        # pickle_out = open("fired_rxn_ids_sorted", "wb")
+        # pickle.dump(sorted_rxn_ids, pickle_out)
+        # pickle_out.close()
+
         bar_rxns_labels = list()
         bar_rxns_count = list()
         bar_rxns_x = list()
         for i in range(15): # analysis on most frequent reactions
             this_rxn_id = sorted_rxn_ids[i]
             bar_rxns_x.append(str(this_rxn_id))
-            this_reaction = self.reactions[math.floor(this_rxn_id / 2 )]
+            this_reaction = self.reaction_network.reactions[math.floor(this_rxn_id / 2 )]
             reaction_analysis_results[this_rxn_id] = dict()
             reaction_analysis_results[this_rxn_id]["count"] = rxn_count[this_rxn_id]
             reaction_analysis_results[this_rxn_id]["reactants"] = list()
@@ -315,7 +325,7 @@ class Simulation_Li_Limited:
         plt.bar(bar_rxns_x[:10], bar_rxns_count[:10])
         plt.xlabel("Reaction Index")
         plt.ylabel("Reaction Occurrence")
-        plt.title("Top Reactions, total " + str(len(self.data["times"])) + " reactions")
+        plt.title("Top Reactions, total " + str(len(self.propagator.data["times"])) + " reactions")
         plt.savefig("li_limited_top_rxns")
         return reaction_analysis_results
 
@@ -338,7 +348,7 @@ times = [10**-12]
 
 for v in volumes:
     for t_end in times:
-        file_n = "li_limited_t_" + str(t_end) +  "_V_" + str(v) + "_ea_10000_Numba"
+        file_n = "li_limited_t_" + str(t_end) +  "_V_" + str(v) + "_ea_10000_Numba1"
         this_simulation = Simulation_Li_Limited(file_n, li_conc, ec_conc, emc_conc, v,
                                                 t_end)
         this_simulation.plot_trajectory("Simulation Results", file_n, num_label = 10)
@@ -348,6 +358,7 @@ for v in volumes:
         runtime_data["steps"].append(time_data["steps"])
         runtime_data["runtime"].append(this_simulation.runtime)
         runtime_data["label"].append("V_" + str(v) + "_t_" + str(t_end))
+        print(this_simulation.reaction_analysis())
 
 
 print(runtime_data["label"])
