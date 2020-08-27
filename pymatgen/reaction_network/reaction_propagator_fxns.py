@@ -39,22 +39,13 @@ num_species = 5732
 num_label = 15 # number of top species listed in simulation plot legend
 
 # Testing parameters
-iterations = 3  # can conduct multiple iterations for statistical analysis of results and runtime
+iterations = 1  # can conduct multiple iterations for statistical analysis of results and runtime
 volumes_list = [10**-24]
 timesteps_list = [19450] # number of time steps in simulation
 
 # Load reaction network
 pickle_in = open("pickle_rxnnetwork_Li-limited", "rb")
 reaction_network = pickle.load(pickle_in)
-
-# Set up dicts for runtime and simulation analysis
-runtime_data = dict()
-runtime_data["runtime"] = list()
-runtime_data["end sim time"] = list()
-runtime_data["label"] = list()
-runtime_data["t_avg"] = list()
-runtime_data["t_std"] = list()
-runtime_data["steps"] = list()
 
 def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc, volume = 10**-24):
     """Initial loop through reactions to create product/reactant id arrays, mapping of each species to the reactions it participates in. Required
@@ -68,12 +59,6 @@ def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc,
         volume (float)
 
     """
-    # if network_size is None:
-    #     reactions_list = reaction_network.reactions
-    #     num_rxns = len(reaction_network.reactions)
-    # else:
-    #     reactions_list = reaction_network.reactions[:network_size]
-    #     num_rxns = network_size
     num_rxns = len(reaction_network.reactions)
     num_initial_species = len(spec_ids)
     if num_initial_species != len(initial_conc):
@@ -81,12 +66,14 @@ def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc,
 
     conc_to_amt = lambda c: int(c * volume * N_A * 1000)
     initial_state_dict = dict()
+
     for ind in range(num_initial_species):
         initial_state_dict[spec_ids[ind]] = conc_to_amt(initial_conc[ind])
-
     initial_state = [0 for i in range(num_entries)]
+
     for mol_id in initial_state_dict:
         initial_state[mol_id] = initial_state_dict[mol_id]
+
     species_rxn_mapping_list = [[] for j in range(num_entries)]
     reactant_array = -1 * np.ones((num_rxns, 2), dtype = int)
     product_array = -1 * np.ones((num_rxns, 2), dtype = int)
@@ -94,8 +81,6 @@ def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc,
     rate_constants = np.zeros(2 * num_rxns)
 
     for id, reaction in enumerate(reaction_network.reactions):
-        #this_reactant_list = list()
-        #this_product_list = list()
         num_reactants_for = list()
         num_reactants_rev = list()
         rate_constants[2 * id] = reaction.rate_constant()["k_A"]
@@ -104,12 +89,10 @@ def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc,
             reactant_array[id, idx] = react.entry_id
             species_rxn_mapping_list[react.entry_id].append(2 * id)
             num_reactants_for.append(initial_state_dict.get(react.entry_id, 0))
-
         for idx, prod in enumerate(reaction.products):
             product_array[id, idx] = prod.entry_id
             species_rxn_mapping_list[prod.entry_id].append(2*id + 1)
             num_reactants_rev.append(initial_state_dict.get(prod.entry_id, 0))
-
         if len(reaction.reactants) == 1:
             coord_array[2 * id] = num_reactants_for[0]
         elif (len(reaction.reactants) == 2) and (reaction.reactants[0] == reaction.reactants[1]):
@@ -159,30 +142,23 @@ def simulate(time_steps, coord_array, rate_constants, propensity_array,
     Returns:
         A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred. Second row are the time steps generated at each iterations.
     """
-    #state = list(state)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
-    #times = [0.0 for k in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
-    #state_history = [[(0.0, state[mol_id])] for mol_id in range(num_species)]
     relevant_ind = np.where(propensity_array > 0)[0]
     for step_counter in range(time_steps):
         r1 = random.random()
         r2 = random.random()
         tau = -np.log(r1) / total_propensity
         random_propensity = r2 * total_propensity
-        #irrelevant_ind = np.where(propensity_array == 0)[0]
         abrgd_reaction_choice_ind = np.where(np.cumsum(propensity_array[relevant_ind]) >= random_propensity)[0][0]
         reaction_choice_ind = relevant_ind[abrgd_reaction_choice_ind]
         converted_rxn_ind = math.floor(reaction_choice_ind / 2)
-
         if reaction_choice_ind % 2:
             reverse = True
         else:
             reverse = False
-
         state = update_state(reactants, products, state, converted_rxn_ind, reverse)
-
         # Log the reactions that need to be altered after reaction is performed, for the coordination array
         reactions_to_change = list()
         for reactant_id in reactants[converted_rxn_ind, :]:
@@ -196,7 +172,6 @@ def simulate(time_steps, coord_array, rate_constants, propensity_array,
             else:
                 reactions_to_change.extend(list(species_rxn_mapping[product_id, :]))
         reactions_to_change = set(reactions_to_change)
-
         for rxn_ind in reactions_to_change:
             if rxn_ind == -1:
                 continue
@@ -207,32 +182,11 @@ def simulate(time_steps, coord_array, rate_constants, propensity_array,
             this_h = get_coordination(reactants, products, state, math.floor(rxn_ind/2), this_reverse)
             coord_array[rxn_ind] = this_h
 
-        # new_irrelevant_ind = np.where(coord_array == 0)[0]
         propensity_array = np.multiply(rate_constants, coord_array)
         relevant_ind = np.where(propensity_array > 0)[0]
-
         total_propensity = np.sum(propensity_array[relevant_ind])
-
         reaction_history[step_counter] = reaction_choice_ind
         times[step_counter] = tau
-        # t += tau
-        # print(t)
-
-        # if reverse:
-        #     for reactant_id in products[converted_rxn_ind]:
-        #         state_history[reactant_id].append((t, state[reactant_id]))
-        #     for product_id in reactants[converted_rxn_ind]:
-        #         state_history[product_id].append((t, state[product_id]))
-        #
-        # else:
-        #     for reactant_id in reactants[converted_rxn_ind]:
-        #         state_history[reactant_id].append((t, state[reactant_id]))
-        #
-        #     for product_id in products[converted_rxn_ind]:
-        #             state_history[product_id].append((t, state[product_id]))
-    #print(reaction_history)
-    #print(times)
-    #data =
     return np.vstack((np.array(reaction_history), np.array(times)))
 
 @jit(nopython = True)
@@ -291,20 +245,17 @@ def get_coordination(reactants, products, state, rxn_id, reverse):
     Returns:
         propensity (float)
     """
-    #rate_constant = reaction.rate_constant()
     if reverse:
         reactant_array = products[rxn_id, :] # Numpy array of reactant molecule IDs
         num_reactants = len(np.where(reactant_array != -1)[0])
-
     else:
         reactant_array = reactants[rxn_id, :]
         num_reactants = len(np.where(reactant_array != -1)[0])
 
     num_mols_list = list()
-    #entry_ids = list() # for testing
     for reactant_id in reactant_array:
         num_mols_list.append(state[reactant_id])
-        #entry_ids.append(reactant.entry_id)
+
     if num_reactants == 1:
         h_prop = num_mols_list[0]
     elif (num_reactants == 2) and (reactant_array[0] == reactant_array[1]):
@@ -324,10 +275,12 @@ def plot_trajectory(initial_state_dict, products, reactants, reaction_history, t
     for mol_id in initial_state_dict:
         state_to_plot[mol_id] = [(0.0, initial_state_dict[mol_id])]
     total_iterations = len(reaction_history)
+
     for iter in range(total_iterations):
         this_rxn_ind = reaction_history[iter]
         converted_ind = math.floor(this_rxn_ind/2)
         t = cumulative_time[iter]
+
         if this_rxn_ind % 2: # update state dicts for reverse reaction
             for rid in products[converted_ind, :]:
                 if rid == -1:
@@ -401,15 +354,10 @@ def plot_trajectory(initial_state_dict, products, reactants, reaction_history, t
         else:
             ax.plot(ts, nums)
 
-    #if name is None:
     title = "KMC simulation, total time {}".format(cumulative_time[-1])
-    #else:
-    #    title = name
-
     ax.set(title=title,
            xlabel="Time (s)",
            ylabel="# Molecules")
-
     ax.legend(loc='upper right', bbox_to_anchor=(1, 1),
               ncol=2, fontsize="small")
 
@@ -427,7 +375,6 @@ def time_analysis(time_array):
     return time_dict
 
 """Script to run the simulation"""
-
 for vol in volumes_list:
     for t_steps in timesteps_list:
         for iter in range(iterations):
@@ -452,29 +399,3 @@ for vol in volumes_list:
             plot_trajectory(initial_state_dict, products, reactants, reaction_history, times, num_label, file_name, iter)
             t4 = time.time()
             print("Plotting time (sec): ", t4 - t3)
-
-            time_data = time_analysis(times)
-            runtime_data["t_avg"].append(time_data["t_avg"])
-            runtime_data["t_std"].append(time_data["t_std"])
-            runtime_data["steps"].append(time_data["steps"])
-            runtime_data["runtime"].append(sim_time)
-            runtime_data["label"].append("V_" + str(vol) + "_t_" + str(t_end))
-            runtime_data["end sim time"].append(t_end)
-
-# convenient print statements for pasting into Excel
-dict_keys = ["runtime", "end sim time", "t_avg", "t_std"]
-# for ind in range(len(network_size_testing)):
-#     #print("Volume = ", volumes_list[ind])
-#     print("Network size = ", network_size_testing[ind])
-#     for k in dict_keys:
-#         print(k)
-#         for iter in range(iterations):
-#             print(runtime_data[k][iter])
-print(runtime_data["label"])
-
-print("endtimes: ", runtime_data["end sim time"])
-print("Avg t steps: ", runtime_data["t_avg"])
-print("Std dev t steps: ", runtime_data["t_std"])
-print("Number of rxns: ", runtime_data["steps"])
-print("Average sim time: ", np.average(np.array(runtime_data["runtime"])), "     Std sim time: ", np.std(np.array(runtime_data["runtime"])))
-print("Average sim end time: ", np.average(np.array(runtime_data["end sim time"])), "        Std sim end time: ", np.std(np.array(runtime_data["end sim time"])))
