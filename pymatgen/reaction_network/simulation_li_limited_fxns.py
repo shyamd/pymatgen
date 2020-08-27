@@ -8,6 +8,12 @@ import pickle
 from scipy.constants import N_A
 from numba import jit
 
+__author__ = "Ronald Kam, Evan Spotte-Smith"
+__email__ = "kamronald@berkeley.edu"
+__copyright__ = "Copyright 2020, The Materials Project"
+__version__ = "0.1"
+__credit__ = "Xiaowei Xie"
+
 """Function-based KMC simulation for a reaction network, assuming spatial homogeneity. Simulation is performed without objects, such is required to speed up code with Numba. 
 Initial part of this script is to set up parameters needed in the functions.
 
