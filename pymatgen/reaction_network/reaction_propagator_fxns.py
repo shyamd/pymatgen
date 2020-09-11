@@ -15,14 +15,7 @@ __version__ = "0.1"
 __credit__ = "Xiaowei Xie"
 
 """Function-based KMC simulation for a reaction network, assuming spatial homogeneity. Simulation is performed without objects, 
-such is required to improve performance with Numba. Initial part of this script is to set up parameters needed in the functions.
-
-Inputs required: 
-    reaction_network (Reaction Network): load from a json or pickle file
-    mol_ids (int): molecule ids (corresponding to reaction network) of initially present electrolyte species
-    mol_conc (float): molecule concentration (M) of initially present electrolyte species
-    num_species (int): number of entries initially used to generate reaction_network
-    num_label (int): number of ids listed in the legend of simulation plot 
+such is required to improve performance with Numba.
 """
 
 def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
@@ -31,7 +24,6 @@ def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
 
     Args:
         reaction_network (ReactionNetwork): Fully generated reaction network
-        num_entries (int): amount of species initially used to generate reaction network
         initial_cond (dict): [mol_id: initial_conc [M] (float)]
         volume [m^3] (float)
 
@@ -51,7 +43,7 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
     num_species = len(reaction_network.entries_list) # number of unique species in reaction network
     molid_index_mapping = dict()
     initial_state = [0 for i in range(num_species)]
-    conc_to_amt = lambda c: int(c * volume * N_A * 1000)
+    conc_to_amt = lambda c: int(volume * N_A * 1000 * c)
 
     #  Make mapping btwn mol_id and species index (of reaction network unique species list) corresponding to species id of initial species
     for ind, mol in enumerate(reaction_network.entries_list):
@@ -72,7 +64,7 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
         rate_constants[2 * id] = reaction.rate_constant()["k_A"]
         rate_constants[2 * id + 1] = reaction.rate_constant()["k_B"]
         for idx, react in enumerate(reaction.reactants):
-            for mol_ind, mol_id in molid_index_mapping.values():
+            for mol_ind, mol_id in molid_index_mapping.items():
                 if mol_id == react.entry_id:
                     reactant_array[id, idx] = mol_ind
                     species_rxn_mapping_list[mol_ind].append(2 * id)
@@ -80,11 +72,11 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
                     num_reactants_for.append(conc_to_amt(this_conc))
                     break
         for idx, prod in enumerate(reaction.products):
-            for mol_ind, mol_id in molid_index_mapping.values():
+            for mol_ind, mol_id in molid_index_mapping.items():
                 if mol_id == prod.entry_id:
                     product_array[id, idx] = mol_ind
                     species_rxn_mapping_list[mol_ind].append(2*id + 1)
-                    this_conc = initial_cond.get(prod.entry_id)
+                    this_conc = initial_cond.get(prod.entry_id, 0)
                     num_reactants_rev.append(conc_to_amt(this_conc))
                     break
         if len(reaction.reactants) == 1:
@@ -120,7 +112,7 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
 
 @jit(nopython = True, parallel = True)
 def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
-             total_propensity, species_rxn_mapping, reactants, products, state):
+             species_rxn_mapping, reactants, products, state):
     """ KMC Simulation of reaction network and specified initial conditions.
 
     Args:
@@ -137,6 +129,7 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
     Returns:
         A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred. Second row are the time steps generated at each iterations.
     """
+    total_propensity = np.sum(propensity_array)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
