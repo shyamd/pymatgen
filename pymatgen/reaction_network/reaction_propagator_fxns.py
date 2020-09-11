@@ -25,62 +25,42 @@ Inputs required:
     num_label (int): number of ids listed in the legend of simulation plot 
 """
 
-"""Simulation parameters setup"""
-# List the IDs of initial species present in electrolyte
-li_id = 2335
-ec_id = 2606
-emc_id = 1877
-h2o_id = 3306
-id_list = [li_id, ec_id, emc_id, h2o_id]
-
-# Concentrations of electrolyte species in molarity
-li_conc = 1.0
-    # 1M LiPF6 in 3:7 EC:EMC, a standard, proven Li-ion electrolyte formulation
-ec_conc = 3.57
-emc_conc = 7.0555
-h2o_conc = 1.665*10**-4
-conc_list = [li_conc, ec_conc, emc_conc, h2o_conc]
-
-num_species = 5732
-num_label = 15 # number of top species listed in simulation plot legend
-
-# Testing parameters
-iterations = 1  # can conduct multiple iterations for statistical analysis of results and runtime
-volumes_list = [10**-24]
-timesteps_list = [19450] # number of time steps in simulation
-
-# Load reaction network
-pickle_in = open("pickle_rxnnetwork_Li-limited", "rb")
-reaction_network = pickle.load(pickle_in)
-
-def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc, volume = 10**-24):
+def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
     """Initial loop through reactions to create product/reactant id arrays, mapping of each species to the reactions it participates in. Required
     to eliminate reaction network object usage during actual simulation.
 
     Args:
         reaction_network (ReactionNetwork): Fully generated reaction network
         num_entries (int): amount of species initially used to generate reaction network
-        file_name (str): File name to save simulation results as
-        initial_conc (list of floats): initial concentrations
-        volume (float)
+        initial_cond (dict): [mol_id: initial_conc [M] (float)]
+        volume [m^3] (float)
 
+    Returns:
+        initial_state (list): Initial molecule amounts. Species indexing corresponds to reaction_network.entries_list
+        species_rxn_mapping (list of list): each species has a list of reaction (indexes) which they take part in
+        molid_index_mapping (dict): mapping between species index and its Molecule entry id [molecule_index: molecule_entry_id]
+        reactant_array (array) (n_rxns x 2): each row contains the reactant indexes of forward reaction
+        products_array (array) (n_rxns x 2): each row contains the product indexes of forward reaction
+        coord_array (array) (2*n_rxns x 1): coordination number for each forward and reverse reaction [c1_f, c1_r, c2_f, c2_r ...]
+        rate_constants (array) (2*n_rxns x 1): rate constant of each for and rev reaction [k1_f, k1_r, k2_f, k2_r ...]
+        propensities (array) (2*n_rxns x 1): propensities of each for and rev reaction, obtained by element-wise multiplication of coord_array and rate_constants
+
+return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array, product_array, coord_array, rate_constants, propensities]
     """
     num_rxns = len(reaction_network.reactions)
-    num_initial_species = len(spec_ids)
-    if num_initial_species != len(initial_conc):
-        raise RuntimeError("The number of initial species must be consistent!")
-
+    num_species = len(reaction_network.entries_list) # number of unique species in reaction network
+    molid_index_mapping = dict()
+    initial_state = [0 for i in range(num_species)]
     conc_to_amt = lambda c: int(c * volume * N_A * 1000)
-    initial_state_dict = dict()
 
-    for ind in range(num_initial_species):
-        initial_state_dict[spec_ids[ind]] = conc_to_amt(initial_conc[ind])
-    initial_state = [0 for i in range(num_entries)]
+    #  Make mapping btwn mol_id and species index (of reaction network unique species list) corresponding to species id of initial species
+    for ind, mol in enumerate(reaction_network.entries_list):
+        molid_index_mapping[ind] = mol.entry_id
+        if mol.entry_id in initial_cond:
+            this_conc = initial_cond[mol.entry_id]
+            initial_state[ind] = conc_to_amt(this_conc)
 
-    for mol_id in initial_state_dict:
-        initial_state[mol_id] = initial_state_dict[mol_id]
-
-    species_rxn_mapping_list = [[] for j in range(num_entries)]
+    species_rxn_mapping_list = [[] for j in range(num_species)]
     reactant_array = -1 * np.ones((num_rxns, 2), dtype = int)
     product_array = -1 * np.ones((num_rxns, 2), dtype = int)
     coord_array = np.zeros(2 * num_rxns)
@@ -92,13 +72,21 @@ def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc,
         rate_constants[2 * id] = reaction.rate_constant()["k_A"]
         rate_constants[2 * id + 1] = reaction.rate_constant()["k_B"]
         for idx, react in enumerate(reaction.reactants):
-            reactant_array[id, idx] = react.entry_id
-            species_rxn_mapping_list[react.entry_id].append(2 * id)
-            num_reactants_for.append(initial_state_dict.get(react.entry_id, 0))
+            for mol_ind, mol_id in molid_index_mapping.values():
+                if mol_id == react.entry_id:
+                    reactant_array[id, idx] = mol_ind
+                    species_rxn_mapping_list[mol_ind].append(2 * id)
+                    this_conc = initial_cond.get(react.entry_id, 0)
+                    num_reactants_for.append(conc_to_amt(this_conc))
+                    break
         for idx, prod in enumerate(reaction.products):
-            product_array[id, idx] = prod.entry_id
-            species_rxn_mapping_list[prod.entry_id].append(2*id + 1)
-            num_reactants_rev.append(initial_state_dict.get(prod.entry_id, 0))
+            for mol_ind, mol_id in molid_index_mapping.values():
+                if mol_id == prod.entry_id:
+                    product_array[id, idx] = mol_ind
+                    species_rxn_mapping_list[mol_ind].append(2*id + 1)
+                    this_conc = initial_cond.get(prod.entry_id)
+                    num_reactants_rev.append(conc_to_amt(this_conc))
+                    break
         if len(reaction.reactants) == 1:
             coord_array[2 * id] = num_reactants_for[0]
         elif (len(reaction.reactants) == 2) and (reaction.reactants[0] == reaction.reactants[1]):
@@ -119,7 +107,7 @@ def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc,
 
     rxn_mapping_lengths = [len(rxn_list) for rxn_list in species_rxn_mapping_list]
     max_mapping_length = max(rxn_mapping_lengths)
-    species_rxn_mapping = -1 * np.ones((num_entries, max_mapping_length), dtype=int)
+    species_rxn_mapping = -1 * np.ones((num_species, max_mapping_length), dtype=int)
 
     for index, rxn_list in enumerate(species_rxn_mapping_list):
         this_map_length = rxn_mapping_lengths[index]
@@ -127,10 +115,11 @@ def initialize_simulation(reaction_network, num_entries, spec_ids, initial_conc,
             species_rxn_mapping[index, :] = rxn_list
         else:
             species_rxn_mapping[index, : this_map_length - max_mapping_length] = rxn_list
-    return [initial_state_dict, initial_state, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants]
+    propensities = np.multiply(coord_array, rate_constants)
+    return [initial_state, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants, propensities, molid_index_mapping]
 
 @jit(nopython = True, parallel = True)
-def simulate(time_steps, coord_array, rate_constants, propensity_array,
+def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
              total_propensity, species_rxn_mapping, reactants, products, state):
     """ KMC Simulation of reaction network and specified initial conditions.
 
@@ -379,29 +368,3 @@ def time_analysis(time_array):
     time_dict["steps"] = len(time_array)
     time_dict["total_t"] = (time_array)[-1] # minutes
     return time_dict
-
-"""Script to run the simulation"""
-for vol in volumes_list:
-    for t_steps in timesteps_list:
-        for iter in range(iterations):
-            file_name = "li_limited_t_" + str(t_steps) + "_V_" + str(vol) + "_ea_10000_Numba_Run" + str(iter + 1)
-            [initial_state_dict, initial_state, species_rxn_mapping, reactants, products, coord_array, rate_constants] = initialize_simulation(reaction_network,
-                                                                                                                        num_species, id_list, conc_list, vol)
-            state = np.array(initial_state, dtype = int)
-            propensity_array = np.multiply(coord_array, rate_constants)
-            total_propensity = np.sum(propensity_array)
-            print("Initial total propensity = ", total_propensity)
-            t1 = time.time()
-            data = simulate(t_steps, coord_array, rate_constants, propensity_array,
-                 total_propensity, species_rxn_mapping, reactants, products, state) # Data in lists
-            t2 = time.time()
-            sim_time = (t2 - t1)/60
-            reaction_history = data[0, :]
-            times = data[1, :]
-            t_end = np.sum(times)
-            print("Final simulated time: ", t_end)
-            print("Simulation time (min): ", sim_time)
-            t3 = time.time()
-            plot_trajectory(initial_state_dict, products, reactants, reaction_history, times, num_label, file_name, iter)
-            t4 = time.time()
-            print("Plotting time (sec): ", t4 - t3)
