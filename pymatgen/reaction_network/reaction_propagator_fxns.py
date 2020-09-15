@@ -29,6 +29,7 @@ def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
 
     Returns:
         initial_state (list): Initial molecule amounts. Species indexing corresponds to reaction_network.entries_list
+        initial_state_dict (dict): convert initial_cond to a dict of [initial_mol_ind: #molecules...]
         species_rxn_mapping (list of list): each species has a list of reaction (indexes) which they take part in
         molid_index_mapping (dict): mapping between species index and its Molecule entry id [molecule_index: molecule_entry_id]
         reactant_array (array) (n_rxns x 2): each row contains the reactant indexes of forward reaction
@@ -43,42 +44,50 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
     num_species = len(reaction_network.entries_list) # number of unique species in reaction network
     molid_index_mapping = dict()
     initial_state = [0 for i in range(num_species)]
+    initial_state_dict = dict()
     conc_to_amt = lambda c: int(volume * N_A * 1000 * c)
 
     #  Make mapping btwn mol_id and species index (of reaction network unique species list) corresponding to species id of initial species
     for ind, mol in enumerate(reaction_network.entries_list):
-        molid_index_mapping[ind] = mol.entry_id
+        molid_index_mapping[mol.entry_id] = ind
+        this_mol_amt = conc_to_amt(initial_cond.get(mol.entry_id, 0))
+        initial_state[ind] = this_mol_amt
         if mol.entry_id in initial_cond:
-            this_conc = initial_cond[mol.entry_id]
-            initial_state[ind] = conc_to_amt(this_conc)
+            initial_state_dict[ind] = this_mol_amt
 
     species_rxn_mapping_list = [[] for j in range(num_species)]
     reactant_array = -1 * np.ones((num_rxns, 2), dtype = int)
     product_array = -1 * np.ones((num_rxns, 2), dtype = int)
     coord_array = np.zeros(2 * num_rxns)
     rate_constants = np.zeros(2 * num_rxns)
-
     for id, reaction in enumerate(reaction_network.reactions):
         num_reactants_for = list()
         num_reactants_rev = list()
         rate_constants[2 * id] = reaction.rate_constant()["k_A"]
         rate_constants[2 * id + 1] = reaction.rate_constant()["k_B"]
         for idx, react in enumerate(reaction.reactants):
-            for mol_ind, mol_id in molid_index_mapping.items():
-                if mol_id == react.entry_id:
-                    reactant_array[id, idx] = mol_ind
-                    species_rxn_mapping_list[mol_ind].append(2 * id)
-                    this_conc = initial_cond.get(react.entry_id, 0)
-                    num_reactants_for.append(conc_to_amt(this_conc))
-                    break
+            # for each reactant, need to find the corresponding mol_id with the index
+            mol_ind = molid_index_mapping[react.entry_id]
+            reactant_array[id, idx] = mol_ind
+            species_rxn_mapping_list[mol_ind].append(2 * id)
+            num_reactants_for.append(initial_state[mol_ind])
+            # for mol_ind, mol_id in molid_index_mapping.items():
+            #     if mol_id == react.entry_id:
+            #         reactant_array[id, idx] = mol_ind
+            #         species_rxn_mapping_list[mol_ind].append(2 * id)
+            #         num_reactants_for.append(initial_state[mol_ind])
+            #         break
         for idx, prod in enumerate(reaction.products):
-            for mol_ind, mol_id in molid_index_mapping.items():
-                if mol_id == prod.entry_id:
-                    product_array[id, idx] = mol_ind
-                    species_rxn_mapping_list[mol_ind].append(2*id + 1)
-                    this_conc = initial_cond.get(prod.entry_id, 0)
-                    num_reactants_rev.append(conc_to_amt(this_conc))
-                    break
+            mol_ind = molid_index_mapping[prod.entry_id]
+            product_array[id, idx] = mol_ind
+            species_rxn_mapping_list[mol_ind].append(2*id + 1)
+            num_reactants_rev.append(initial_state[mol_ind])
+            # for mol_ind, mol_id in molid_index_mapping.items():
+            #     if mol_id == prod.entry_id:
+            #         product_array[id, idx] = mol_ind
+            #         species_rxn_mapping_list[mol_ind].append(2*id + 1)
+            #         num_reactants_rev.append(initial_state[mol_ind])
+            #         break
         if len(reaction.reactants) == 1:
             coord_array[2 * id] = num_reactants_for[0]
         elif (len(reaction.reactants) == 2) and (reaction.reactants[0] == reaction.reactants[1]):
@@ -96,7 +105,6 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
             coord_array[2 * id + 1] = num_reactants_rev[0] * num_reactants_rev[1]
         else:
             raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
-
     rxn_mapping_lengths = [len(rxn_list) for rxn_list in species_rxn_mapping_list]
     max_mapping_length = max(rxn_mapping_lengths)
     species_rxn_mapping = -1 * np.ones((num_species, max_mapping_length), dtype=int)
@@ -108,7 +116,7 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
         else:
             species_rxn_mapping[index, : this_map_length - max_mapping_length] = rxn_list
     propensities = np.multiply(coord_array, rate_constants)
-    return [initial_state, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants, propensities, molid_index_mapping]
+    return [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants, propensities, molid_index_mapping]
 
 @jit(nopython = True, parallel = True)
 def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
@@ -130,6 +138,7 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
         A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred. Second row are the time steps generated at each iterations.
     """
     total_propensity = np.sum(propensity_array)
+    print("total initial propensity = ", total_propensity)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
@@ -255,13 +264,15 @@ def get_coordination(reactants, products, state, rxn_id, reverse):
 
     return h_prop
 
-def plot_trajectory(initial_state_dict, products, reactants, reaction_history, times, num_label, filename, iteration):
+def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, products, reactants, reaction_history, times, num_label, filename):
     """ Given lists of reaction history and time steps, iterate through and plot the data """
     cumulative_time = list(np.cumsum(np.array(times)))
+
     state = initial_state_dict
+
     state_to_plot = dict()
-    for mol_id in initial_state_dict:
-        state_to_plot[mol_id] = [(0.0, initial_state_dict[mol_id])]
+    for mol_ind in initial_state_dict:
+        state_to_plot[mol_ind] = [(0.0, initial_state_dict[mol_ind])]
     total_iterations = len(reaction_history)
 
     for iter in range(total_iterations):
@@ -270,65 +281,75 @@ def plot_trajectory(initial_state_dict, products, reactants, reaction_history, t
         t = cumulative_time[iter]
 
         if this_rxn_ind % 2: # update state dicts for reverse reaction
-            for rid in products[converted_ind, :]:
-                if rid == -1:
+            for r_ind in products[converted_ind, :]:
+                if r_ind == -1:
                     continue
                 else:
                     try:
-                        state[rid] -= 1
-                        if state[rid] < 0:
-                            raise ValueError("State invalid: negative specie: {}".format(rid))
-                        state_to_plot[rid].append((t, state[rid]))
+                        state[r_ind] -= 1
+                        if state[r_ind] < 0:
+                            raise ValueError("State invalid: negative specie: {}".format(r_ind))
+                        state_to_plot[r_ind].append((t, state[r_ind]))
                     except KeyError:
-                        raise ValueError("Reactant specie {} given is not in state!".format(rid))
-            for pid in reactants[converted_ind, :]:
-                if pid == -1:
+                        raise ValueError("Reactant specie {} given is not in state!".format(r_ind))
+            for p_ind in reactants[converted_ind, :]:
+                if p_ind == -1:
                     continue
                 else:
-                    if (pid in state) and (pid in state_to_plot):
-                        state[pid] += 1
-                        state_to_plot[pid].append((t, state[pid]))
+                    if (p_ind in state) and (p_ind in state_to_plot):
+                        state[p_ind] += 1
+                        state_to_plot[p_ind].append((t, state[p_ind]))
                     else:
-                        state[pid] = 1
-                        state_to_plot[pid] = [(0.0, 0), (t, state[pid])]
+                        state[p_ind] = 1
+                        state_to_plot[p_ind] = [(0.0, 0), (t, state[p_ind])]
 
         else: # Update state dicts for forward reaction
-            for rid in reactants[converted_ind, :]:
-                if rid == -1:
+            for r_ind in reactants[converted_ind, :]:
+                if r_ind == -1:
                     continue
                 else:
                     try:
-                        state[rid] -= 1
-                        if state[rid] < 0:
-                            raise ValueError("State invalid: negative specie: {}".format(rid))
-                        state_to_plot[rid].append((t, state[rid]))
+                        state[r_ind] -= 1
+                        if state[r_ind] < 0:
+                            raise ValueError("State invalid: negative specie: {}".format(r_ind))
+                        state_to_plot[r_ind].append((t, state[r_ind]))
                     except KeyError:
-                        raise ValueError("Specie {} given is not in state!".format(rid))
-            for pid in products[converted_ind, :]:
-                if pid == -1:
+                        raise ValueError("Specie {} given is not in state!".format(r_ind))
+            for p_ind in products[converted_ind, :]:
+                if p_ind == -1:
                     continue
-                elif (pid in state) and (pid in state_to_plot):
-                    state[pid] += 1
-                    state_to_plot[pid].append((t, state[pid]))
+                elif (p_ind in state) and (p_ind in state_to_plot):
+                    state[p_ind] += 1
+                    state_to_plot[p_ind].append((t, state[p_ind]))
                 else:
-                    state[pid] = 1
-                    state_to_plot[pid] = [(0.0, 0), (t, state[pid])]
+                    state[p_ind] = 1
+                    state_to_plot[p_ind] = [(0.0, 0), (t, state[p_ind])]
 
     t_end = t
     # Sorting and plotting:
     fig, ax = plt.subplots()
 
-    sorted_ids = sorted([(k, v) for k, v in state.items()], key = lambda x: x[1], reverse = True)
-    sorted_ids = [mol_tuple[0] for mol_tuple in sorted_ids]
+    sorted_state = sorted([(k, v) for k, v in state.items()], key = lambda x: x[1], reverse = True)
+    sorted_inds = [mol_tuple[0] for mol_tuple in sorted_state]
+
+    sorted_ind_id_mapping = dict()
+    iter_counter = 0
+    for id, ind in molid_ind_mapping.items():
+
+        if ind in sorted_inds[:num_label]:
+            sorted_ind_id_mapping[ind] = id
+            iter_counter += 1
+        if iter_counter == num_label:
+            break
 
     colors = plt.cm.get_cmap('hsv', num_label)
     this_id = 0
 
-    for mol_id in state_to_plot:
-        ts = np.append(np.array([e[0] for e in state_to_plot[mol_id]]), t_end)
-
-        nums = np.append(np.array([e[1] for e in state_to_plot[mol_id]]), state_to_plot[mol_id][-1][1])
-        if mol_id in sorted_ids[0:num_label]:
+    for mol_ind in state_to_plot:
+        ts = np.append(np.array([e[0] for e in state_to_plot[mol_ind]]), t_end)
+        nums = np.append(np.array([e[1] for e in state_to_plot[mol_ind]]), state_to_plot[mol_ind][-1][1])
+        if mol_ind in sorted_inds[:num_label]:
+            mol_id = sorted_ind_id_mapping[mol_ind]
             for entry in reaction_network.entries_list:
                 if mol_id == entry.entry_id:
                     this_composition = entry.molecule.composition.alphabetical_formula
