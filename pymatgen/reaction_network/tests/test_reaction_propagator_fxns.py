@@ -123,13 +123,35 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             # print('number of reactions: ', len(self.reaction_network.reactions))
             # Only H2O, H2, O2 present initially
             self.initial_conditions = {'h2o': self.concentration, 'h2': self.concentration, 'o2': self.concentration, 'oh-': self.concentration, 'h+': self.concentration}
-            # for ind, spec in enumerate(self.reaction_network.entries_list):
-            #     print('mol_ind: ', ind, ', species_id: ', spec.entry_id)
-            # for ind, reaction in enumerate(self.reaction_network.reactions):
-            #     rxn_type = reaction.reaction_type.__self__
-            #     print('reaction ', ind, ' is of type ', rxn_type.reaction_type["class"])
-            #     print('reactants: ', [mol.entry_id for mol in reaction.reactants])
-            #     print('products: ', [mol.entry_id for mol in reaction.products])
+            self.num_species = len(self.reaction_network.entries_list)
+            self.num_reactions = len(self.reaction_network.reactions)
+
+            self.reactants = np.ones((self.num_reactions, 2), dtype=int) * -1
+            self.products = np.ones((self.num_reactions, 2), dtype=int) * -1
+            self.rate_constants = np.zeros(2*self.num_reactions)
+            self.coord_array = np.zeros(2*self.num_reactions)
+
+            self.initial_state = [0 for i in range(self.num_species)]
+            self.initial_state[2] = self.num_mols  # h+
+            self.initial_state[3] = self.num_mols  # oh-
+            self.initial_state[7] = self.num_mols  # h2
+            self.initial_state[10] = self.num_mols  # h2o
+            self.initial_state[16] = self.num_mols  # o2
+
+            self.molid_ind_mapping = dict()
+            for ind, spec in enumerate(self.reaction_network.entries_list):
+                self.molid_ind_mapping[spec.entry_id] = ind
+            # print('molid_ind mapping:', self.molid_ind_mapping)
+            # construct the product and reactants arrays
+            for ind, reaction in enumerate(self.reaction_network.reactions):
+                for idx, react in enumerate(reaction.reactants):
+                    mol_ind = self.molid_ind_mapping[react.entry_id]
+                    self.reactants[ind, idx] = mol_ind
+                for idx, prod in enumerate(reaction.products):
+                    mol_ind = self.molid_ind_mapping[prod.entry_id]
+                    self.products[ind, idx] = mol_ind
+                self.rate_constants[2*ind] = reaction.rate_constant()["k_A"]
+                self.rate_constants[2*ind+1] = reaction.rate_constant()["k_B"]
 
     def tearDown(self) -> None:
         if ob:
@@ -139,12 +161,19 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             del self.mol_entries
             del self.reaction_network
             del self.initial_conditions
+            del self.products
+            del self.reactants
+            del self.rate_constants
+            del self.initial_state
+            del self.coord_array
+            del self.num_species
+            del self.num_reactions
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_initialize_simulation(self):
         # initialize the simulation
 
-        [initial_state, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants,
+        [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants,
          propensities, molid_index_mapping] = initialize_simulation(self.reaction_network, self.initial_conditions, self.volume)
 
         # Verify initial state
@@ -156,7 +185,71 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         exp_initial_state[10] = self.num_mols #h2o
         exp_initial_state[16] = self.num_mols #o2
 
+        # exp_species_rxn_mapping = -1 * np.ones((18, 16))
+        # exp_species_rxn_mapping_list = list()
+        # exp_species_rxn_mapping_list.append([0, 13, 16, 19, 20, 21, 23, 27, 29, 32, 35]) # Reactions for H-
+        # exp_species_rxn_mapping_list.append([0, 1, 12, 15, 18, 19, 20, 22, 24,25, 26, 28, 31, 34, 37, 39]) #H
+        # exp_species_rxn_mapping_list.append([1, 14, 17, 21, 23, 24, 25, 30, 33, 36, 38]) #H+
+        # exp_species_rxn_mapping_list.append([2, 12, 13, 26, 28, 30, 33]) #oh-
+        # exp_species_rxn_mapping_list.append([2, 3, 14, 15, 16, 27, 29, 31, 34, 36, 38]) #oh
+        # exp_species_rxn_mapping_list.append([3, 17, 18, 32, 35, 37, 39]) #oh+
+        # exp_species_rxn_mapping_list.append([4, 19, 20]) #h2-
+        # exp_species_rxn_mapping_list.append([4, 5, 21, 22, 23]) #h2
+        # exp_species_rxn_mapping_list.append([5, 24, 25]) #h2+
+        # exp_species_rxn_mapping_list.append([6, 26, 27, 28, 29]) #h2o-
+        # exp_species_rxn_mapping_list.append([6, 7, 30, 31, 32, 33, 34, 35]) #h2o
+        # exp_species_rxn_mapping_list.append([7, 36, 37, 38, 39]) #h2o+
+        # exp_species_rxn_mapping_list.append([8, 14, 40, 41, 42, 44]) #o-
+        # exp_species_rxn_mapping_list.append([8, 9, 13, 15, 17, 40, 41, 43, 45, 46]) #o
+        # exp_species_rxn_mapping_list.append([9, 16, 18, 42, 44, 45, 46]) #o+
+        # exp_species_rxn_mapping_list.append([10, 40, 41]) #o2-
+        # exp_species_rxn_mapping_list.append([10, 11, 42, 43, 44]) #o2
+        # exp_species_rxn_mapping_list.append([11, 45, 46]) #o2+
+
         self.assertEqual(exp_initial_state, initial_state)
+        self.assertEqual(self.initial_state, initial_state)
+        self.assertArrayAlmostEqual(self.products, product_array)
+        self.assertArrayAlmostEqual(self.reactants, reactant_array)
+        self.assertArrayAlmostEqual(self.rate_constants, rate_constants)
+
+    def test_update_state(self):
+        # Reactions of interest:
+        # 1) h2 <--> h2+
+        # 2) h2o- <--> h2o
+        # 3) h2 <--> h- + h+
+        reactions_sequence = list()
+        for ind, reaction in enumerate(self.reaction_network.reactions):
+            reactants = [react.entry_id for react in reaction.reactants]
+            products = [prod.entry_id for prod in reaction.products]
+            if ((['h2'] == reactants) and (['h2+'] == products)) or ((['h2o'] == reactants) and (['h2o-'] == products)) \
+                    or ((['h2'] == reactants) and (['h-', 'h+'] == products)):
+                reactions_sequence.extend([2*ind, 2*ind + 1, 2*ind])
+            elif ((['h2+'] == reactants) and (['h2'] == products)) or ((['h2o-'] == reactants) and (['h2o'] == products))\
+                    or ((['h-', 'h+'] == reactants) and (['h'] == products)):
+                reactions_sequence.extend([2*ind+1, 2*ind, 2*ind+1])
+
+        num_iterations = 10
+        state = np.array(self.initial_state)
+
+        for i in range(num_iterations):
+            for rxn_ind in reactions_sequence:
+                if rxn_ind % 2:
+                    reverse = True
+                else:
+                    reverse = False
+                converted_rxn_ind = math.floor(rxn_ind/2)
+                state = update_state(self.reactants, self.products, state, converted_rxn_ind, reverse)
+                
+        expected_state = [0 for i in range(self.num_species)]
+        expected_state[self.molid_ind_mapping['h-']] = num_iterations
+        expected_state[self.molid_ind_mapping['h+']] = self.num_mols + num_iterations
+        expected_state[self.molid_ind_mapping['oh-']] = self.num_mols
+        expected_state[self.molid_ind_mapping['h2']] = self.num_mols - 2*num_iterations
+        expected_state[self.molid_ind_mapping['h2+']] = num_iterations
+        expected_state[self.molid_ind_mapping['h2o-']] = num_iterations
+        expected_state[self.molid_ind_mapping['h2o']] = self.num_mols - num_iterations
+        expected_state[self.molid_ind_mapping['o2']] = self.num_mols
+        self.assertEqual(list(state), expected_state)
 
 if __name__ == "__main__":
     unittest.main()
