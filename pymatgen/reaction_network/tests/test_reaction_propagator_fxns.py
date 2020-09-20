@@ -251,5 +251,47 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         expected_state[self.molid_ind_mapping['o2']] = self.num_mols
         self.assertEqual(list(state), expected_state)
 
+    def test_get_coordination(self):
+        # Reactions of interest:
+        # h2 <--> h2+
+        # h2o <--> oh- + h+
+
+        state = np.array(self.initial_state)
+        for ind, reaction in enumerate(self.reaction_network.reactions):
+            run_test = 0
+            reactants = [react.entry_id for react in reaction.reactants]
+            products = [prod.entry_id for prod in reaction.products]
+            if (['h2'] == reactants) and (['h2+'] == products):
+                run_test = 1
+                reaction_sequence = [2*ind, 2*ind+1]
+            elif (['h2+'] == reactants) and (['h2'] == products):
+                run_test = 1
+                reaction_sequence = [2*ind+1, 2*ind]
+            elif (['h2o'] == reactants) and (['oh-', 'h+'] == products):
+                run_test = 2
+                reaction_sequence = [2 * ind, 2 * ind + 1]
+            elif (['oh-', 'h+'] == reactants) and (['h2o'] == products):
+                run_test = 2
+                reaction_sequence = [2*ind+1, 2*ind]
+
+            if run_test == 0:
+                continue
+            else:
+                coords = list()
+                if run_test == 1:
+                    expected_coords = [self.num_mols, 0]
+                elif run_test == 2:
+                    expected_coords = [self.num_mols, self.num_mols * self.num_mols]
+
+                for rxn_ind in reaction_sequence:
+                    if rxn_ind % 2:
+                        reverse = True
+                    else:
+                        reverse = False
+                    converted_rxn_ind = math.floor(rxn_ind / 2)
+                    coords.append(get_coordination(self.reactants, self.products, state, converted_rxn_ind, reverse))
+
+                self.assertEqual(expected_coords, coords)
+
 if __name__ == "__main__":
     unittest.main()
