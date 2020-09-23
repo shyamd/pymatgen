@@ -6,7 +6,7 @@ from pymatgen.util.testing import PymatgenTest
 from pymatgen.reaction_network.reaction_network import ReactionNetwork
 from pymatgen.core import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
-from pymatgen.reaction_network.reaction_propagator_fxns import *
+from pymatgen.reaction_network.reaction_propagator import *
 import unittest
 import copy
 try:
