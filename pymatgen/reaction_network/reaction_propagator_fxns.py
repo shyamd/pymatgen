@@ -19,8 +19,8 @@ such is required to improve performance with Numba.
 """
 
 def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
-    """Initial loop through reactions to create product/reactant id arrays, mapping of each species to the reactions it participates in. Required
-    to eliminate reaction network object usage during actual simulation.
+    """Initial loop through reactions to create lists, mappings, and initial states needed for simulation without
+    reaction network object.
 
     Args:
         reaction_network (ReactionNetwork): Fully generated reaction network
@@ -37,8 +37,8 @@ def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
         coord_array (array) (2*n_rxns x 1): coordination number for each forward and reverse reaction [c1_f, c1_r, c2_f, c2_r ...]
         rate_constants (array) (2*n_rxns x 1): rate constant of each for and rev reaction [k1_f, k1_r, k2_f, k2_r ...]
         propensities (array) (2*n_rxns x 1): propensities of each for and rev reaction, obtained by element-wise multiplication of coord_array and rate_constants
+        molid_index_mapping (dict): [mol_id: mol_index (int) ... ]
 
-return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array, product_array, coord_array, rate_constants, propensities]
     """
     num_rxns = len(reaction_network.reactions)
     num_species = len(reaction_network.entries_list) # number of unique species in reaction network
@@ -47,7 +47,6 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
     initial_state_dict = dict()
     conc_to_amt = lambda c: int(volume * N_A * 1000 * c)
 
-    #  Make mapping btwn mol_id and species index (of reaction network unique species list) corresponding to species id of initial species
     for ind, mol in enumerate(reaction_network.entries_list):
         molid_index_mapping[mol.entry_id] = ind
         this_mol_amt = conc_to_amt(initial_cond.get(mol.entry_id, 0))
@@ -71,23 +70,13 @@ return [initial_state, species_rxn_mapping, molid_index_mapping, reactant_array,
             reactant_array[id, idx] = mol_ind
             species_rxn_mapping_list[mol_ind].append(2 * id)
             num_reactants_for.append(initial_state[mol_ind])
-            # for mol_ind, mol_id in molid_index_mapping.items():
-            #     if mol_id == react.entry_id:
-            #         reactant_array[id, idx] = mol_ind
-            #         species_rxn_mapping_list[mol_ind].append(2 * id)
-            #         num_reactants_for.append(initial_state[mol_ind])
-            #         break
+
         for idx, prod in enumerate(reaction.products):
             mol_ind = molid_index_mapping[prod.entry_id]
             product_array[id, idx] = mol_ind
             species_rxn_mapping_list[mol_ind].append(2*id + 1)
             num_reactants_rev.append(initial_state[mol_ind])
-            # for mol_ind, mol_id in molid_index_mapping.items():
-            #     if mol_id == prod.entry_id:
-            #         product_array[id, idx] = mol_ind
-            #         species_rxn_mapping_list[mol_ind].append(2*id + 1)
-            #         num_reactants_rev.append(initial_state[mol_ind])
-            #         break
+
         if len(reaction.reactants) == 1:
             coord_array[2 * id] = num_reactants_for[0]
         elif (len(reaction.reactants) == 2) and (reaction.reactants[0] == reaction.reactants[1]):
@@ -128,7 +117,6 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
          coord_array (array): Numpy array containing coordination numbers of forward and reverse reactions. [h1f, h1r, h2f, h2r, ...]
          rate_constants (array): Numpy array containing rate constants of forward and reverse reactions.
          propensity_array (array): Numpy array containing propensities of for and rev reactions.
-         total_propensity (float): Sum of all reaction propensities.
          species_rxn_mapping (2d array): Contains all the reaction indexes that each species takes part in
          reactants (2d array): Species IDs corresponding to the reactants of each forward reaction
          products (2d array): Species IDs corresponding to products of each forward reaction
@@ -138,7 +126,6 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
         A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred. Second row are the time steps generated at each iterations.
     """
     total_propensity = np.sum(propensity_array)
-    print("total initial propensity = ", total_propensity)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
