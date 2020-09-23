@@ -139,19 +139,59 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             self.initial_state[16] = self.num_mols  # o2
 
             self.molid_ind_mapping = dict()
+            species_rxn_mapping_list = [[] for i in range(self.num_species)]
+
             for ind, spec in enumerate(self.reaction_network.entries_list):
                 self.molid_ind_mapping[spec.entry_id] = ind
             # print('molid_ind mapping:', self.molid_ind_mapping)
             # construct the product and reactants arrays
             for ind, reaction in enumerate(self.reaction_network.reactions):
+                num_reactants_for = list()
+                num_reactants_rev = list()
                 for idx, react in enumerate(reaction.reactants):
                     mol_ind = self.molid_ind_mapping[react.entry_id]
                     self.reactants[ind, idx] = mol_ind
+                    num_reactants_for.append(self.initial_state[mol_ind])
+                    species_rxn_mapping_list[mol_ind].append(2*ind)
                 for idx, prod in enumerate(reaction.products):
                     mol_ind = self.molid_ind_mapping[prod.entry_id]
                     self.products[ind, idx] = mol_ind
+                    num_reactants_rev.append(self.initial_state[mol_ind])
+                    species_rxn_mapping_list[mol_ind].append(2*ind+1)
+
                 self.rate_constants[2*ind] = reaction.rate_constant()["k_A"]
                 self.rate_constants[2*ind+1] = reaction.rate_constant()["k_B"]
+
+                #set up coordination array
+                if len(reaction.reactants) == 1:
+                    self.coord_array[2 * ind] = num_reactants_for[0]
+                elif (len(reaction.reactants) == 2) and (reaction.reactants[0] == reaction.reactants[1]):
+                    self.coord_array[2 * ind] = num_reactants_for[0] * (num_reactants_for[0] - 1)
+                elif (len(reaction.reactants) == 2) and (reaction.reactants[0] != reaction.reactants[1]):
+                    self.coord_array[2 * ind] = num_reactants_for[0] * num_reactants_for[1]
+                else:
+                    raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
+                # For reverse reaction
+                if len(reaction.products) == 1:
+                    self.coord_array[2 * ind + 1] = num_reactants_rev[0]
+                elif (len(reaction.products) == 2) and (reaction.products[0] == reaction.products[1]):
+                    self.coord_array[2 * ind + 1] = num_reactants_rev[0] * (num_reactants_rev[0] - 1)
+                elif (len(reaction.products) == 2) and (reaction.products[0] != reaction.products[1]):
+                    self.coord_array[2 * ind + 1] = num_reactants_rev[0] * num_reactants_rev[1]
+                else:
+                    raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
+
+            self.propensities = np.multiply(self.coord_array, self.rate_constants)
+
+            # Set up molind_rxn_mapping
+            spec_rxn_map_lengths = [len(rxn_list) for rxn_list in species_rxn_mapping_list]
+            max_map_length = max(spec_rxn_map_lengths)
+            self.species_rxn_mapping = np.ones((self.num_species, max_map_length), dtype=int) * -1
+            for ind, rxn_list in enumerate(species_rxn_mapping_list):
+                if len(rxn_list) == max_map_length:
+                    self.species_rxn_mapping[ind, :] = rxn_list
+                else:
+                    self.species_rxn_mapping[ind, : len(rxn_list)] = rxn_list
 
     def tearDown(self) -> None:
         if ob:
@@ -168,6 +208,9 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             del self.coord_array
             del self.num_species
             del self.num_reactions
+            del self.species_rxn_mapping
+            del self.propensities
+            del self.molid_ind_mapping
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_initialize_simulation(self):
@@ -211,6 +254,8 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         self.assertArrayAlmostEqual(self.products, product_array)
         self.assertArrayAlmostEqual(self.reactants, reactant_array)
         self.assertArrayAlmostEqual(self.rate_constants, rate_constants)
+        self.assertArrayAlmostEqual(self.species_rxn_mapping, species_rxn_mapping)
+        self.assertArrayAlmostEqual(self.propensities, propensities)
 
     def test_update_state(self):
         # Reactions of interest:
@@ -255,7 +300,6 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         # Reactions of interest:
         # h2 <--> h2+
         # h2o <--> oh- + h+
-
         state = np.array(self.initial_state)
         for ind, reaction in enumerate(self.reaction_network.reactions):
             run_test = 0
@@ -278,9 +322,9 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
                 continue
             else:
                 coords = list()
-                if run_test == 1:
+                if run_test == 1: # testing h2 <--> h2+
                     expected_coords = [self.num_mols, 0]
-                elif run_test == 2:
+                elif run_test == 2: # testing h2o <--> oh- + h+
                     expected_coords = [self.num_mols, self.num_mols * self.num_mols]
 
                 for rxn_ind in reaction_sequence:
@@ -292,6 +336,30 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
                     coords.append(get_coordination(self.reactants, self.products, state, converted_rxn_ind, reverse))
 
                 self.assertEqual(expected_coords, coords)
+
+    def test_kmc_simulate(self):
+        t_steps = 1
+        iterations = 10000
+        reaction_history = list()
+        time_steps = list()
+        reaction_frequency = [0 for i in range(2*self.num_reactions)]
+        total_propensity = np.sum(self.propensities)
+        exp_tau = 1 / total_propensity # expectation value of first time step
+        rxn_probability = self.propensities / total_propensity # expected frequencies of each reaction
+        # for rxn in self.reaction_network.reactions:
+        for i in range(iterations):
+            # run simulation with initial conditions, 1 time step
+            sim_data = kmc_simulate(t_steps, self.coord_array, self.rate_constants, self.propensities, self.species_rxn_mapping,
+                                    self.reactants, self.products, np.array(self.initial_state))
+            if (t_steps != len(sim_data[0])) or (t_steps != len(sim_data[1])):
+                raise RuntimeError("There are more than the specified time steps for this simulation.")
+            reaction_history.append(int(sim_data[0][0]))
+            time_steps.append(sim_data[1][0])
+
+        reaction_history = np.array(reaction_history)
+        time_steps = np.array(time_steps)
+        avg_tau = np.average(time_steps)
+        self.assertAlmostEqual(avg_tau, exp_tau)
 
 if __name__ == "__main__":
     unittest.main()
