@@ -1,5 +1,5 @@
+import os
 import numpy as np
-import random
 import math
 from scipy.constants import N_A
 from pymatgen.util.testing import PymatgenTest
@@ -19,6 +19,8 @@ __email__ = "kamronald@berkeley.edu"
 __copyright__ = "Copyright 2020, The Materials Project"
 __version__ = "0.1"
 
+test_dir = os.path.join(os.path.dirname(__file__))
+
 class TestKMCReactionPropagatorFxns(PymatgenTest):
     def setUp(self):
         """ Create an initial state and reaction network, based on H2O molecule.
@@ -31,37 +33,37 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         self.concentration = self.num_mols / N_A / self.volume / 1000
 
         # Make molecule objects
-        H2O_mol = Molecule.from_file("H2O.xyz")
+        H2O_mol = Molecule.from_file(os.path.join(test_dir, "H2O.xyz"))
         H2O_mol1 = copy.deepcopy(H2O_mol)
         H2O_mol_1 = copy.deepcopy(H2O_mol)
         H2O_mol1.set_charge_and_spin(charge=1)
         H2O_mol_1.set_charge_and_spin(charge=-1)
 
-        H2_mol = Molecule.from_file("H2.xyz")
+        H2_mol = Molecule.from_file(os.path.join(test_dir, "H2.xyz"))
         H2_mol1 = copy.deepcopy(H2_mol)
         H2_mol_1 = copy.deepcopy(H2_mol)
         H2_mol1.set_charge_and_spin(charge=1)
         H2_mol_1.set_charge_and_spin(charge=-1)
 
-        O2_mol = Molecule.from_file("O2.xyz")
+        O2_mol = Molecule.from_file(os.path.join(test_dir, "O2.xyz"))
         O2_mol1 = copy.deepcopy(O2_mol)
         O2_mol_1 = copy.deepcopy(O2_mol)
         O2_mol1.set_charge_and_spin(charge=1)
         O2_mol_1.set_charge_and_spin(charge=-1)
 
-        OH_mol = Molecule.from_file("OH.xyz")
+        OH_mol = Molecule.from_file(os.path.join(test_dir, "OH.xyz"))
         OH_mol1 = copy.deepcopy(OH_mol)
         OH_mol_1 = copy.deepcopy(OH_mol)
         OH_mol1.set_charge_and_spin(charge=1)
         OH_mol_1.set_charge_and_spin(charge=-1)
 
-        H_mol = Molecule.from_file("H.xyz")
+        H_mol = Molecule.from_file(os.path.join(test_dir, "H.xyz"))
         H_mol1 = copy.deepcopy(H_mol)
         H_mol_1 = copy.deepcopy(H_mol)
         H_mol1.set_charge_and_spin(charge=1)
         H_mol_1.set_charge_and_spin(charge=-1)
 
-        O_mol = Molecule.from_file("O.xyz")
+        O_mol = Molecule.from_file(os.path.join(test_dir, "O.xyz"))
         O_mol1 = copy.deepcopy(O_mol)
         O_mol_1 = copy.deepcopy(O_mol)
         O_mol1.set_charge_and_spin(charge=1)
