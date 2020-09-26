@@ -21,12 +21,13 @@ __version__ = "0.1"
 
 test_dir = os.path.join(os.path.dirname(__file__))
 
+
 class TestKMCReactionPropagatorFxns(PymatgenTest):
     def setUp(self):
         """ Create an initial state and reaction network, based on H2O molecule.
         Species include H2, H2O, H, O, O2, OH, H3O
         """
-        self.volume = 10**-24 # m^3
+        self.volume = 10**-24  # m^3
 
         # 100 molecules each of H2O, H2, O2, OH-, H+
         self.num_mols = int(100)
@@ -73,7 +74,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         # H2O 1-3
         if ob:
             H2O = MoleculeEntry(H2O_mol, energy=-76.4447861695239, correction=0, enthalpy=15.702, entropy=46.474,
-                                parameters=None, entry_id = 'h2o', attribute=None)
+                                parameters=None, entry_id='h2o', attribute=None)
             H2O_1 = MoleculeEntry(H2O_mol_1, energy=-76.4634569330715, correction=0, enthalpy=13.298, entropy=46.601,
                                   parameters=None, entry_id='h2o-', attribute=None)
             H2O_1p = MoleculeEntry(H2O_mol1, energy=-76.0924662469782, correction=0, enthalpy=13.697, entropy=46.765,
@@ -124,7 +125,8 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             self.reaction_network.build()
             # print('number of reactions: ', len(self.reaction_network.reactions))
             # Only H2O, H2, O2 present initially
-            self.initial_conditions = {'h2o': self.concentration, 'h2': self.concentration, 'o2': self.concentration, 'oh-': self.concentration, 'h+': self.concentration}
+            self.initial_conditions = {'h2o': self.concentration, 'h2': self.concentration, 'o2': self.concentration,
+                                       'oh-': self.concentration, 'h+': self.concentration}
             self.num_species = len(self.reaction_network.entries_list)
             self.num_reactions = len(self.reaction_network.reactions)
 
@@ -164,7 +166,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
                 self.rate_constants[2*ind] = reaction.rate_constant()["k_A"]
                 self.rate_constants[2*ind+1] = reaction.rate_constant()["k_B"]
 
-                #set up coordination array
+                # set up coordination array
                 if len(reaction.reactants) == 1:
                     self.coord_array[2 * ind] = num_reactants_for[0]
                 elif (len(reaction.reactants) == 2) and (reaction.reactants[0] == reaction.reactants[1]):
@@ -218,17 +220,18 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
     def test_initialize_simulation(self):
         # initialize the simulation
 
-        [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants,
-         propensities, molid_index_mapping] = initialize_simulation(self.reaction_network, self.initial_conditions, self.volume)
+        [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array, coord_array,
+         rate_constants, propensities, molid_index_mapping] = \
+            initialize_simulation(self.reaction_network, self.initial_conditions, self.volume)
 
         # Verify initial state
         num_species = len(self.reaction_network.entries_list)
         exp_initial_state = [0 for i in range(num_species)]
-        exp_initial_state[2] = self.num_mols # h+
-        exp_initial_state[3] = self.num_mols # oh-
-        exp_initial_state[7] = self.num_mols # h2
-        exp_initial_state[10] = self.num_mols #h2o
-        exp_initial_state[16] = self.num_mols #o2
+        exp_initial_state[2] = self.num_mols  # h+
+        exp_initial_state[3] = self.num_mols  # oh-
+        exp_initial_state[7] = self.num_mols  # h2
+        exp_initial_state[10] = self.num_mols  #h2o
+        exp_initial_state[16] = self.num_mols  #o2
 
         # exp_species_rxn_mapping = -1 * np.ones((18, 16))
         # exp_species_rxn_mapping_list = list()
@@ -268,11 +271,12 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         for ind, reaction in enumerate(self.reaction_network.reactions):
             reactants = [react.entry_id for react in reaction.reactants]
             products = [prod.entry_id for prod in reaction.products]
-            if ((['h2'] == reactants) and (['h2+'] == products)) or ((['h2o'] == reactants) and (['h2o-'] == products)) \
+            if ((['h2'] == reactants) and (['h2+'] == products)) or ((['h2o'] == reactants) and (['h2o-'] == products))\
                     or ((['h2'] == reactants) and (['h-', 'h+'] == products)):
                 reactions_sequence.extend([2*ind, 2*ind + 1, 2*ind])
-            elif ((['h2+'] == reactants) and (['h2'] == products)) or ((['h2o-'] == reactants) and (['h2o'] == products))\
-                    or ((['h-', 'h+'] == reactants) and (['h'] == products)):
+            elif ((['h2+'] == reactants) and (['h2'] == products)) or \
+                    ((['h2o-'] == reactants) and (['h2o'] == products)) or \
+                    ((['h-', 'h+'] == reactants) and (['h'] == products)):
                 reactions_sequence.extend([2*ind+1, 2*ind, 2*ind+1])
 
         num_iterations = 10
@@ -324,9 +328,9 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
                 continue
             else:
                 coords = list()
-                if run_test == 1: # testing h2 <--> h2+
+                if run_test == 1:  # testing h2 <--> h2+
                     expected_coords = [self.num_mols, 0]
-                elif run_test == 2: # testing h2o <--> oh- + h+
+                elif run_test == 2:  # testing h2o <--> oh- + h+
                     expected_coords = [self.num_mols, self.num_mols * self.num_mols]
 
                 for rxn_ind in reaction_sequence:
@@ -346,13 +350,14 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         time_steps = list()
         reaction_frequency = [0 for i in range(2*self.num_reactions)]
         total_propensity = np.sum(self.propensities)
-        exp_tau = 1 / total_propensity # expectation value of first time step
-        rxn_probability = self.propensities / total_propensity # expected frequencies of each reaction
+        exp_tau = 1 / total_propensity  # expectation value of first time step
+        rxn_probability = self.propensities / total_propensity  # expected frequencies of each reaction
         # for rxn in self.reaction_network.reactions:
         for i in range(iterations):
             # run simulation with initial conditions, 1 time step
-            sim_data = kmc_simulate(t_steps, self.coord_array, self.rate_constants, self.propensities, self.species_rxn_mapping,
-                                    self.reactants, self.products, np.array(self.initial_state))
+            sim_data = kmc_simulate(t_steps, self.coord_array, self.rate_constants, self.propensities,
+                                    self.species_rxn_mapping, self.reactants, self.products,
+                                    np.array(self.initial_state))
             if (t_steps != len(sim_data[0])) or (t_steps != len(sim_data[1])):
                 raise RuntimeError("There are more than the specified time steps for this simulation.")
             reaction_history.append(int(sim_data[0][0]))
@@ -363,5 +368,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         avg_tau = np.average(time_steps)
         self.assertAlmostEqual(avg_tau, exp_tau)
 
+
 if __name__ == "__main__":
     unittest.main()
+    

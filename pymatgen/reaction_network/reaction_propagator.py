@@ -17,8 +17,8 @@ __email__ = "kamronald@berkeley.edu"
 __copyright__ = "Copyright 2020, The Materials Project"
 __version__ = "0.1"
 
-spec = [('products', int64[:,:]),
-        ('reactants', int64[:,:]),
+spec = [('products', int64[:, :]),
+        ('reactants', int64[:, :]),
         ('initial_state', int64[:]),
         ('state', int64[:]),
         ('rate_constants', float64[:]),
@@ -35,11 +35,12 @@ spec = [('products', int64[:,:]),
         ('reaction_history', int64[:])
         ]
 
-"""Function-based KMC simulation for a reaction network, assuming spatial homogeneity. Simulation is performed without objects, 
-such is required to improve performance with Numba. Algorithm is described by Gillespie (1976).
+"""Function-based KMC simulation for a reaction network, assuming spatial homogeneity. Simulation is performed without 
+objects, such is required to improve performance with Numba. Algorithm is described by Gillespie (1976).
 """
 
-def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
+
+def initialize_simulation(reaction_network, initial_cond, volume=10**-24):
     """Initial loop through reactions to create lists, mappings, and initial states needed for simulation without
     reaction network object.
 
@@ -52,32 +53,35 @@ def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
         initial_state (list): Initial molecule amounts. Species indexing corresponds to reaction_network.entries_list
         initial_state_dict (dict): convert initial_cond to a dict of [initial_mol_ind: #molecules...]
         species_rxn_mapping (list of list): each species has a list of reaction (indexes) which they take part in
-        molid_index_mapping (dict): mapping between species index and its Molecule entry id [molecule_index: molecule_entry_id]
+        molid_index_mapping (dict): mapping between species index and its Molecule entry id
+                                    [molecule_index: molecule_entry_id]
         reactant_array (array) (n_rxns x 2): each row contains the reactant indexes of forward reaction
         products_array (array) (n_rxns x 2): each row contains the product indexes of forward reaction
-        coord_array (array) (2*n_rxns x 1): coordination number for each forward and reverse reaction [c1_f, c1_r, c2_f, c2_r ...]
+        coord_array (array) (2*n_rxns x 1): coordination number for each forward and reverse reaction
+                                            [c1_f, c1_r, c2_f, c2_r ...]
         rate_constants (array) (2*n_rxns x 1): rate constant of each for and rev reaction [k1_f, k1_r, k2_f, k2_r ...]
-        propensities (array) (2*n_rxns x 1): propensities of each for and rev reaction, obtained by element-wise multiplication of coord_array and rate_constants
+        propensities (array) (2*n_rxns x 1): reaction propensities, obtained by element-wise multiplication of
+                                            coord_array and rate_constants
         molid_index_mapping (dict): [mol_id: mol_index (int) ... ]
 
     """
     num_rxns = len(reaction_network.reactions)
-    num_species = len(reaction_network.entries_list) # number of unique species in reaction network
+    num_species = len(reaction_network.entries_list)
     molid_index_mapping = dict()
     initial_state = [0 for i in range(num_species)]
     initial_state_dict = dict()
-    conc_to_amt = lambda c: int(volume * N_A * 1000 * c)
 
     for ind, mol in enumerate(reaction_network.entries_list):
         molid_index_mapping[mol.entry_id] = ind
-        this_mol_amt = conc_to_amt(initial_cond.get(mol.entry_id, 0))
+        this_c = initial_cond.get(mol.entry_id, 0)
+        this_mol_amt = int(volume * N_A * 1000 * this_c)
         initial_state[ind] = this_mol_amt
         if mol.entry_id in initial_cond:
             initial_state_dict[ind] = this_mol_amt
 
     species_rxn_mapping_list = [[] for j in range(num_species)]
-    reactant_array = -1 * np.ones((num_rxns, 2), dtype = int)
-    product_array = -1 * np.ones((num_rxns, 2), dtype = int)
+    reactant_array = -1 * np.ones((num_rxns, 2), dtype=int)
+    product_array = -1 * np.ones((num_rxns, 2), dtype=int)
     coord_array = np.zeros(2 * num_rxns)
     rate_constants = np.zeros(2 * num_rxns)
     for id, reaction in enumerate(reaction_network.reactions):
@@ -126,16 +130,19 @@ def initialize_simulation(reaction_network, initial_cond, volume = 10**-24):
         else:
             species_rxn_mapping[index, : this_map_length - max_mapping_length] = rxn_list
     propensities = np.multiply(coord_array, rate_constants)
-    return [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array, coord_array, rate_constants, propensities, molid_index_mapping]
+    return [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array,
+            coord_array, rate_constants, propensities, molid_index_mapping]
 
-@jit(nopython = True, parallel = True)
+
+@jit(nopython=True, parallel=True)
 def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
-             species_rxn_mapping, reactants, products, state):
+                 species_rxn_mapping, reactants, products, state):
     """ KMC Simulation of reaction network and specified initial conditions.
 
     Args:
          time_steps (int): Number of time steps/iterations desired to run.
-         coord_array (array): Numpy array containing coordination numbers of forward and reverse reactions. [h1f, h1r, h2f, h2r, ...]
+         coord_array (array): Numpy array containing coordination numbers of forward and reverse reactions.
+                                [h1f, h1r, h2f, h2r, ...]
          rate_constants (array): Numpy array containing rate constants of forward and reverse reactions.
          propensity_array (array): Numpy array containing propensities of for and rev reactions.
          species_rxn_mapping (2d array): Contains all the reaction indexes that each species takes part in
@@ -144,7 +151,8 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
          state (array): Array containing molecular amounts of each species in the reaction network
 
     Returns:
-        A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred. Second row are the time steps generated at each iterations.
+        A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred.
+        Second row are the time steps generated at each iterations.
     """
     total_propensity = np.sum(propensity_array)
     t = 0.0
@@ -194,7 +202,8 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
         times[step_counter] = tau
     return np.vstack((np.array(reaction_history), np.array(times)))
 
-@jit(nopython = True)
+
+@jit(nopython=True)
 def update_state(reactants, products, state, rxn_ind, reverse):
     """ Update the system based on the reaction chosen
             Args:
@@ -235,10 +244,10 @@ def update_state(reactants, products, state, rxn_ind, reverse):
                 state[product_id] += 1
     return state
 
-@jit(nopython = True)
+
+@jit(nopython=True)
 def get_coordination(reactants, products, state, rxn_id, reverse):
-    """
-    Calculate the coordination number for a particular reaction, based on the reaction type
+    """ Calculate the coordination number for a particular reaction, based on the reaction type
     number of molecules for the reactants.
 
     Args:
@@ -251,7 +260,7 @@ def get_coordination(reactants, products, state, rxn_id, reverse):
         propensity (float)
     """
     if reverse:
-        reactant_array = products[rxn_id, :] # Numpy array of reactant molecule IDs
+        reactant_array = products[rxn_id, :]
         num_reactants = len(np.where(reactant_array != -1)[0])
     else:
         reactant_array = reactants[rxn_id, :]
@@ -272,7 +281,9 @@ def get_coordination(reactants, products, state, rxn_id, reverse):
 
     return h_prop
 
-def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, products, reactants, reaction_history, times, num_label, filename):
+
+def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, products, reactants, reaction_history,
+                    times, num_label, filename):
     """ Given lists of reaction history and time steps, iterate through and plot the data """
     cumulative_time = list(np.cumsum(np.array(times)))
 
@@ -288,7 +299,7 @@ def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, pro
         converted_ind = math.floor(this_rxn_ind/2)
         t = cumulative_time[iter]
 
-        if this_rxn_ind % 2: # update state dicts for reverse reaction
+        if this_rxn_ind % 2:
             for r_ind in products[converted_ind, :]:
                 if r_ind == -1:
                     continue
@@ -311,7 +322,7 @@ def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, pro
                         state[p_ind] = 1
                         state_to_plot[p_ind] = [(0.0, 0), (t, state[p_ind])]
 
-        else: # Update state dicts for forward reaction
+        else:
             for r_ind in reactants[converted_ind, :]:
                 if r_ind == -1:
                     continue
@@ -337,7 +348,7 @@ def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, pro
     # Sorting and plotting:
     fig, ax = plt.subplots()
 
-    sorted_state = sorted([(k, v) for k, v in state.items()], key = lambda x: x[1], reverse = True)
+    sorted_state = sorted([(k, v) for k, v in state.items()], key=lambda x: x[1], reverse=True)
     sorted_inds = [mol_tuple[0] for mol_tuple in sorted_state]
 
     sorted_ind_id_mapping = dict()
@@ -383,6 +394,7 @@ def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, pro
     else:
         plt.savefig(filename)
 
+
 def time_analysis(time_array):
     time_dict = dict()
     time_dict["t_avg"] = np.average(time_array)
@@ -391,7 +403,6 @@ def time_analysis(time_array):
     time_dict["total_t"] = (time_array)[-1] # minutes
     return time_dict
 
-""""""
 
 class KineticMonteCarloSimulator:
     """
@@ -408,7 +419,7 @@ class KineticMonteCarloSimulator:
 
     """
     def __init__(self, reaction_network, initial_state, volume=1.0*10**-24,
-                 temperature = 298.15):
+                 temperature=298.15):
         self.reaction_network = reaction_network
 
         self.num_rxns = len(self.reaction_network.reactions)

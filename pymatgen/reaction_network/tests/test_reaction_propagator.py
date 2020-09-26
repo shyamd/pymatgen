@@ -13,7 +13,6 @@ try:
 except ImportError:
     ob = None
 
-
 __author__ = "Ronald Kam, Evan Spotte-Smith"
 __email__ = "kamronald@berkeley.edu"
 __copyright__ = "Copyright 2020, The Materials Project"
@@ -21,12 +20,13 @@ __version__ = "0.1"
 
 test_dir = os.path.join(os.path.dirname(__file__))
 
+
 class TestKineticMonteCarloSimulator(PymatgenTest):
     def setUp(self):
         """ Create an initial state and reaction network, based on H2O molecule.
         Species include H2, H2O, H, O, O2, OH, H3O
         """
-        self.volume = 10**-24 # m^3
+        self.volume = 10**-24  # m^3
 
         # 100 molecules each of H2O, H2, O2
         self.num_mols = 100
@@ -145,8 +145,7 @@ class TestKineticMonteCarloSimulator(PymatgenTest):
                                  99)
 
         diff_prop = KineticMonteCarloSimulator(self.reaction_network, {13: self.concentration,
-                                                               16: self.concentration},
-                                       self.volume)
+                                                                       16: self.concentration}, self.volume)
         for rr, reaction in diff_prop.reactions.items():
             if set(reaction.product_ids) == {13, 16}:
                 self.assertEqual(diff_prop.get_coordination(reaction, True),
