@@ -152,7 +152,7 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
 
     Returns:
         A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred.
-        Second row are the time steps generated at each iterations.
+        Second row are the time steps generated at each iteration.
     """
     total_propensity = np.sum(propensity_array)
     t = 0.0
@@ -282,126 +282,242 @@ def get_coordination(reactants, products, state, rxn_id, reverse):
     return h_prop
 
 
-def plot_trajectory(reaction_network, molid_ind_mapping, initial_state_dict, products, reactants, reaction_history,
-                    times, num_label, filename):
-    """ Given lists of reaction history and time steps, iterate through and plot the data """
-    cumulative_time = list(np.cumsum(np.array(times)))
+class KMC_data_analysis:
+    """
+    Functions to analyze KMC (function-based) outputs from many simulation runs.
 
-    state = initial_state_dict
+    """
 
-    state_to_plot = dict()
-    for mol_ind in initial_state_dict:
-        state_to_plot[mol_ind] = [(0.0, initial_state_dict[mol_ind])]
-    total_iterations = len(reaction_history)
+    def __init__(self, reaction_network, molid_ind_mapping, initial_state_dict, products, reactants,
+                 reaction_history, time_history):
+        self.reaction_network = reaction_network
+        self.molid_ind_mapping = molid_ind_mapping
+        self.initial_state_dict = initial_state_dict
+        self.products = products
+        self.reactants = reactants
+        self.reaction_history = reaction_history
+        self.time_history = time_history
 
-    for iter in range(total_iterations):
-        this_rxn_ind = reaction_history[iter]
-        converted_ind = math.floor(this_rxn_ind/2)
-        t = cumulative_time[iter]
+        self.num_sims = len(self.reaction_history)
+        if self.num_sims != len(self.time_history):
+            raise RuntimeError('Number of datasets for rxn history and time step history should be same!')
 
-        if this_rxn_ind % 2:
-            for r_ind in products[converted_ind, :]:
-                if r_ind == -1:
-                    continue
+    def generate_time_dep_profiles(self):
+        """
+        Generate plottable time-dependent profiles of species and rxns from KMC outputs.
+        :return dict containing species profiles, reaction profiles, and final states from each simulation.
+                species_profiles: [ {mol_ind1: [(t0, n(t0)), (t1, n(t1)...], mol_ind2: ... ,  ... }, {...}, ... ]
+                reaction_profiles: [ {rxn_ind1: [t0, t1, ...], rxn_ind2: ..., ...}, {...}, ...]
+                final_states: [ {mol_ind1: n1, mol_ind2: ..., ...}, {...}, ...]
+
+        """
+        species_profiles = list()
+        reaction_profiles = list()
+        final_states = list()
+        for n_sim in range(self.num_sims):
+            sim_time_history = self.time_history[n_sim]  # array
+            sim_rxn_history = self.reaction_history[n_sim]
+
+            sim_species_profile = dict()
+            sim_rxn_profile = dict()
+
+            cumulative_time = list(np.cumsum(np.array(sim_time_history)))
+
+            state = self.initial_state_dict
+
+            for mol_ind in self.initial_state_dict:
+                sim_species_profile[mol_ind] = [(0.0, self.initial_state_dict[mol_ind])]
+            total_iterations = len(sim_rxn_history)
+
+            for iter in range(total_iterations):
+                rxn_ind = sim_rxn_history[iter]
+                t = cumulative_time[iter]
+                if rxn_ind not in sim_rxn_profile:
+                    sim_rxn_profile[rxn_ind] = [t]
                 else:
-                    try:
-                        state[r_ind] -= 1
-                        if state[r_ind] < 0:
-                            raise ValueError("State invalid: negative specie: {}".format(r_ind))
-                        state_to_plot[r_ind].append((t, state[r_ind]))
-                    except KeyError:
-                        raise ValueError("Reactant specie {} given is not in state!".format(r_ind))
-            for p_ind in reactants[converted_ind, :]:
-                if p_ind == -1:
-                    continue
+                    sim_rxn_profile.append(t)
+                converted_ind = math.floor(rxn_ind/2)
+
+                if rxn_ind % 2:
+                    for r_ind in self.products[converted_ind, :]:
+                        if r_ind == -1:
+                            continue
+                        else:
+                            try:
+                                state[r_ind] -= 1
+                                if state[r_ind] < 0:
+                                    raise ValueError("State invalid: negative specie: {}".format(r_ind))
+                                sim_species_profile[r_ind].append((t, state[r_ind]))
+                            except KeyError:
+                                raise ValueError("Reactant specie {} given is not in state!".format(r_ind))
+                    for p_ind in self.reactants[converted_ind, :]:
+                        if p_ind == -1:
+                            continue
+                        else:
+                            if (p_ind in state) and (p_ind in sim_species_profile):
+                                state[p_ind] += 1
+                                sim_species_profile[p_ind].append((t, state[p_ind]))
+                            else:
+                                state[p_ind] = 1
+                                sim_species_profile[p_ind] = [(0.0, 0), (t, state[p_ind])]
+
                 else:
-                    if (p_ind in state) and (p_ind in state_to_plot):
-                        state[p_ind] += 1
-                        state_to_plot[p_ind].append((t, state[p_ind]))
-                    else:
-                        state[p_ind] = 1
-                        state_to_plot[p_ind] = [(0.0, 0), (t, state[p_ind])]
+                    for r_ind in self.reactants[converted_ind, :]:
+                        if r_ind == -1:
+                            continue
+                        else:
+                            try:
+                                state[r_ind] -= 1
+                                if state[r_ind] < 0:
+                                    raise ValueError("State invalid: negative specie: {}".format(r_ind))
+                                sim_species_profile[r_ind].append((t, state[r_ind]))
+                            except KeyError:
+                                raise ValueError("Specie {} given is not in state!".format(r_ind))
+                    for p_ind in self.products[converted_ind, :]:
+                        if p_ind == -1:
+                            continue
+                        elif (p_ind in state) and (p_ind in sim_species_profile):
+                            state[p_ind] += 1
+                            sim_species_profile[p_ind].append((t, state[p_ind]))
+                        else:
+                            state[p_ind] = 1
+                            sim_species_profile[p_ind] = [(0.0, 0), (t, state[p_ind])]
 
-        else:
-            for r_ind in reactants[converted_ind, :]:
-                if r_ind == -1:
-                    continue
-                else:
-                    try:
-                        state[r_ind] -= 1
-                        if state[r_ind] < 0:
-                            raise ValueError("State invalid: negative specie: {}".format(r_ind))
-                        state_to_plot[r_ind].append((t, state[r_ind]))
-                    except KeyError:
-                        raise ValueError("Specie {} given is not in state!".format(r_ind))
-            for p_ind in products[converted_ind, :]:
-                if p_ind == -1:
-                    continue
-                elif (p_ind in state) and (p_ind in state_to_plot):
-                    state[p_ind] += 1
-                    state_to_plot[p_ind].append((t, state[p_ind]))
-                else:
-                    state[p_ind] = 1
-                    state_to_plot[p_ind] = [(0.0, 0), (t, state[p_ind])]
+                species_profiles.append(sim_species_profile)
+                reaction_profiles.append(sim_rxn_profile)
+                final_states.append(state)
 
-    t_end = t
-    # Sorting and plotting:
-    fig, ax = plt.subplots()
+            return {'species_profiles': species_profiles, 'reaction_profiles': reaction_profiles,
+                    'final_states': final_states}
 
-    sorted_state = sorted([(k, v) for k, v in state.items()], key=lambda x: x[1], reverse=True)
-    sorted_inds = [mol_tuple[0] for mol_tuple in sorted_state]
+    def plot_species_profiles(self, species_profiles, final_states, num_label, filename='KMC', num_plots=self.num_sims):
+        """
+        Sorting and plotting time dependent species data
 
-    sorted_ind_id_mapping = dict()
-    iter_counter = 0
-    for id, ind in molid_ind_mapping.items():
+        Args:
+            species_profiles (list of dicts): species as function of time, for each simulation
+            final_states (list of dicts): final states of each simulation
+            num_label (int): number of species in the legend
+            filename (str)
+            num_plots (int): number of simulations desired to plot. If None, plot all the data.
 
-        if ind in sorted_inds[:num_label]:
-            sorted_ind_id_mapping[ind] = id
-            iter_counter += 1
-        if iter_counter == num_label:
-            break
+        """
 
-    colors = plt.cm.get_cmap('hsv', num_label)
-    this_id = 0
+        for n_sim in range(num_plots):
+            # Sorting and plotting:
+            fig, ax = plt.subplots()
+            sorted_state = sorted([(k, v) for k, v in final_states[n_sim].items()], key=lambda x: x[1], reverse=True)
+            sorted_inds = [mol_tuple[0] for mol_tuple in sorted_state]
+            sorted_ind_id_mapping = dict()
+            iter_counter = 0
 
-    for mol_ind in state_to_plot:
-        ts = np.append(np.array([e[0] for e in state_to_plot[mol_ind]]), t_end)
-        nums = np.append(np.array([e[1] for e in state_to_plot[mol_ind]]), state_to_plot[mol_ind][-1][1])
-        if mol_ind in sorted_inds[:num_label]:
-            mol_id = sorted_ind_id_mapping[mol_ind]
-            for entry in reaction_network.entries_list:
-                if mol_id == entry.entry_id:
-                    this_composition = entry.molecule.composition.alphabetical_formula
-                    this_charge = entry.molecule.charge
-                    this_label = this_composition + " " + str(this_charge)
-                    this_color = colors(this_id)
-                    this_id += 1
+            for id, ind in self.molid_ind_mapping.items():
+                if ind in sorted_inds[:num_label]:
+                    sorted_ind_id_mapping[ind] = id
+                    iter_counter += 1
+                if iter_counter == num_label:
                     break
 
-            ax.plot(ts, nums, label=this_label, color=this_color)
-        else:
-            ax.plot(ts, nums)
+            colors = plt.cm.get_cmap('hsv', num_label)
+            this_id = 0
+            t_end = sum(self.time_history[n_sim])
 
-    title = "KMC simulation, total time {}".format(cumulative_time[-1])
-    ax.set(title=title,
-           xlabel="Time (s)",
-           ylabel="# Molecules")
-    ax.legend(loc='upper right', bbox_to_anchor=(1, 1),
-              ncol=2, fontsize="small")
+            for mol_ind in species_profiles[n_sim]:
+                ts = np.append(np.array([e[0] for e in species_profiles[n_sim][mol_ind]]), t_end)
+                nums = np.append(np.array([e[1] for e in species_profiles[n_sim][mol_ind]]),
+                                 species_profiles[n_sim][mol_ind][-1][1])
+                if mol_ind in sorted_inds[:num_label]:
+                    mol_id = sorted_ind_id_mapping[mol_ind]
+                    for entry in self.reaction_network.entries_list:
+                        if mol_id == entry.entry_id:
+                            this_composition = entry.molecule.composition.alphabetical_formula
+                            this_charge = entry.molecule.charge
+                            this_label = this_composition + " " + str(this_charge)
+                            this_color = colors(this_id)
+                            this_id += 1
+                            break
+                    ax.plot(ts, nums, label=this_label, color=this_color)
+                else:
+                    ax.plot(ts, nums)
 
-    if filename is None:
-        plt.show()
-    else:
-        plt.savefig(filename)
+            title = "KMC simulation, total time {}".format(cumulative_time[-1])
+            ax.set(title=title,
+                   xlabel="Time (s)",
+                   ylabel="# Molecules")
+            ax.legend(loc='upper right', bbox_to_anchor=(1, 1),
+                      ncol=2, fontsize="small")
 
+            sim_filename = filename + '_run_' + str(n_sim+1)
+            plt.savefig(sim_filename)
 
-def time_analysis(time_array):
-    time_dict = dict()
-    time_dict["t_avg"] = np.average(time_array)
-    time_dict["t_std"] = np.std(time_array)
-    time_dict["steps"] = len(time_array)
-    time_dict["total_t"] = (time_array)[-1] # minutes
-    return time_dict
+    def time_analysis(self):
+        time_dict = dict()
+        time_dict["t_avg"] = np.average(time_array)
+        time_dict["t_std"] = np.std(time_array)
+        time_dict["steps"] = len(time_array)
+        time_dict["total_t"] = (time_array)[-1] # minutes
+        return time_dict
+
+    def quantify_sort_reactions(self, reaction_profiles, reaction_type=None, num_rxns=None):
+        """
+        Given reaction history of a simulation, identify the most commonly occurring reactions.
+        Can examine generally, or by reaction type.
+
+         Args:
+             reaction_profiles (list of dicts): reactions fired as a function of time
+             reaction_type (string)
+             num_rxns (int): the amount of reactions interested in collecting data on. If None, record for all.
+
+         Returns:
+             reaction_data (list of list of dict): each dict contains reaction index, count, reactant ids, product ids.
+                                                    Each sim contains the list of dicts for each reaction fired, sorted
+                                                    from highest count to lowest count.
+
+         """
+        if reaction_type != None:
+            if (reaction_type != 'One electron reduction') or (reaction_type != 'One electron oxidation') or \
+                    (reaction_type != 'Intramolecular single bond breakage') or \
+                    (reaction_type != 'Intramolecular single bond formation') or \
+                    (reaction_type != 'Coordination bond breaking AM -> A+M') or \
+                    (reaction_type != 'Coordination bond forming A+M -> AM') or \
+                    (reaction_type != 'Molecular decomposition breaking one bond A -> B+C') or \
+                    (reaction_type != 'Molecular formation from one new bond A+B -> C') or \
+                    (reaction_type != 'Concerted'):
+                raise RuntimeError('This reaction type does not (yet) exist in our reaction networks.')
+
+        reaction_data = list()
+        for n_sim in range(self.num_sims):
+            num_fired_rxns = len(reaction_profiles[n_sim])
+            reaction_counts = [(rxn_ind, len(reaction_profiles[n_sim][rxn_ind]))
+                               for rxn_ind in reaction_profiles[n_sim]]
+            sorted_reaction_counts = sorted(reaction_counts, key=lambda x: x[1], reverse=True)
+            sim_reaction_data = list()
+            if num_rxns == None:
+                num_rxns = num_fired_rxns
+
+            for rxn_ind, count in sorted_reaction_counts[:num_rxns]:
+                this_data = dict()
+                this_data['reaction_index'] = rxn_ind
+                this_data['count'] = count
+                this_data['reactants'] = list()
+                this_data['products'] = list()
+                if rxn_ind % 2:
+                    react_inds = self.products[rxn_ind]
+                    prod_inds = self.reactants[rxn_ind]
+                else:
+                    react_inds = self.reactants[rxn_ind]
+                    prod_inds = self.products[rxn_ind]
+
+                for r_ind in react_inds:
+                    this_data['reactants'].append(r_ind)
+
+                for p_ind in prod_inds:
+                    this_data['products'].append(p_ind)
+
+                sim_reaction_data.append(this_data)
+
+            reaction_data.append(sim_reaction_data)
+        return reaction_data
 
 
 class KineticMonteCarloSimulator:

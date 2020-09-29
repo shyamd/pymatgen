@@ -262,6 +262,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         self.assertArrayAlmostEqual(self.species_rxn_mapping, species_rxn_mapping)
         self.assertArrayAlmostEqual(self.propensities, propensities)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_update_state(self):
         # Reactions of interest:
         # 1) h2 <--> h2+
@@ -302,6 +303,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         expected_state[self.molid_ind_mapping['o2']] = self.num_mols
         self.assertEqual(list(state), expected_state)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_get_coordination(self):
         # Reactions of interest:
         # h2 <--> h2+
@@ -343,6 +345,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
 
                 self.assertEqual(expected_coords, coords)
 
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_kmc_simulate(self):
         t_steps = 1
         iterations = 10000
