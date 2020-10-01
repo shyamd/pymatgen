@@ -11,6 +11,7 @@ import time
 from numba import jit
 from numba import int64, float64
 from numba.experimental import jitclass
+import os
 
 __author__ = "Ronald Kam, Evan Spotte-Smith, Xiaowei Xie"
 __email__ = "kamronald@berkeley.edu"
@@ -137,6 +138,7 @@ def initialize_simulation(reaction_network, initial_cond, volume=10**-24):
 @jit(nopython=True, parallel=True)
 def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
                  species_rxn_mapping, reactants, products, state):
+
     """ KMC Simulation of reaction network and specified initial conditions.
 
     Args:
@@ -198,8 +200,9 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
         propensity_array = np.multiply(rate_constants, coord_array)
         relevant_ind = np.where(propensity_array > 0)[0]
         total_propensity = np.sum(propensity_array[relevant_ind])
-        reaction_history[step_counter] = reaction_choice_ind
+        reaction_history[step_counter] = int(reaction_choice_ind)
         times[step_counter] = tau
+
     return np.vstack((np.array(reaction_history), np.array(times)))
 
 
@@ -282,12 +285,11 @@ def get_coordination(reactants, products, state, rxn_id, reverse):
     return h_prop
 
 
-class KMC_data_analysis:
+class KMC_data_analyzer:
     """
-    Functions to analyze KMC (function-based) outputs from many simulation runs.
+    Functions to analyze (function-based) KMC outputs from many simulation runs.
 
     """
-
     def __init__(self, reaction_network, molid_ind_mapping, initial_state_dict, products, reactants,
                  reaction_history, time_history):
         self.reaction_network = reaction_network
@@ -301,10 +303,12 @@ class KMC_data_analysis:
         self.num_sims = len(self.reaction_history)
         if self.num_sims != len(self.time_history):
             raise RuntimeError('Number of datasets for rxn history and time step history should be same!')
+        print('products: ', self.products)
+        print('reactants: ', self.reactants)
 
     def generate_time_dep_profiles(self):
         """
-        Generate plottable time-dependent profiles of species and rxns from KMC outputs.
+        Generate plottable time-dependent profiles of species and rxns from raw KMC output, obtain final states.
         :return dict containing species profiles, reaction profiles, and final states from each simulation.
                 species_profiles: [ {mol_ind1: [(t0, n(t0)), (t1, n(t1)...], mol_ind2: ... ,  ... }, {...}, ... ]
                 reaction_profiles: [ {rxn_ind1: [t0, t1, ...], rxn_ind2: ..., ...}, {...}, ...]
@@ -335,7 +339,7 @@ class KMC_data_analysis:
                 if rxn_ind not in sim_rxn_profile:
                     sim_rxn_profile[rxn_ind] = [t]
                 else:
-                    sim_rxn_profile.append(t)
+                    sim_rxn_profile[rxn_ind].append(t)
                 converted_ind = math.floor(rxn_ind/2)
 
                 if rxn_ind % 2:
@@ -390,19 +394,21 @@ class KMC_data_analysis:
             return {'species_profiles': species_profiles, 'reaction_profiles': reaction_profiles,
                     'final_states': final_states}
 
-    def plot_species_profiles(self, species_profiles, final_states, num_label, filename='KMC', num_plots=self.num_sims):
+    def plot_species_profiles(self, species_profiles, final_states, num_label, filename='KMC', file_dir = None):
         """
-        Sorting and plotting time dependent species data
+        Sorting and plotting species profiles for a specified number of simulations. The profiles might be very similar,
+        so may not need to plot all of the runs for good understanding of results.
 
         Args:
             species_profiles (list of dicts): species as function of time, for each simulation
             final_states (list of dicts): final states of each simulation
             num_label (int): number of species in the legend
             filename (str)
+            file_dir (str)
             num_plots (int): number of simulations desired to plot. If None, plot all the data.
 
         """
-
+        num_plots = self.num_sims
         for n_sim in range(num_plots):
             # Sorting and plotting:
             fig, ax = plt.subplots()
@@ -440,7 +446,7 @@ class KMC_data_analysis:
                 else:
                     ax.plot(ts, nums)
 
-            title = "KMC simulation, total time {}".format(cumulative_time[-1])
+            title = "KMC simulation, total time {}".format(t_end)
             ax.set(title=title,
                    xlabel="Time (s)",
                    ylabel="# Molecules")
@@ -448,20 +454,38 @@ class KMC_data_analysis:
                       ncol=2, fontsize="small")
 
             sim_filename = filename + '_run_' + str(n_sim+1)
-            plt.savefig(sim_filename)
+            if file_dir == None:
+                plt.savefig(sim_filename)
+            else:
+                plt.savefig(file_dir + '/' + sim_filename)
 
-    def time_analysis(self):
-        time_dict = dict()
-        time_dict["t_avg"] = np.average(time_array)
-        time_dict["t_std"] = np.std(time_array)
-        time_dict["steps"] = len(time_array)
-        time_dict["total_t"] = (time_array)[-1] # minutes
-        return time_dict
+    def identify_intermediates(self, species_profile, cutoff=0.1):
+        """
+        Identify intermediates from species vs time profile of one simulation. It is an intermediate if its final state
+        contains less than 1/10 of its maximal amount. User can adjust this fraction.
+        :param species_profile: (Dict of list of tuple)
+        :param cutoff: (float) fraction to adjust definition of intermediate
+        :return: list of identified intermediates, by molecule index
+        """
+        intermediates = list()
+        for mol_ind in species_profile:
+            history = [t[1] for t in species_profile[mol_ind]]
+            if (max(history) > 20) and (history[-1] < cutoff*max(history)):
+                intermediates.append(mol_ind)
+        return intermediates
 
-    def quantify_sort_reactions(self, reaction_profiles, reaction_type=None, num_rxns=None):
+    def quantify_specific_reaction(self, reaction_profile, reaction_index):
+
+        if reaction_index not in reaction_profile:
+            raise RuntimeError('Reaction did not occur in this simulation run.')
+        reaction_count = len(reaction_profile[reaction_index])
+
+        return reaction_count
+
+    def quantify_rank_reactions(self, reaction_profiles, reaction_type=None, num_rxns=None):
         """
         Given reaction history of a simulation, identify the most commonly occurring reactions.
-        Can examine generally, or by reaction type.
+        Can rank generally, or by reactions of a certain type.
 
          Args:
              reaction_profiles (list of dicts): reactions fired as a function of time
@@ -472,9 +496,10 @@ class KMC_data_analysis:
              reaction_data (list of list of dict): each dict contains reaction index, count, reactant ids, product ids.
                                                     Each sim contains the list of dicts for each reaction fired, sorted
                                                     from highest count to lowest count.
-
          """
+
         if reaction_type != None:
+            rxns_of_type = list()
             if (reaction_type != 'One electron reduction') or (reaction_type != 'One electron oxidation') or \
                     (reaction_type != 'Intramolecular single bond breakage') or \
                     (reaction_type != 'Intramolecular single bond formation') or \
@@ -485,14 +510,28 @@ class KMC_data_analysis:
                     (reaction_type != 'Concerted'):
                 raise RuntimeError('This reaction type does not (yet) exist in our reaction networks.')
 
+            for ind, rxn in enumerate(self.reaction_network.reactions):
+                if rxn.reaction_type()['rxn_type_A'] == reaction_type:
+                    rxns_of_type.append(2*ind)
+                elif rxn.reaction_type()['rxn_type_B'] == reaction_type:
+                    rxns_of_type.append(2*ind + 1)
+
         reaction_data = list()
         for n_sim in range(self.num_sims):
             num_fired_rxns = len(reaction_profiles[n_sim])
-            reaction_counts = [(rxn_ind, len(reaction_profiles[n_sim][rxn_ind]))
-                               for rxn_ind in reaction_profiles[n_sim]]
+            if reaction_type != None:
+                reaction_counts = [(int(rxn_ind), len(reaction_profiles[n_sim][rxn_ind]))
+                                for rxn_ind in reaction_profiles[n_sim] if rxn_ind in rxns_of_type]
+            else:
+                reaction_counts = [(int(rxn_ind), len(reaction_profiles[n_sim][rxn_ind]))
+                                   for rxn_ind in reaction_profiles[n_sim]]
             sorted_reaction_counts = sorted(reaction_counts, key=lambda x: x[1], reverse=True)
+            print('sorted_rxn_count: ', sorted_reaction_counts)
             sim_reaction_data = list()
+
             if num_rxns == None:
+                num_rxns = num_fired_rxns
+            elif num_rxns > num_fired_rxns:
                 num_rxns = num_fired_rxns
 
             for rxn_ind, count in sorted_reaction_counts[:num_rxns]:
@@ -502,11 +541,11 @@ class KMC_data_analysis:
                 this_data['reactants'] = list()
                 this_data['products'] = list()
                 if rxn_ind % 2:
-                    react_inds = self.products[rxn_ind]
-                    prod_inds = self.reactants[rxn_ind]
+                    react_inds = self.products[rxn_ind, :]
+                    prod_inds = self.reactants[rxn_ind, :]
                 else:
-                    react_inds = self.reactants[rxn_ind]
-                    prod_inds = self.products[rxn_ind]
+                    react_inds = self.reactants[rxn_ind, :]
+                    prod_inds = self.products[rxn_ind, :]
 
                 for r_ind in react_inds:
                     this_data['reactants'].append(r_ind)
@@ -517,7 +556,79 @@ class KMC_data_analysis:
                 sim_reaction_data.append(this_data)
 
             reaction_data.append(sim_reaction_data)
+
+            # Then run averages and std dev of all runs, and rank each reaction
         return reaction_data
+
+    def time_step_analysis(self, sim_time_array):
+        t_avg = np.average(sim_time_array)
+        t_std = np.std(sim_time_array)
+        log_time = np.log10(sim_time_array)
+        logt_avg = np.average(log_time)
+        logt_std = np.std(log_time)
+
+        # loop through and identify "initial cascade"
+
+        for step_num, log_tau in enumerate(log_time):
+            if log_tau >= logt_avg - logt_std:
+                if all(log_time[step_num-5:step_num] >= logt_avg - logt_std):
+                    # ensure we are in steady region after cascade
+                    t_cascade = 10**log_tau
+                    break
+        for log_tau in log_time[step_num:]:
+            if log_tau > 2*logt_std + logt_avg:
+                t_steady_state = 10**log_tau
+                break
+
+        return {'t_avg': t_avg, 't_std': t_std, 'logt_avg': logt_avg, 'logt_std': logt_std, 't_cascade': t_cascade,
+                't_steady_state': t_steady_state, 'steps': len(sim_time_array), 'total_t': sim_time_array[-1]}
+
+    def reaction_frequency_analysis(self, time_step_analysis, rxn_ind, n=30):
+        """
+        Calculate the frequency of reaction as a function of time. Simulation data is discretized into size of n steps,
+        and probability of reaction occurring in this set is obtained.
+
+        :param time_step_analysis:
+        :param rxn_ind:
+        :param n: discretizing time by the number of steps n, in calculating reaction frequencies
+        :return:
+
+        """
+        t_avg = time_step_analysis['t_avg']
+        t_cascade = time_step_analysis['t_cascade']
+        frequency_data = list()
+        for n_sim in self.num_sims:
+            cascade_end = np.where(self.time_history[n_sim] >= t_cascade)[0][0]
+            cascade_freq = np.count_nonzero(self.reaction_history[n_sim][:cascade_end] == rxn_ind) / cascade_end
+            intervals = np.arange(0, len(self.time_history[n_sim]), step=n)  # discretize time into sizes of n steps
+            sim_rxn_frequencies = dict()
+            freq_list = list()
+            for i in range(len(intervals[1:])):
+                rxn_freq = np.count_nonzero(self.reaction_history[n_sim][intervals[i] - intervals[i-1]]) / n
+                t_mdpt = (self.time_history[n_sim][intervals[i]] + self.time_history[n_sim][intervals[i-1]]) / 2
+                freq_list.append((t_mdpt, rxn_freq))
+
+            last_rxn_freq = np.count_nonzero(self.reaction_history[n_sim][intervals[i]:])
+            last_t_mdpt = (self.time_history[n_sim][intervals[i]] + self.time_history[n_sim][intervals[-1]]) / 2
+            freq_list.append((last_t_mdpt, last_rxn_freq))
+
+            sim_rxn_frequencies['freq_data'] = freq_list
+            sim_rxn_frequencies['cascade_frequency'] = cascade_freq
+            frequency_data.append(sim_rxn_frequencies)
+
+        return frequency_data
+
+    def find_rxn_index(self, reaction, reverse):
+
+        for ind, rxn in enumerate(self.reaction_network.reactions):
+            if rxn == reaction:
+                if reverse == True:
+                    rxn_ind = 2*ind + 1
+                else:
+                    rxn_ind = 2*ind
+                break
+
+        return rxn_ind
 
 
 class KineticMonteCarloSimulator:
