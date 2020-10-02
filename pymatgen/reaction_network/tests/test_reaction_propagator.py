@@ -1,5 +1,5 @@
 import numpy as np
-import random
+import os
 from scipy.constants import N_A
 from pymatgen.util.testing import PymatgenTest
 from pymatgen.reaction_network.reaction_network import ReactionNetwork
@@ -13,11 +13,12 @@ try:
 except ImportError:
     ob = None
 
-
 __author__ = "Ronald Kam, Evan Spotte-Smith"
 __email__ = "kamronald@berkeley.edu"
 __copyright__ = "Copyright 2020, The Materials Project"
 __version__ = "0.1"
+
+test_dir = os.path.join(os.path.dirname(__file__))
 
 
 class TestKineticMonteCarloSimulator(PymatgenTest):
@@ -25,44 +26,44 @@ class TestKineticMonteCarloSimulator(PymatgenTest):
         """ Create an initial state and reaction network, based on H2O molecule.
         Species include H2, H2O, H, O, O2, OH, H3O
         """
-        self.volume = 10**-24 # m^3
+        self.volume = 10**-24  # m^3
 
         # 100 molecules each of H2O, H2, O2
         self.num_mols = 100
         self.concentration = self.num_mols / N_A / self.volume / 1000
 
         # Make molecule objects
-        H2O_mol = Molecule.from_file("H2O.xyz")
+        H2O_mol = Molecule.from_file(os.path.join(test_dir, "H2O.xyz"))
         H2O_mol1 = copy.deepcopy(H2O_mol)
         H2O_mol_1 = copy.deepcopy(H2O_mol)
         H2O_mol1.set_charge_and_spin(charge=1)
         H2O_mol_1.set_charge_and_spin(charge=-1)
 
-        H2_mol = Molecule.from_file("H2.xyz")
+        H2_mol = Molecule.from_file(os.path.join(test_dir, "H2.xyz"))
         H2_mol1 = copy.deepcopy(H2_mol)
         H2_mol_1 = copy.deepcopy(H2_mol)
         H2_mol1.set_charge_and_spin(charge=1)
         H2_mol_1.set_charge_and_spin(charge=-1)
 
-        O2_mol = Molecule.from_file("O2.xyz")
+        O2_mol = Molecule.from_file(os.path.join(test_dir, "O2.xyz"))
         O2_mol1 = copy.deepcopy(O2_mol)
         O2_mol_1 = copy.deepcopy(O2_mol)
         O2_mol1.set_charge_and_spin(charge=1)
         O2_mol_1.set_charge_and_spin(charge=-1)
 
-        OH_mol = Molecule.from_file("OH.xyz")
+        OH_mol = Molecule.from_file(os.path.join(test_dir, "OH.xyz"))
         OH_mol1 = copy.deepcopy(OH_mol)
         OH_mol_1 = copy.deepcopy(OH_mol)
         OH_mol1.set_charge_and_spin(charge=1)
         OH_mol_1.set_charge_and_spin(charge=-1)
 
-        H_mol = Molecule.from_file("H.xyz")
+        H_mol = Molecule.from_file(os.path.join(test_dir, "H.xyz"))
         H_mol1 = copy.deepcopy(H_mol)
         H_mol_1 = copy.deepcopy(H_mol)
         H_mol1.set_charge_and_spin(charge=1)
         H_mol_1.set_charge_and_spin(charge=-1)
 
-        O_mol = Molecule.from_file("O.xyz")
+        O_mol = Molecule.from_file(os.path.join(test_dir, "O.xyz"))
         O_mol1 = copy.deepcopy(O_mol)
         O_mol_1 = copy.deepcopy(O_mol)
         O_mol1.set_charge_and_spin(charge=1)
@@ -144,8 +145,7 @@ class TestKineticMonteCarloSimulator(PymatgenTest):
                                  99)
 
         diff_prop = KineticMonteCarloSimulator(self.reaction_network, {13: self.concentration,
-                                                               16: self.concentration},
-                                       self.volume)
+                                                                       16: self.concentration}, self.volume)
         for rr, reaction in diff_prop.reactions.items():
             if set(reaction.product_ids) == {13, 16}:
                 self.assertEqual(diff_prop.get_coordination(reaction, True),
