@@ -36,8 +36,10 @@ spec = [('products', int64[:, :]),
         ('reaction_history', int64[:])
         ]
 
-"""Function-based KMC simulation for a reaction network, assuming spatial homogeneity. Simulation is performed without 
+"""
+Below are function-based KMC simulation for a reaction network, assuming spatial homogeneity. Simulation is performed without 
 objects, such is required to improve performance with Numba. Algorithm is described by Gillespie (1976).
+
 """
 
 
@@ -290,10 +292,11 @@ class KMC_data_analyzer:
     Functions to analyze (function-based) KMC outputs from many simulation runs.
 
     """
-    def __init__(self, reaction_network, molid_ind_mapping, initial_state_dict, products, reactants,
-                 reaction_history, time_history):
+    def __init__(self, reaction_network, molid_ind_mapping, species_rxn_mapping, initial_state_dict, products,
+                 reactants, reaction_history, time_history):
         self.reaction_network = reaction_network
         self.molid_ind_mapping = molid_ind_mapping
+        self.species_rxn_mapping = species_rxn_mapping
         self.initial_state_dict = initial_state_dict
         self.products = products
         self.reactants = reactants
@@ -459,19 +462,31 @@ class KMC_data_analyzer:
             else:
                 plt.savefig(file_dir + '/' + sim_filename)
 
-    def identify_intermediates(self, species_profile, cutoff=0.1):
+    def analyze_intermediates(self, species_profile, cutoff=0.1):
         """
         Identify intermediates from species vs time profile of one simulation. It is an intermediate if its final state
         contains less than 1/10 of its maximal amount. User can adjust this fraction.
         :param species_profile: (Dict of list of tuple)
         :param cutoff: (float) fraction to adjust definition of intermediate
-        :return: list of identified intermediates, by molecule index
+        :return: dictionary with keys of intermediate mol index. Each dict contains info about lifetime, time of max
+        population, and the maximum amount.
         """
-        intermediates = list()
+        intermediates = dict()
         for mol_ind in species_profile:
-            history = [t[1] for t in species_profile[mol_ind]]
-            if (max(history) > 20) and (history[-1] < cutoff*max(history)):
-                intermediates.append(mol_ind)
+            history = np.array([t[1] for t in species_profile[mol_ind]])
+            max_amt = max(history)
+            amt_produced = max_amt - history[0]
+            if (amt_produced >= 3) and (history[-1] < cutoff*max_amt):
+                max_ind = np.where(history == max_amt)
+                t_max = species_profile[mol_ind][max_ind][0]
+                for state in species_profile[mol_ind][max_ind:]:
+                    if state[1] < cutoff*max_amt:
+                        intermediates[mol_ind] = dict()
+                        intermediates[mol_ind]['lifetime'] = state[0] - t_max
+                        intermediates[mol_ind]['t_max'] = t_max
+                        intermediates[mol_ind]['max_amt'] = max_amt
+                        break
+
         return intermediates
 
     def quantify_specific_reaction(self, reaction_profile, reaction_index):
