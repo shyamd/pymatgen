@@ -4,6 +4,7 @@
 
 import unittest
 import os
+import copy
 
 import numpy as np
 from scipy.constants import h, k
@@ -13,7 +14,8 @@ from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.reaction_network.reaction_rates import (
     ReactionRateCalculator,
     BEPRateCalculator,
-    ExpandedBEPRateCalculator
+    ExpandedBEPRateCalculator,
+    RedoxRateCalculator
 )
 
 try:
@@ -304,6 +306,61 @@ class ExpandedBEPReactionRateCalculatorTest(unittest.TestCase):
         # Test effect of kappa
         self.assertEqual(self.calc.calculate_rate_constant(),
                          self.calc.calculate_rate_constant(kappa=0.5) * 2)
+
+
+class RedoxRateCalculatorTest(unittest.TestCase):
+    def setUp(self) -> None:
+
+        if ob:
+            self.energies = [-349.88738062842, -349.955817900195]
+            self.enthalpies = [53.623, 51.853]
+            self.entropies = [82.846, 79.595]
+
+            rct_mol = copy.deepcopy(mol_placeholder)
+            rct_mol.set_charge_and_spin(charge=1)
+
+            pro_mol = copy.deepcopy(mol_placeholder)
+            pro_mol.set_charge_and_spin(charge=0)
+
+            self.rct = MoleculeEntry(rct_mol, self.energies[0],
+                                     enthalpy=self.enthalpies[0], entropy=self.entropies[0])
+            self.pro = MoleculeEntry(pro_mol, self.energies[1],
+                                     enthalpy=self.enthalpies[1],
+                                     entropy=self.entropies[1])
+
+            self.calc = RedoxRateCalculator([self.rct], [self.pro],
+                                            1.031373321805404,
+                                            18.5, 1.415, -1.897, 7.5, 5)
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    def test_act_properties(self):
+        self.assertAlmostEqual(self.calc.calculate_act_gibbs(temperature=300),
+                               0.284698735, 9)
+        self.assertAlmostEqual(self.calc.calculate_act_gibbs(temperature=300, reverse=True),
+                               0.284433478, 9)
+        self.assertAlmostEqual(self.calc.calculate_act_gibbs(temperature=600),
+                               0.306243023, 9)
+
+        with self.assertRaises(NotImplementedError):
+            self.calc.calculate_act_energy()
+        with self.assertRaises(NotImplementedError):
+            self.calc.calculate_act_enthalpy()
+        with self.assertRaises(NotImplementedError):
+            self.calc.calculate_act_entropy()
+        with self.assertRaises(NotImplementedError):
+            self.calc.calculate_act_thermo(temperature=300.00)
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    def test_rate_constant(self):
+        self.assertAlmostEqual(self.calc.calculate_rate_constant(temperature=300),
+                               255536.74880926133,
+                               4)
+        self.assertAlmostEqual(self.calc.calculate_rate_constant(temperature=300, reverse=True),
+                               258172.2056825794,
+                               4)
+        self.assertAlmostEqual(self.calc.calculate_rate_constant(temperature=600),
+                               82962806.19389883,
+                               4)
 
 
 if __name__ == "__main__":
