@@ -1249,5 +1249,6 @@ class TestReactionNetwork(PymatgenTest):
         self.assertEqual(len(RN_loaded.graph.nodes), 15064)
         self.assertEqual(len(RN_loaded.graph.edges), 36589)
 
+
 if __name__ == "__main__":
     unittest.main()
