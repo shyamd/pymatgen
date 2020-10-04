@@ -18,7 +18,8 @@ from monty.serialization import dumpfn, loadfn
 from pymatgen.analysis.graphs import MolGraphSplitError
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.reaction_network.reaction_rates import (ReactionRateCalculator,
-                                                      ExpandedBEPRateCalculator)
+                                                      ExpandedBEPRateCalculator,
+                                                      RedoxRateCalculator)
 from pymatgen.util.classes import load_class
 
 
@@ -1266,6 +1267,7 @@ class ConcertedReaction(Reaction):
 
     def __init__(self, reactant: List[MoleculeEntry], product: List[MoleculeEntry],
                  transition_state: Optional[MoleculeEntry] = None,
+                 electron_free_energy: Optional[float] = None,
                  parameters: Optional[Dict] = None):
         """
             Initilizes IntermolecularReaction.reactant to be in the form of a
@@ -1279,11 +1281,13 @@ class ConcertedReaction(Reaction):
           Args:
             reactant: MoleculeEntry object
             product: list of MoleculeEntry object of length 2
+            transition_state: MoleculeEntry representing the TS for the reaction
+
         """
 
         self.reactants = reactant
         self.products = product
-        self.electron_free_energy = None
+        self.electron_free_energy = electron_free_energy
         self.electron_energy = None
         super().__init__(reactant, product,
                          transition_state=transition_state,
@@ -1392,6 +1396,12 @@ class ConcertedReaction(Reaction):
              the reactant and product of the ConcertedReaction
              object, and the backwards of this reaction would be free_energy_B.
          """
+
+        if self.electron_free_energy is None:
+            electron_free = 0.0
+        else:
+            electron_free = self.electron_free_energy
+
         cond_rct = all(reactant.free_energy() is not None for reactant in self.reactants)
         cond_pro = all(product.free_energy() is not None for product in self.products)
         if cond_rct and cond_pro:
@@ -1400,8 +1410,8 @@ class ConcertedReaction(Reaction):
             reactant_free_energy = np.sum([item.free_energy(temp=temperature) for item in self.reactants])
             product_free_energy = np.sum([item.free_energy(temp=temperature) for item in self.products])
             total_charge_change = product_charge - reactant_charge
-            free_energy_A = product_free_energy - reactant_free_energy + total_charge_change * self.electron_free_energy
-            free_energy_B = reactant_free_energy - product_free_energy - total_charge_change * self.electron_free_energy
+            free_energy_A = product_free_energy - reactant_free_energy + total_charge_change * electron_free
+            free_energy_B = reactant_free_energy - product_free_energy - total_charge_change * electron_free
 
         else:
             free_energy_A = None
@@ -1947,7 +1957,7 @@ class ReactionNetwork(MSONable):
 
     @classmethod
     def from_input_entries(cls, input_entries, electron_free_energy=-2.15,
-                           temperature=298.15, replace_ind = True):
+                           temperature=298.15, replace_ind=True):
         """
         Generate a ReactionNetwork from a set of MoleculeEntries.
 

@@ -726,7 +726,12 @@ class TestReactionNetwork(PymatgenTest):
                 else:
                     cls.LiEC_reextended_entries.append(mol_entry)
             dumpfn(cls.LiEC_reextended_entries, "unittest_input_molentries.json")
-            cls.RN_cls = loadfn(os.path.join(test_dir, "RN.json"))
+
+            RN = ReactionNetwork.from_input_entries(cls.LiEC_reextended_entries,
+                                                    )
+
+            cls.RN_cls =
+            # cls.RN_cls = loadfn(os.path.join(test_dir, "RN.json"))
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_add_reactions(self):
