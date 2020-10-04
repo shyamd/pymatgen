@@ -1910,7 +1910,7 @@ class ReactionNetwork(MSONable):
 
     def __init__(self, electron_free_energy, temperature, solvent_dielectric,
                  solvent_refractive_index, entries_dict,
-                 entries_list, graph, reactions, families,
+                 entries_list, graph, reactions, families, PRs,
                  PR_record, min_cost, num_starts):
         """
         :param electron_free_energy: Electron free energy (in eV)
@@ -1923,6 +1923,7 @@ class ReactionNetwork(MSONable):
         :param graph: nx.DiGraph representing connections in the network
         :param reactions: list of Reaction objects
         :param families: dict containing reaction families
+        :param PRs: dict containing prerequisite information
         :param PR_record: dict containing reaction prerequisites
         :param min_cost: dict containing costs of entries in the network
         :param num_starts: Number of starting molecules
@@ -1944,6 +1945,7 @@ class ReactionNetwork(MSONable):
         self.min_cost = min_cost
         self.num_starts = num_starts
 
+        self.PRs = PRs
         self.reachable_nodes = []
         self.unsolvable_PRs = []
         self.entry_ids = {e.entry_id for e in self.entries_list}
@@ -2035,7 +2037,7 @@ class ReactionNetwork(MSONable):
 
         network = cls(electron_free_energy, temperature, solvent_dielectric,
                       solvent_refractive_index, entries, entries_list,
-                      graph, list(), dict(), dict(), dict(), 0)
+                      graph, list(), dict(), dict(), dict(), dict(), 0)
 
         return network
 
@@ -2697,7 +2699,6 @@ class ReactionNetwork(MSONable):
 
         return nx.shortest_simple_paths(valid_graph, hash(start), hash(target), weight=self.weight)
 
-
     def find_paths(self, starts, target, weight, num_paths=10, ignorenode=[]):  # -> ??
         """
             A method to find the shorted parth from given starts to a target
@@ -3082,13 +3083,15 @@ class ReactionNetwork(MSONable):
              "families": families,
              "electron_free_energy": self.electron_free_energy,
              "temperature": self.temperature,
+             "solvent_dielectric": self.solvent_dielectric,
+             "solvent_refractive_index": self.solvent_refractive_index,
              "graph": json_graph.adjacency_data(self.graph),
              "PR_record": self.PR_record,
              "min_cost": self.min_cost,
-             "num_starts": self.num_starts}
+             "num_starts": self.num_starts,
+             "PRs": self.PRs}
 
         return d
-
 
     @classmethod
     def from_dict(cls, d):
@@ -3125,10 +3128,11 @@ class ReactionNetwork(MSONable):
 
         graph = json_graph.adjacency_graph(d["graph"], directed=True)
 
-        return cls(d["electron_free_energy"], d["temperature"], entries,
-                   entries_list, graph, reactions, families,
-                   d["PR_record"], d["min_cost"], d["num_starts"])
-
+        return cls(d["electron_free_energy"], d["temperature"],
+                   d["solvent_dielectric"], d["solvent_refractive_index"],
+                   entries, entries_list, graph, reactions, families,
+                   d.get("PR_record", dict()), d.get("PRs", dict()),
+                   d.get("min_cost", dict()), d["num_starts"])
 
 
 def graph_rep_3_2(reaction: Reaction) -> nx.DiGraph:
