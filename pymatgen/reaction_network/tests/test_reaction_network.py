@@ -726,6 +726,10 @@ class TestReactionNetwork(PymatgenTest):
                 else:
                     cls.LiEC_reextended_entries.append(mol_entry)
             dumpfn(cls.LiEC_reextended_entries, "unittest_input_molentries.json")
+
+            # RN = ReactionNetwork.from_input_entries(cls.LiEC_reextended_entries)
+            # dumpfn(RN, os.path.join(test_dir, "RN.json"))
+
             cls.RN_cls = loadfn(os.path.join(test_dir, "RN.json"))
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
@@ -1199,7 +1203,7 @@ class TestReactionNetwork(PymatgenTest):
         print(EC_ind, Li1_ind, LEDC_ind)
 
         PR_paths_calculated, paths_calculated, top_paths_list = RN.find_paths([EC_ind, Li1_ind], LEDC_ind,
-                                                              weight="softplus", num_paths=10)
+                                                                              weight="softplus", num_paths=10)
 
         print(paths_calculated)
 
@@ -1248,6 +1252,7 @@ class TestReactionNetwork(PymatgenTest):
 
         self.assertEqual(len(RN_loaded.graph.nodes), 15064)
         self.assertEqual(len(RN_loaded.graph.edges), 36589)
+
 
 if __name__ == "__main__":
     unittest.main()
