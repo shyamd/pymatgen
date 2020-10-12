@@ -306,8 +306,6 @@ class KMC_data_analyzer:
         self.num_sims = len(self.reaction_history)
         if self.num_sims != len(self.time_history):
             raise RuntimeError('Number of datasets for rxn history and time step history should be same!')
-        print('products: ', self.products)
-        print('reactants: ', self.reactants)
 
     def generate_time_dep_profiles(self):
         """
@@ -462,32 +460,114 @@ class KMC_data_analyzer:
             else:
                 plt.savefig(file_dir + '/' + sim_filename)
 
-    def analyze_intermediates(self, species_profile, cutoff=0.1):
+    def analyze_intermediates(self, species_profiles, cutoff=0.1):
         """
-        Identify intermediates from species vs time profile of one simulation. It is an intermediate if its final state
+        Identify intermediates from species vs time profiles. It is an intermediate if its final state
         contains less than 1/10 of its maximal amount. User can adjust this fraction.
         :param species_profile: (Dict of list of tuple)
         :param cutoff: (float) fraction to adjust definition of intermediate
-        :return: dictionary with keys of intermediate mol index. Each dict contains info about lifetime, time of max
-        population, and the maximum amount.
+        :return: Analyzed data in a dict, of the form:
+            {mol1: {'freqency': (float), 'lifetime': (avg, std), 't_max': (avg, std), 'amt_produced': (avg, std)},
+            mol2: {...}, ... }
         """
         intermediates = dict()
-        for mol_ind in species_profile:
-            history = np.array([t[1] for t in species_profile[mol_ind]])
-            max_amt = max(history)
-            amt_produced = max_amt - history[0]
-            if (amt_produced >= 3) and (history[-1] < cutoff*max_amt):
-                max_ind = np.where(history == max_amt)
-                t_max = species_profile[mol_ind][max_ind][0]
-                for state in species_profile[mol_ind][max_ind:]:
-                    if state[1] < cutoff*max_amt:
+        for n_sim in range(self.num_sims):
+            for mol_ind in species_profiles[n_sim]:
+                history = np.array([t[1] for t in species_profiles[n_sim][mol_ind]])
+                max_amt = max(history)
+                amt_produced = max_amt - history[0]
+                # Identify the intermediate, accounting for fluctuations and incomplete rxns
+                if (amt_produced >= 3) and (history[-1] < cutoff*amt_produced + history[0]):
+                    if mol_ind not in intermediates:
                         intermediates[mol_ind] = dict()
-                        intermediates[mol_ind]['lifetime'] = state[0] - t_max
-                        intermediates[mol_ind]['t_max'] = t_max
-                        intermediates[mol_ind]['max_amt'] = max_amt
-                        break
+                        intermediates[mol_ind]['lifetime'] = list()
+                        intermediates[mol_ind]['amt_produced'] = list()
+                        intermediates[mol_ind]['t_max'] = list()
 
-        return intermediates
+                    max_ind = np.where(history == max_amt)[0][0]
+                    t_max = species_profiles[n_sim][mol_ind][max_ind][0]
+                    for state in species_profiles[n_sim][mol_ind][max_ind:]:
+                        if state[1] < cutoff*amt_produced + history[0]:
+                            intermediates[mol_ind]['lifetime'].append(state[0] - t_max)
+                            intermediates[mol_ind]['t_max'].append(t_max)
+                            intermediates[mol_ind]['amt_produced'].append(amt_produced)
+                            break
+
+        intermediates_analysis = dict()
+        for mol_ind in intermediates:
+            intermediates_analysis[mol_ind] = dict()
+            if len(intermediates[mol_ind]['lifetime']) != len(intermediates[mol_ind]['t_max']):
+                raise RuntimeError('Intermediates data should be of the same length')
+            intermediates_analysis[mol_ind]['frequency'] = len(intermediates[mol_ind]['lifetime']) / self.num_sims
+            lifetime_array = np.array(intermediates[mol_ind]['lifetime'])
+            intermediates_analysis[mol_ind]['lifetime'] = (np.mean(lifetime_array), np.std(lifetime_array))
+            t_max_array = np.array(intermediates[mol_ind]['t_max'])
+            intermediates_analysis[mol_ind]['t_max'] = (np.mean(t_max_array), np.std(t_max_array))
+            amt_produced_array = np.array(intermediates[mol_ind]['amt_produced'])
+            intermediates_analysis[mol_ind]['amt_produced'] = (np.mean(amt_produced_array), np.std(amt_produced_array))
+
+        return intermediates_analysis
+
+    def correlate_reactions(self, reaction_inds):
+        """
+        Correlate two reactions, by finding the average time and steps elapsed for rxn2 to fire after rxn1,
+        and vice-versa.
+        :param reactions: list, array, or tuple of two reaction indexes
+        :return: {rxn1: {'time': (float), 'steps': (float), 'occurrences': float}, rxn2: {...}}
+        """
+        correlation_data = dict()
+        correlation_analysis = dict()
+        for rxn_ind in reaction_inds:
+            correlation_data[rxn_ind] = dict()
+            correlation_data[rxn_ind]['time'] = list()
+            correlation_data[rxn_ind]['steps'] = list()
+            correlation_data[rxn_ind]['occurrences'] = list()
+            correlation_analysis[rxn_ind] = dict()
+
+        for n_sim in range(self.num_sims):
+            cum_time = np.cumsum(self.time_history[n_sim])
+            rxn_locations = dict()
+            # Find the step numbers when reactions fire in the simulation
+            for rxn_ind in reaction_inds:
+                rxn_locations[rxn_ind] = np.where(self.reaction_history[n_sim] == rxn_ind)[0]
+            print('rxn locations', rxn_locations)
+            # Correlate between each reaction
+            for (rxn_ind, location_list) in rxn_locations.items():
+                time_elapse = list()
+                step_elapse = list()
+                occurrences = 0
+                for (rxn_ind_j, location_list_j) in rxn_locations.items():
+                    if rxn_ind == rxn_ind_j:
+                        continue
+                    print('rxni: ', rxn_ind, 'rxnj: ', rxn_ind_j)
+                    for i in range(1, len(location_list)):
+                        for loc_j in location_list_j:
+                            # Find location where reaction j happens after reaction i, before reaction i fires again
+                            if (loc_j > location_list[i-1]) and (loc_j < location_list[i]):
+                                time_elapse.append(cum_time[loc_j] -
+                                                   cum_time[location_list[i-1]])
+                                step_elapse.append(loc_j - location_list[i-1])
+                                occurrences += 1
+                                break
+
+            if len(time_elapse) != 0:
+                correlation_data[rxn_ind]['time'].append(np.mean(np.array(time_elapse)))
+                correlation_data[rxn_ind]['steps'].append(np.mean(np.array(step_elapse)))
+                correlation_data[rxn_ind]['occurrences'].append(occurrences)
+
+        for rxn_ind, data_dict in correlation_data.items():
+
+            if len(data_dict['time']) != 0:
+                correlation_analysis[rxn_ind]['time'] = (np.mean(np.array(data_dict['time'])),
+                                                         np.std(np.array(data_dict['time'])))
+                correlation_analysis[rxn_ind]['steps'] = (np.mean(np.array(data_dict['steps'])),
+                                                          np.std(np.array(data_dict['steps'])))
+                correlation_analysis[rxn_ind]['occurrences'] = (np.mean(np.array(data_dict['occurrences'])),
+                                                                np.std(np.array(data_dict['occurrences'])))
+            else:
+                print('Reaction ', rxn_ind, 'does not lead to the other reaction in simulation ', n_sim)
+
+        return correlation_analysis
 
     def quantify_specific_reaction(self, reaction_profile, reaction_index):
 
@@ -497,7 +577,7 @@ class KMC_data_analyzer:
 
         return reaction_count
 
-    def quantify_rank_reactions(self, reaction_profiles, reaction_type=None, num_rxns=None):
+    def quantify_rank_reactions(self, reaction_type=None, num_rxns=None):
         """
         Given reaction history of a simulation, identify the most commonly occurring reactions.
         Can rank generally, or by reactions of a certain type.
@@ -508,9 +588,8 @@ class KMC_data_analyzer:
              num_rxns (int): the amount of reactions interested in collecting data on. If None, record for all.
 
          Returns:
-             reaction_data (list of list of dict): each dict contains reaction index, count, reactant ids, product ids.
-                                                    Each sim contains the list of dicts for each reaction fired, sorted
-                                                    from highest count to lowest count.
+             reaction_data: list of reactions and their avg, std of times fired. Sorted by the average times fired.
+             [(rxn1, (avg, std)), (rxn2, (avg, std)) ... ]
          """
 
         if reaction_type != None:
@@ -530,50 +609,33 @@ class KMC_data_analyzer:
                     rxns_of_type.append(2*ind)
                 elif rxn.reaction_type()['rxn_type_B'] == reaction_type:
                     rxns_of_type.append(2*ind + 1)
-
-        reaction_data = list()
+        reaction_counts = dict()  # a growing count of all reactions fired
+        reaction_data = dict() # keeping record of each iteration
+        # Loop to count all reactions fired
         for n_sim in range(self.num_sims):
-            num_fired_rxns = len(reaction_profiles[n_sim])
+            rxns_fired = set(self.reaction_history[n_sim])
             if reaction_type != None:
-                reaction_counts = [(int(rxn_ind), len(reaction_profiles[n_sim][rxn_ind]))
-                                for rxn_ind in reaction_profiles[n_sim] if rxn_ind in rxns_of_type]
+                relevant_rxns = [r for r in rxns_fired if r in rxns_of_type]
             else:
-                reaction_counts = [(int(rxn_ind), len(reaction_profiles[n_sim][rxn_ind]))
-                                   for rxn_ind in reaction_profiles[n_sim]]
-            sorted_reaction_counts = sorted(reaction_counts, key=lambda x: x[1], reverse=True)
-            print('sorted_rxn_count: ', sorted_reaction_counts)
-            sim_reaction_data = list()
+                relevant_rxns = rxns_fired
+            for rxn_ind in relevant_rxns:
+                if rxn_ind not in reaction_data:
+                    reaction_data[rxn_ind] = list()
 
-            if num_rxns == None:
-                num_rxns = num_fired_rxns
-            elif num_rxns > num_fired_rxns:
-                num_rxns = num_fired_rxns
+                reaction_data[rxn_ind].append(np.sum(self.reaction_history[n_sim] == rxn_ind))
 
-            for rxn_ind, count in sorted_reaction_counts[:num_rxns]:
-                this_data = dict()
-                this_data['reaction_index'] = rxn_ind
-                this_data['count'] = count
-                this_data['reactants'] = list()
-                this_data['products'] = list()
-                if rxn_ind % 2:
-                    react_inds = self.products[rxn_ind, :]
-                    prod_inds = self.reactants[rxn_ind, :]
-                else:
-                    react_inds = self.reactants[rxn_ind, :]
-                    prod_inds = self.products[rxn_ind, :]
+        reaction_analysis = dict()
+        for rxn_ind, counts in reaction_data.items():
+            reaction_analysis[rxn_ind] = (np.mean(np.array(counts)), np.std(np.array(counts)))
 
-                for r_ind in react_inds:
-                    this_data['reactants'].append(r_ind)
+        # Sort reactions by the average amount fired
+        sorted_reaction_analysis = sorted([(i, c) for i, c in reaction_analysis.items()], key=lambda x: x[1][0],
+                                          reverse=True)
 
-                for p_ind in prod_inds:
-                    this_data['products'].append(p_ind)
-
-                sim_reaction_data.append(this_data)
-
-            reaction_data.append(sim_reaction_data)
-
-            # Then run averages and std dev of all runs, and rank each reaction
-        return reaction_data
+        if num_rxns == None:
+            return sorted_reaction_analysis
+        else:
+            return sorted_reaction_analysis[:num_rxns]
 
     def time_step_analysis(self, sim_time_array):
         t_avg = np.average(sim_time_array)
@@ -598,40 +660,117 @@ class KMC_data_analyzer:
         return {'t_avg': t_avg, 't_std': t_std, 'logt_avg': logt_avg, 'logt_std': logt_std, 't_cascade': t_cascade,
                 't_steady_state': t_steady_state, 'steps': len(sim_time_array), 'total_t': sim_time_array[-1]}
 
-    def reaction_frequency_analysis(self, time_step_analysis, rxn_ind, n=30):
+    def frequency_analysis(self, rxn_inds, spec_inds, partitions=100):
         """
-        Calculate the frequency of reaction as a function of time. Simulation data is discretized into size of n steps,
-        and probability of reaction occurring in this set is obtained.
+        Calculate the frequency of reaction and species formation as a function of time. Simulation data is
+        discretized into many time intervals, and probabilities in this set is obtained.
 
         :param time_step_analysis:
-        :param rxn_ind:
-        :param n: discretizing time by the number of steps n, in calculating reaction frequencies
+        :param rxn_ind: list of indeces of reactions of interest
+        :param partitions: number of intervals in which to discretize time
         :return:
 
         """
-        t_avg = time_step_analysis['t_avg']
-        t_cascade = time_step_analysis['t_cascade']
-        frequency_data = list()
-        for n_sim in self.num_sims:
-            cascade_end = np.where(self.time_history[n_sim] >= t_cascade)[0][0]
-            cascade_freq = np.count_nonzero(self.reaction_history[n_sim][:cascade_end] == rxn_ind) / cascade_end
-            intervals = np.arange(0, len(self.time_history[n_sim]), step=n)  # discretize time into sizes of n steps
-            sim_rxn_frequencies = dict()
-            freq_list = list()
-            for i in range(len(intervals[1:])):
-                rxn_freq = np.count_nonzero(self.reaction_history[n_sim][intervals[i] - intervals[i-1]]) / n
-                t_mdpt = (self.time_history[n_sim][intervals[i]] + self.time_history[n_sim][intervals[i-1]]) / 2
-                freq_list.append((t_mdpt, rxn_freq))
+        # t_avg = time_step_analysis['t_avg']
+        # t_cascade = time_step_analysis['t_cascade']
+        reaction_frequency_data = dict()
+        reaction_frequency_array = dict()  # Growing arrays of reaction frequencies as fxn of time
+        species_frequency_data = dict()
+        species_frequency_array = dict()
+        new_species_counters = dict()
 
-            last_rxn_freq = np.count_nonzero(self.reaction_history[n_sim][intervals[i]:])
-            last_t_mdpt = (self.time_history[n_sim][intervals[i]] + self.time_history[n_sim][intervals[-1]]) / 2
-            freq_list.append((last_t_mdpt, last_rxn_freq))
+        for ind in rxn_inds:
+            reaction_frequency_data[ind] = [0 for j in range(partitions)]
 
-            sim_rxn_frequencies['freq_data'] = freq_list
-            sim_rxn_frequencies['cascade_frequency'] = cascade_freq
-            frequency_data.append(sim_rxn_frequencies)
+        for ind in spec_inds:
+            species_frequency_data[ind] = [0 for j in range(partitions)]
+            new_species_counters[ind] = 0
 
-        return frequency_data
+        for n_sim in range(self.num_sims):
+
+            delta_t = np.sum(self.time_history[n_sim]) / partitions
+
+            # cascade_end = np.where(self.time_history[n_sim] >= t_cascade)[0][0]
+            # cascade_freq = np.count_nonzero(self.reaction_history[n_sim][:cascade_end] == rxn_ind) / cascade_end
+            # intervals = np.arange(0, len(self.time_history[n_sim]), step=n)  # discretize time into sizes of n steps
+            # sim_rxn_frequencies = dict()
+            # freq_list = list()
+            # for i in range(len(intervals[1:])):
+            ind_0 = 0
+            t = 0
+            n = 1  # for tracking the discretization of time
+            species_counters = new_species_counters  # for counting species as they appear
+            rxn_freq_data = reaction_frequency_data
+            spec_freq_data = species_frequency_data
+            for step_num, tau in enumerate(self.time_history[n_sim]):
+                t += tau
+                this_rxn_ind = int(self.reaction_history[n_sim][step_num])
+                for spec_ind in spec_inds:
+                    if spec_ind in self.products[math.floor(this_rxn_ind/2), :]:
+                        species_counters[spec_ind] += 1
+                # When t reaches the next discretized time step, or end of the simulation
+                if (t >= n * delta_t) or (t == self.time_history[n_sim][-1]):
+                    steps = step_num - ind_0 + 1
+
+                    for spec_ind in spec_inds:
+                        spec_freq_data[spec_ind][n] = species_counters[spec_ind] / steps
+
+                    for rxn_ind in rxn_inds:
+                        rxn_freq = np.count_nonzero(self.reaction_history[n_sim][ind_0:step_num] == rxn_ind) \
+                                   / steps
+                        # t_mdpt = (self.time_history[n_sim][step_num] + self.time_history[n_sim][ind_0]) / 2
+                        rxn_freq_data[rxn_ind][n] = rxn_freq
+
+                    # Reset and update counters
+                    species_counters = new_species_counters
+                    if t >= (n+1)*delta_t:
+                        # n_over = math.floor(t / delta_t - n)  # need to fill in the gaps, if time advances quickly
+                        # for i in range(n_over):
+                        #     for rxn_ind in rxn_inds:
+                        #         rxn_freq_data[rxn_ind].append(0)
+                        #     for spec_ind in spec_inds:
+                        #         spec_freq_data[spec_ind].append(0)
+                        n += math.floor(t/delta_t - n)
+                        print('n = ', n)
+                    else:
+                        n += 1
+                        print('n = ', n)
+                    ind_0 = step_num
+
+                if tau == self.time_history[n_sim][-1]:  # Reach the end of simulation
+                    print('reaction_freq_data: ', rxn_freq_data)
+                    for rxn_ind in rxn_freq_data:
+                        if n_sim == 0:
+                            reaction_frequency_array[rxn_ind] = np.array(rxn_freq_data[rxn_ind])
+                        else:
+                            reaction_frequency_array[rxn_ind] = np.vstack((reaction_frequency_array[rxn_ind],
+                                                                          rxn_freq_data[rxn_ind]))
+                    print('array data: ', reaction_frequency_array)
+                    for spec_ind in spec_inds:
+                        if n_sim == 0:
+                            species_frequency_array[spec_ind] = np.array(spec_freq_data[spec_ind])
+                        else:
+                            species_frequency_array[spec_ind] = np.vstack((species_frequency_array,
+                                                                           spec_freq_data[spec_ind]))
+
+        # Statistical analysis
+        statistical_rxn_data = dict()
+        avg_delta_t = np.mean(np.array([self.time_history[i][-1] for i in range(self.num_sims)])) / partitions
+        time_list = [i * avg_delta_t + avg_delta_t/2 for i in range(partitions)]
+        print('time_list: ', time_list)
+        for rxn_ind in rxn_inds:
+            if self.num_sims == 1:
+                avgs = reaction_frequency_array[rxn_ind]
+                stds = np.zeros(partitions)
+            else:
+                avgs = np.mean(reaction_frequency_array[rxn_ind], 0)
+                stds = np.std(reaction_frequency_array[rxn_ind], 0)
+            print('avgs: ', avgs)
+
+            print('stds: ', stds)
+            statistical_rxn_data[rxn_ind] = [(time_list[n], avgs[n], stds[n]) for n in range(partitions)]
+
+        return statistical_rxn_data
 
     def find_rxn_index(self, reaction, reverse):
 
