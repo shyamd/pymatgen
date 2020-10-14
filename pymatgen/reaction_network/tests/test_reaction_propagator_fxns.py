@@ -127,6 +127,9 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             # Only H2O, H2, O2 present initially
             self.initial_conditions = {'h2o': self.concentration, 'h2': self.concentration, 'o2': self.concentration,
                                        'oh-': self.concentration, 'h+': self.concentration}
+            self.initial_cond_mols = dict()
+
+
             self.num_species = len(self.reaction_network.entries_list)
             self.num_reactions = len(self.reaction_network.reactions)
 
@@ -149,6 +152,10 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
                 self.molid_ind_mapping[spec.entry_id] = ind
             # print('molid_ind mapping:', self.molid_ind_mapping)
             # construct the product and reactants arrays
+
+            for mol_id, conc in self.initial_conditions.items():
+                self.initial_cond_mols[self.molid_ind_mapping[mol_id]] = self.num_mols
+
             for ind, reaction in enumerate(self.reaction_network.reactions):
                 num_reactants_for = list()
                 num_reactants_rev = list()
@@ -197,6 +204,31 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
                 else:
                     self.species_rxn_mapping[ind, : len(rxn_list)] = rxn_list
 
+            for rxn_ind, reaction in enumerate(self.reaction_network.reactions):
+                react_id_list = [r.entry_id for r in reaction.reactants]
+                prod_id_list = [p.entry_id for p in reaction.products]
+                if (['h2o'] == react_id_list) and (['h2o-'] == prod_id_list):
+                    self.rxn_a = 2 * rxn_ind
+                    self.rxn_b = 2*rxn_ind + 1
+                    break
+                elif (['h2o-'] == react_id_list) and (['h2o'] == prod_id_list):
+                    self.rxn_b = 2 * rxn_ind
+                    self.rxn_a = 2*rxn_ind + 1
+                    break
+
+            rxns_1 = np.append(self.rxn_a * np.ones(6, dtype=int), self.rxn_b * np.ones(6, dtype=int))
+
+            rxns_2 = np.append(self.rxn_a * np.ones(8, dtype=int), self.rxn_b * np.ones(4, dtype=int))
+
+            rxns_3 = np.append(self.rxn_a * np.ones(3, dtype=int), self.rxn_b * np.ones(3, dtype=int))
+            rxns_3 = np.append(rxns_3, rxns_3)
+            self.reaction_history = [rxns_1, rxns_2, rxns_3]
+            self.time_history = [np.ones(12) for i in range(3)]
+
+            self.analyzer = KMC_data_analyzer(self.reaction_network, self.molid_ind_mapping, self.species_rxn_mapping,
+                                              self.initial_cond_mols, self.products, self.reactants,
+                                              self.reaction_history, self.time_history)
+
     def tearDown(self) -> None:
         if ob:
             del self.volume
@@ -205,6 +237,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             del self.mol_entries
             del self.reaction_network
             del self.initial_conditions
+            del self.initial_cond_mols
             del self.products
             del self.reactants
             del self.rate_constants
@@ -215,161 +248,215 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             del self.species_rxn_mapping
             del self.propensities
             del self.molid_ind_mapping
+            del self.reaction_history
+            del self.time_history
+            del self.analyzer
+            del self.rxn_b
+            del self.rxn_a
+
+    # @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    # def test_initialize_simulation(self):
+    #     # initialize the simulation
+    #
+    #     [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array, coord_array,
+    #      rate_constants, propensities, molid_index_mapping] = \
+    #         initialize_simulation(self.reaction_network, self.initial_conditions, self.volume)
+    #
+    #     # Verify initial state
+    #     num_species = len(self.reaction_network.entries_list)
+    #     exp_initial_state = [0 for i in range(num_species)]
+    #     exp_initial_state[2] = self.num_mols  # h+
+    #     exp_initial_state[3] = self.num_mols  # oh-
+    #     exp_initial_state[7] = self.num_mols  # h2
+    #     exp_initial_state[10] = self.num_mols  #h2o
+    #     exp_initial_state[16] = self.num_mols  #o2
+    #
+    #     # exp_species_rxn_mapping = -1 * np.ones((18, 16))
+    #     # exp_species_rxn_mapping_list = list()
+    #     # exp_species_rxn_mapping_list.append([0, 13, 16, 19, 20, 21, 23, 27, 29, 32, 35]) # Reactions for H-
+    #     # exp_species_rxn_mapping_list.append([0, 1, 12, 15, 18, 19, 20, 22, 24,25, 26, 28, 31, 34, 37, 39]) #H
+    #     # exp_species_rxn_mapping_list.append([1, 14, 17, 21, 23, 24, 25, 30, 33, 36, 38]) #H+
+    #     # exp_species_rxn_mapping_list.append([2, 12, 13, 26, 28, 30, 33]) #oh-
+    #     # exp_species_rxn_mapping_list.append([2, 3, 14, 15, 16, 27, 29, 31, 34, 36, 38]) #oh
+    #     # exp_species_rxn_mapping_list.append([3, 17, 18, 32, 35, 37, 39]) #oh+
+    #     # exp_species_rxn_mapping_list.append([4, 19, 20]) #h2-
+    #     # exp_species_rxn_mapping_list.append([4, 5, 21, 22, 23]) #h2
+    #     # exp_species_rxn_mapping_list.append([5, 24, 25]) #h2+
+    #     # exp_species_rxn_mapping_list.append([6, 26, 27, 28, 29]) #h2o-
+    #     # exp_species_rxn_mapping_list.append([6, 7, 30, 31, 32, 33, 34, 35]) #h2o
+    #     # exp_species_rxn_mapping_list.append([7, 36, 37, 38, 39]) #h2o+
+    #     # exp_species_rxn_mapping_list.append([8, 14, 40, 41, 42, 44]) #o-
+    #     # exp_species_rxn_mapping_list.append([8, 9, 13, 15, 17, 40, 41, 43, 45, 46]) #o
+    #     # exp_species_rxn_mapping_list.append([9, 16, 18, 42, 44, 45, 46]) #o+
+    #     # exp_species_rxn_mapping_list.append([10, 40, 41]) #o2-
+    #     # exp_species_rxn_mapping_list.append([10, 11, 42, 43, 44]) #o2
+    #     # exp_species_rxn_mapping_list.append([11, 45, 46]) #o2+
+    #
+    #     self.assertEqual(exp_initial_state, initial_state)
+    #     self.assertEqual(self.initial_state, initial_state)
+    #     self.assertArrayAlmostEqual(self.products, product_array)
+    #     self.assertArrayAlmostEqual(self.reactants, reactant_array)
+    #     self.assertArrayAlmostEqual(self.rate_constants, rate_constants)
+    #     self.assertArrayAlmostEqual(self.species_rxn_mapping, species_rxn_mapping)
+    #     self.assertArrayAlmostEqual(self.propensities, propensities)
+    #
+    # @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    # def test_update_state(self):
+    #     # Reactions of interest:
+    #     # 1) h2 <--> h2+
+    #     # 2) h2o- <--> h2o
+    #     # 3) h2 <--> h- + h+
+    #     reactions_sequence = list()
+    #     for ind, reaction in enumerate(self.reaction_network.reactions):
+    #         reactants = [react.entry_id for react in reaction.reactants]
+    #         products = [prod.entry_id for prod in reaction.products]
+    #         if ((['h2'] == reactants) and (['h2+'] == products)) or ((['h2o'] == reactants) and (['h2o-'] == products))\
+    #                 or ((['h2'] == reactants) and (['h-', 'h+'] == products)):
+    #             reactions_sequence.extend([2*ind, 2*ind + 1, 2*ind])
+    #         elif ((['h2+'] == reactants) and (['h2'] == products)) or \
+    #                 ((['h2o-'] == reactants) and (['h2o'] == products)) or \
+    #                 ((['h-', 'h+'] == reactants) and (['h'] == products)):
+    #             reactions_sequence.extend([2*ind+1, 2*ind, 2*ind+1])
+    #
+    #     num_iterations = 10
+    #     state = np.array(self.initial_state)
+    #
+    #     for i in range(num_iterations):
+    #         for rxn_ind in reactions_sequence:
+    #             if rxn_ind % 2:
+    #                 reverse = True
+    #             else:
+    #                 reverse = False
+    #             converted_rxn_ind = math.floor(rxn_ind/2)
+    #             state = update_state(self.reactants, self.products, state, converted_rxn_ind, reverse)
+    #
+    #     expected_state = [0 for i in range(self.num_species)]
+    #     expected_state[self.molid_ind_mapping['h-']] = num_iterations
+    #     expected_state[self.molid_ind_mapping['h+']] = self.num_mols + num_iterations
+    #     expected_state[self.molid_ind_mapping['oh-']] = self.num_mols
+    #     expected_state[self.molid_ind_mapping['h2']] = self.num_mols - 2*num_iterations
+    #     expected_state[self.molid_ind_mapping['h2+']] = num_iterations
+    #     expected_state[self.molid_ind_mapping['h2o-']] = num_iterations
+    #     expected_state[self.molid_ind_mapping['h2o']] = self.num_mols - num_iterations
+    #     expected_state[self.molid_ind_mapping['o2']] = self.num_mols
+    #     self.assertEqual(list(state), expected_state)
+    #
+    # @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    # def test_get_coordination(self):
+    #     # Reactions of interest:
+    #     # h2 <--> h2+
+    #     # h2o <--> oh- + h+
+    #     state = np.array(self.initial_state)
+    #     for ind, reaction in enumerate(self.reaction_network.reactions):
+    #         run_test = 0
+    #         reactants = [react.entry_id for react in reaction.reactants]
+    #         products = [prod.entry_id for prod in reaction.products]
+    #         if (['h2'] == reactants) and (['h2+'] == products):
+    #             run_test = 1
+    #             reaction_sequence = [2*ind, 2*ind+1]
+    #         elif (['h2+'] == reactants) and (['h2'] == products):
+    #             run_test = 1
+    #             reaction_sequence = [2*ind+1, 2*ind]
+    #         elif (['h2o'] == reactants) and (['oh-', 'h+'] == products):
+    #             run_test = 2
+    #             reaction_sequence = [2 * ind, 2 * ind + 1]
+    #         elif (['oh-', 'h+'] == reactants) and (['h2o'] == products):
+    #             run_test = 2
+    #             reaction_sequence = [2*ind+1, 2*ind]
+    #
+    #         if run_test == 0:
+    #             continue
+    #         else:
+    #             coords = list()
+    #             if run_test == 1:  # testing h2 <--> h2+
+    #                 expected_coords = [self.num_mols, 0]
+    #             elif run_test == 2:  # testing h2o <--> oh- + h+
+    #                 expected_coords = [self.num_mols, self.num_mols * self.num_mols]
+    #
+    #             for rxn_ind in reaction_sequence:
+    #                 if rxn_ind % 2:
+    #                     reverse = True
+    #                 else:
+    #                     reverse = False
+    #                 converted_rxn_ind = math.floor(rxn_ind / 2)
+    #                 coords.append(get_coordination(self.reactants, self.products, state, converted_rxn_ind, reverse))
+    #
+    #             self.assertEqual(expected_coords, coords)
+    #
+    # @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    # def test_kmc_simulate(self):
+    #     t_steps = 1
+    #     iterations = 10000
+    #     reaction_history = list()
+    #     time_steps = list()
+    #     reaction_frequency = [0 for i in range(2*self.num_reactions)]
+    #     total_propensity = np.sum(self.propensities)
+    #     exp_tau = 1 / total_propensity  # expectation value of first time step
+    #     rxn_probability = self.propensities / total_propensity  # expected frequencies of each reaction
+    #     # for rxn in self.reaction_network.reactions:
+    #     for i in range(iterations):
+    #         # run simulation with initial conditions, 1 time step
+    #         sim_data = kmc_simulate(t_steps, self.coord_array, self.rate_constants, self.propensities,
+    #                                 self.species_rxn_mapping, self.reactants, self.products,
+    #                                 np.array(self.initial_state))
+    #         if (t_steps != len(sim_data[0])) or (t_steps != len(sim_data[1])):
+    #             raise RuntimeError("There are more than the specified time steps for this simulation.")
+    #         reaction_history.append(int(sim_data[0][0]))
+    #         time_steps.append(sim_data[1][0])
+    #
+    #     reaction_history = np.array(reaction_history)
+    #     time_steps = np.array(time_steps)
+    #     avg_tau = np.average(time_steps)
+    #     self.assertAlmostEqual(avg_tau, exp_tau)
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
-    def test_initialize_simulation(self):
-        # initialize the simulation
+    def test_generate_time_dep_profiles(self):
+        exp_trajectories = list()
+        initial_cond = dict()
+        for mol_id in self.initial_conditions:
+            initial_cond[self.molid_ind_mapping[mol_id]] = [(0.0, self.num_mols)]
+            if (mol_id != 'h2o') and (mol_id != 'h2o-'):
+                initial_cond[self.molid_ind_mapping[mol_id]].append((12.0, self.num_mols))
+        # print(initial_cond)
+        for i in range(3):
+            exp_trajectories.append(copy.deepcopy(initial_cond))
 
-        [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array, coord_array,
-         rate_constants, propensities, molid_index_mapping] = \
-            initialize_simulation(self.reaction_network, self.initial_conditions, self.volume)
+        # first sequence of reactions: [a, a, a, a, a, a, b, b, b, b, b, b]
+        exp_trajectories[0][10].extend([(1.0, self.num_mols-1), (2.0, self.num_mols-2), (3.0, self.num_mols-3),
+                                        (4.0, self.num_mols-4), (5.0, self.num_mols-5), (6.0, self.num_mols-6),
+                                       (7.0, self.num_mols-5), (8.0, self.num_mols-4), (9.0, self.num_mols-3),
+                                        (10.0, self.num_mols-2), (11.0, self.num_mols-1), (12.0, self.num_mols),
+                                       (12.0, self.num_mols)])
+        exp_trajectories[0][9] = [(0.0, 0), (1.0, 1), (2.0, 2), (3.0, 3), (4.0, 4), (5.0, 5), (6.0, 6), (7.0, 5),
+                                  (8.0, 4), (9.0, 3), (10.0, 2), (11.0, 1), (12.0, 0), (12.0, 0)]
 
-        # Verify initial state
-        num_species = len(self.reaction_network.entries_list)
-        exp_initial_state = [0 for i in range(num_species)]
-        exp_initial_state[2] = self.num_mols  # h+
-        exp_initial_state[3] = self.num_mols  # oh-
-        exp_initial_state[7] = self.num_mols  # h2
-        exp_initial_state[10] = self.num_mols  #h2o
-        exp_initial_state[16] = self.num_mols  #o2
+        # second sequence: [a, a, a, a, a, a, a, a, b, b, b, b]
+        exp_trajectories[1][10].extend([(1.0, self.num_mols-1), (2.0, self.num_mols-2), (3.0, self.num_mols-3),
+                                        (4.0, self.num_mols-4), (5.0, self.num_mols-5), (6.0, self.num_mols-6),
+                                       (7.0, self.num_mols-7), (8.0, self.num_mols-8), (9.0, self.num_mols-7),
+                                        (10.0, self.num_mols-6), (11.0, self.num_mols-5), (12.0, self.num_mols-4),
+                                        (12.0, self.num_mols-4)])
+        exp_trajectories[1][9] = [(0.0, 0), (1.0, 1), (2.0, 2), (3.0, 3), (4.0, 4), (5.0, 5), (6.0, 6), (7.0, 7),
+                                  (8.0, 8), (9.0, 7), (10.0, 6), (11.0, 5), (12.0, 4), (12.0, 4)]
 
-        # exp_species_rxn_mapping = -1 * np.ones((18, 16))
-        # exp_species_rxn_mapping_list = list()
-        # exp_species_rxn_mapping_list.append([0, 13, 16, 19, 20, 21, 23, 27, 29, 32, 35]) # Reactions for H-
-        # exp_species_rxn_mapping_list.append([0, 1, 12, 15, 18, 19, 20, 22, 24,25, 26, 28, 31, 34, 37, 39]) #H
-        # exp_species_rxn_mapping_list.append([1, 14, 17, 21, 23, 24, 25, 30, 33, 36, 38]) #H+
-        # exp_species_rxn_mapping_list.append([2, 12, 13, 26, 28, 30, 33]) #oh-
-        # exp_species_rxn_mapping_list.append([2, 3, 14, 15, 16, 27, 29, 31, 34, 36, 38]) #oh
-        # exp_species_rxn_mapping_list.append([3, 17, 18, 32, 35, 37, 39]) #oh+
-        # exp_species_rxn_mapping_list.append([4, 19, 20]) #h2-
-        # exp_species_rxn_mapping_list.append([4, 5, 21, 22, 23]) #h2
-        # exp_species_rxn_mapping_list.append([5, 24, 25]) #h2+
-        # exp_species_rxn_mapping_list.append([6, 26, 27, 28, 29]) #h2o-
-        # exp_species_rxn_mapping_list.append([6, 7, 30, 31, 32, 33, 34, 35]) #h2o
-        # exp_species_rxn_mapping_list.append([7, 36, 37, 38, 39]) #h2o+
-        # exp_species_rxn_mapping_list.append([8, 14, 40, 41, 42, 44]) #o-
-        # exp_species_rxn_mapping_list.append([8, 9, 13, 15, 17, 40, 41, 43, 45, 46]) #o
-        # exp_species_rxn_mapping_list.append([9, 16, 18, 42, 44, 45, 46]) #o+
-        # exp_species_rxn_mapping_list.append([10, 40, 41]) #o2-
-        # exp_species_rxn_mapping_list.append([10, 11, 42, 43, 44]) #o2
-        # exp_species_rxn_mapping_list.append([11, 45, 46]) #o2+
+        # third sequence: [a, a, a, b, b, b, a, a, a, b, b, b]
+        exp_trajectories[2][10].extend([(1.0, self.num_mols - 1), (2.0, self.num_mols - 2), (3.0, self.num_mols - 3),
+                                        (4.0, self.num_mols - 2), (5.0, self.num_mols - 1), (6.0, self.num_mols),
+                                        (7.0, self.num_mols - 1), (8.0, self.num_mols - 2), (9.0, self.num_mols - 3),
+                                        (10.0, self.num_mols - 2), (11.0, self.num_mols - 1), (12.0, self.num_mols),
+                                        (12.0, self.num_mols)])
 
-        self.assertEqual(exp_initial_state, initial_state)
-        self.assertEqual(self.initial_state, initial_state)
-        self.assertArrayAlmostEqual(self.products, product_array)
-        self.assertArrayAlmostEqual(self.reactants, reactant_array)
-        self.assertArrayAlmostEqual(self.rate_constants, rate_constants)
-        self.assertArrayAlmostEqual(self.species_rxn_mapping, species_rxn_mapping)
-        self.assertArrayAlmostEqual(self.propensities, propensities)
+        exp_trajectories[2][9] = [(0.0, 0), (1.0, 1), (2.0, 2), (3.0, 3), (4.0, 2), (5.0, 1), (6.0, 0), (7.0, 1),
+                                  (8.0, 2), (9.0, 3), (10.0, 2), (11.0, 1), (12.0, 0), (12.0, 0)]
+        profiles = self.analyzer.generate_time_dep_profiles()
+        for i in range(3):
+            self.assertDictsAlmostEqual(profiles['species_profiles'][i], exp_trajectories[i])
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
-    def test_update_state(self):
-        # Reactions of interest:
-        # 1) h2 <--> h2+
-        # 2) h2o- <--> h2o
-        # 3) h2 <--> h- + h+
-        reactions_sequence = list()
-        for ind, reaction in enumerate(self.reaction_network.reactions):
-            reactants = [react.entry_id for react in reaction.reactants]
-            products = [prod.entry_id for prod in reaction.products]
-            if ((['h2'] == reactants) and (['h2+'] == products)) or ((['h2o'] == reactants) and (['h2o-'] == products))\
-                    or ((['h2'] == reactants) and (['h-', 'h+'] == products)):
-                reactions_sequence.extend([2*ind, 2*ind + 1, 2*ind])
-            elif ((['h2+'] == reactants) and (['h2'] == products)) or \
-                    ((['h2o-'] == reactants) and (['h2o'] == products)) or \
-                    ((['h-', 'h+'] == reactants) and (['h'] == products)):
-                reactions_sequence.extend([2*ind+1, 2*ind, 2*ind+1])
-
-        num_iterations = 10
-        state = np.array(self.initial_state)
-
-        for i in range(num_iterations):
-            for rxn_ind in reactions_sequence:
-                if rxn_ind % 2:
-                    reverse = True
-                else:
-                    reverse = False
-                converted_rxn_ind = math.floor(rxn_ind/2)
-                state = update_state(self.reactants, self.products, state, converted_rxn_ind, reverse)
-                
-        expected_state = [0 for i in range(self.num_species)]
-        expected_state[self.molid_ind_mapping['h-']] = num_iterations
-        expected_state[self.molid_ind_mapping['h+']] = self.num_mols + num_iterations
-        expected_state[self.molid_ind_mapping['oh-']] = self.num_mols
-        expected_state[self.molid_ind_mapping['h2']] = self.num_mols - 2*num_iterations
-        expected_state[self.molid_ind_mapping['h2+']] = num_iterations
-        expected_state[self.molid_ind_mapping['h2o-']] = num_iterations
-        expected_state[self.molid_ind_mapping['h2o']] = self.num_mols - num_iterations
-        expected_state[self.molid_ind_mapping['o2']] = self.num_mols
-        self.assertEqual(list(state), expected_state)
-
-    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
-    def test_get_coordination(self):
-        # Reactions of interest:
-        # h2 <--> h2+
-        # h2o <--> oh- + h+
-        state = np.array(self.initial_state)
-        for ind, reaction in enumerate(self.reaction_network.reactions):
-            run_test = 0
-            reactants = [react.entry_id for react in reaction.reactants]
-            products = [prod.entry_id for prod in reaction.products]
-            if (['h2'] == reactants) and (['h2+'] == products):
-                run_test = 1
-                reaction_sequence = [2*ind, 2*ind+1]
-            elif (['h2+'] == reactants) and (['h2'] == products):
-                run_test = 1
-                reaction_sequence = [2*ind+1, 2*ind]
-            elif (['h2o'] == reactants) and (['oh-', 'h+'] == products):
-                run_test = 2
-                reaction_sequence = [2 * ind, 2 * ind + 1]
-            elif (['oh-', 'h+'] == reactants) and (['h2o'] == products):
-                run_test = 2
-                reaction_sequence = [2*ind+1, 2*ind]
-
-            if run_test == 0:
-                continue
-            else:
-                coords = list()
-                if run_test == 1:  # testing h2 <--> h2+
-                    expected_coords = [self.num_mols, 0]
-                elif run_test == 2:  # testing h2o <--> oh- + h+
-                    expected_coords = [self.num_mols, self.num_mols * self.num_mols]
-
-                for rxn_ind in reaction_sequence:
-                    if rxn_ind % 2:
-                        reverse = True
-                    else:
-                        reverse = False
-                    converted_rxn_ind = math.floor(rxn_ind / 2)
-                    coords.append(get_coordination(self.reactants, self.products, state, converted_rxn_ind, reverse))
-
-                self.assertEqual(expected_coords, coords)
-
-    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
-    def test_kmc_simulate(self):
-        t_steps = 1
-        iterations = 10000
-        reaction_history = list()
-        time_steps = list()
-        reaction_frequency = [0 for i in range(2*self.num_reactions)]
-        total_propensity = np.sum(self.propensities)
-        exp_tau = 1 / total_propensity  # expectation value of first time step
-        rxn_probability = self.propensities / total_propensity  # expected frequencies of each reaction
-        # for rxn in self.reaction_network.reactions:
-        for i in range(iterations):
-            # run simulation with initial conditions, 1 time step
-            sim_data = kmc_simulate(t_steps, self.coord_array, self.rate_constants, self.propensities,
-                                    self.species_rxn_mapping, self.reactants, self.products,
-                                    np.array(self.initial_state))
-            if (t_steps != len(sim_data[0])) or (t_steps != len(sim_data[1])):
-                raise RuntimeError("There are more than the specified time steps for this simulation.")
-            reaction_history.append(int(sim_data[0][0]))
-            time_steps.append(sim_data[1][0])
-
-        reaction_history = np.array(reaction_history)
-        time_steps = np.array(time_steps)
-        avg_tau = np.average(time_steps)
-        self.assertAlmostEqual(avg_tau, exp_tau)
+    def test_quantify_rank_reactions(self):
+        reaction_analysis = self.analyzer.quantify_rank_reactions()
+        expected = [(self.rxn_a, (20/3, np.std(np.array([6, 8, 6]))), self.rxn_b, (16/3, np.std(np.array([6, 4, 6]))))]
+        self.assertAlmostEqual(reaction_analysis, expected)
 
 
 if __name__ == "__main__":

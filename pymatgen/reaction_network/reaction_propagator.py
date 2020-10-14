@@ -12,6 +12,7 @@ from numba import jit
 from numba import int64, float64
 from numba.experimental import jitclass
 import os
+import copy
 
 __author__ = "Ronald Kam, Evan Spotte-Smith, Xiaowei Xie"
 __email__ = "kamronald@berkeley.edu"
@@ -37,8 +38,9 @@ spec = [('products', int64[:, :]),
         ]
 
 """
-Below are function-based KMC simulation for a reaction network, assuming spatial homogeneity. Simulation is performed without 
-objects, such is required to improve performance with Numba. Algorithm is described by Gillespie (1976).
+Kinetic Monte Carlo (kMC) simulation for a reaction network, assuming spatial homogeneity. Simulation can be performed 
+with and without ReactionNetwork objects. The version without ReactionNetwork objects is computationally cheaper. 
+The algorithm is described by Gillespie (1976).
 
 """
 
@@ -133,7 +135,7 @@ def initialize_simulation(reaction_network, initial_cond, volume=10**-24):
         else:
             species_rxn_mapping[index, : this_map_length - max_mapping_length] = rxn_list
     propensities = np.multiply(coord_array, rate_constants)
-    return [initial_state, initial_state_dict, species_rxn_mapping, reactant_array, product_array,
+    return [np.array(initial_state, dtype=int), initial_state_dict, species_rxn_mapping, reactant_array, product_array,
             coord_array, rate_constants, propensities, molid_index_mapping]
 
 
@@ -159,6 +161,7 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
         Second row are the time steps generated at each iteration.
     """
     total_propensity = np.sum(propensity_array)
+    # print('initial total propensity: ', total_propensity)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
@@ -175,7 +178,9 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
             reverse = True
         else:
             reverse = False
-        state = update_state(reactants, products, state, converted_rxn_ind, reverse)
+
+        state = update_state(reactants, products, state, converted_rxn_ind, reverse, step_counter)
+
         # Log the reactions that need to be altered after reaction is performed, for the coordination array
         reactions_to_change = list()
         for reactant_id in reactants[converted_rxn_ind, :]:
@@ -209,7 +214,7 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
 
 
 @jit(nopython=True)
-def update_state(reactants, products, state, rxn_ind, reverse):
+def update_state(reactants, products, state, rxn_ind, reverse, iteration):
     """ Update the system based on the reaction chosen
             Args:
                 reaction (Reaction)
@@ -228,7 +233,7 @@ def update_state(reactants, products, state, rxn_ind, reverse):
             else:
                 state[reactant_id] -= 1
                 if state[reactant_id] < 0:
-                    raise ValueError("State invalid! Negative specie: {}!")
+                    raise ValueError("State invalid! Negative specie encountered")
         for product_id in reactants[rxn_ind, :]:
             if product_id == -1:
                 continue
@@ -241,7 +246,7 @@ def update_state(reactants, products, state, rxn_ind, reverse):
             else:
                 state[reactant_id] -= 1
                 if state[reactant_id] < 0:
-                    raise ValueError("State invalid! Negative specie: {}!")
+                    raise ValueError("State invalid! Negative specie encountered")
         for product_id in products[rxn_ind, :]:
             if product_id == -1:
                 continue
@@ -320,7 +325,7 @@ class KMC_data_analyzer:
         reaction_profiles = list()
         final_states = list()
         for n_sim in range(self.num_sims):
-            sim_time_history = self.time_history[n_sim]  # array
+            sim_time_history = self.time_history[n_sim]
             sim_rxn_history = self.reaction_history[n_sim]
 
             sim_species_profile = dict()
@@ -328,9 +333,10 @@ class KMC_data_analyzer:
 
             cumulative_time = list(np.cumsum(np.array(sim_time_history)))
 
-            state = self.initial_state_dict
+            state = copy.deepcopy(self.initial_state_dict)
+            print('initial state: ', state, 'of sim number ', n_sim+1)
 
-            for mol_ind in self.initial_state_dict:
+            for mol_ind in state:
                 sim_species_profile[mol_ind] = [(0.0, self.initial_state_dict[mol_ind])]
             total_iterations = len(sim_rxn_history)
 
@@ -374,7 +380,9 @@ class KMC_data_analyzer:
                             try:
                                 state[r_ind] -= 1
                                 if state[r_ind] < 0:
-                                    raise ValueError("State invalid: negative specie: {}".format(r_ind))
+                                    print(state)
+                                    raise ValueError("State invalid: negative specie: {} during sim {}, iter {}"
+                                                     .format(r_ind, n_sim, iter))
                                 sim_species_profile[r_ind].append((t, state[r_ind]))
                             except KeyError:
                                 raise ValueError("Specie {} given is not in state!".format(r_ind))
@@ -388,12 +396,16 @@ class KMC_data_analyzer:
                             state[p_ind] = 1
                             sim_species_profile[p_ind] = [(0.0, 0), (t, state[p_ind])]
 
-                species_profiles.append(sim_species_profile)
-                reaction_profiles.append(sim_rxn_profile)
-                final_states.append(state)
+            # for plotting convenience, add data point at final time
+            for mol_ind in sim_species_profile:
+                sim_species_profile[mol_ind].append((cumulative_time[-1], state[mol_ind]))
 
-            return {'species_profiles': species_profiles, 'reaction_profiles': reaction_profiles,
-                    'final_states': final_states}
+            species_profiles.append(sim_species_profile)
+            reaction_profiles.append(sim_rxn_profile)
+            final_states.append(state)
+
+        return {'species_profiles': species_profiles, 'reaction_profiles': reaction_profiles,
+                'final_states': final_states}
 
     def plot_species_profiles(self, species_profiles, final_states, num_label, filename='KMC', file_dir = None):
         """
@@ -430,9 +442,10 @@ class KMC_data_analyzer:
             t_end = sum(self.time_history[n_sim])
 
             for mol_ind in species_profiles[n_sim]:
-                ts = np.append(np.array([e[0] for e in species_profiles[n_sim][mol_ind]]), t_end)
-                nums = np.append(np.array([e[1] for e in species_profiles[n_sim][mol_ind]]),
-                                 species_profiles[n_sim][mol_ind][-1][1])
+                # ts = np.append(np.array([e[0] for e in species_profiles[n_sim][mol_ind]]), t_end)
+                ts = np.array([e[0] for e in species_profiles[n_sim][mol_ind]])
+                nums = np.array([e[1] for e in species_profiles[n_sim][mol_ind]])
+
                 if mol_ind in sorted_inds[:num_label]:
                     mol_id = sorted_ind_id_mapping[mol_ind]
                     for entry in self.reaction_network.entries_list:
@@ -579,7 +592,7 @@ class KMC_data_analyzer:
 
     def quantify_rank_reactions(self, reaction_type=None, num_rxns=None):
         """
-        Given reaction history of a simulation, identify the most commonly occurring reactions.
+        Given reaction histories, identify the most commonly occurring reactions, on average.
         Can rank generally, or by reactions of a certain type.
 
          Args:
