@@ -161,7 +161,6 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
         Second row are the time steps generated at each iteration.
     """
     total_propensity = np.sum(propensity_array)
-    # print('initial total propensity: ', total_propensity)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
@@ -179,8 +178,7 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
         else:
             reverse = False
 
-        state = update_state(reactants, products, state, converted_rxn_ind, reverse, step_counter)
-
+        state = update_state(reactants, products, state, converted_rxn_ind, reverse)
         # Log the reactions that need to be altered after reaction is performed, for the coordination array
         reactions_to_change = list()
         for reactant_id in reactants[converted_rxn_ind, :]:
@@ -214,7 +212,7 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
 
 
 @jit(nopython=True)
-def update_state(reactants, products, state, rxn_ind, reverse, iteration):
+def update_state(reactants, products, state, rxn_ind, reverse):
     """ Update the system based on the reaction chosen
             Args:
                 reaction (Reaction)
@@ -327,15 +325,10 @@ class KMC_data_analyzer:
         for n_sim in range(self.num_sims):
             sim_time_history = self.time_history[n_sim]
             sim_rxn_history = self.reaction_history[n_sim]
-
             sim_species_profile = dict()
             sim_rxn_profile = dict()
-
             cumulative_time = list(np.cumsum(np.array(sim_time_history)))
-
             state = copy.deepcopy(self.initial_state_dict)
-            print('initial state: ', state, 'of sim number ', n_sim+1)
-
             for mol_ind in state:
                 sim_species_profile[mol_ind] = [(0.0, self.initial_state_dict[mol_ind])]
             total_iterations = len(sim_rxn_history)
@@ -429,7 +422,6 @@ class KMC_data_analyzer:
             sorted_inds = [mol_tuple[0] for mol_tuple in sorted_state]
             sorted_ind_id_mapping = dict()
             iter_counter = 0
-
             for id, ind in self.molid_ind_mapping.items():
                 if ind in sorted_inds[:num_label]:
                     sorted_ind_id_mapping[ind] = id
@@ -440,7 +432,6 @@ class KMC_data_analyzer:
             colors = plt.cm.get_cmap('hsv', num_label)
             this_id = 0
             t_end = sum(self.time_history[n_sim])
-
             for mol_ind in species_profiles[n_sim]:
                 # ts = np.append(np.array([e[0] for e in species_profiles[n_sim][mol_ind]]), t_end)
                 ts = np.array([e[0] for e in species_profiles[n_sim][mol_ind]])
@@ -542,8 +533,8 @@ class KMC_data_analyzer:
             rxn_locations = dict()
             # Find the step numbers when reactions fire in the simulation
             for rxn_ind in reaction_inds:
-                rxn_locations[rxn_ind] = np.where(self.reaction_history[n_sim] == rxn_ind)[0]
-            print('rxn locations', rxn_locations)
+                rxn_locations[rxn_ind] = list(np.where(self.reaction_history[n_sim] == rxn_ind)[0])
+                rxn_locations[rxn_ind].append(len(self.reaction_history[n_sim]))
             # Correlate between each reaction
             for (rxn_ind, location_list) in rxn_locations.items():
                 time_elapse = list()
@@ -552,9 +543,9 @@ class KMC_data_analyzer:
                 for (rxn_ind_j, location_list_j) in rxn_locations.items():
                     if rxn_ind == rxn_ind_j:
                         continue
-                    print('rxni: ', rxn_ind, 'rxnj: ', rxn_ind_j)
                     for i in range(1, len(location_list)):
                         for loc_j in location_list_j:
+
                             # Find location where reaction j happens after reaction i, before reaction i fires again
                             if (loc_j > location_list[i-1]) and (loc_j < location_list[i]):
                                 time_elapse.append(cum_time[loc_j] -
@@ -563,13 +554,14 @@ class KMC_data_analyzer:
                                 occurrences += 1
                                 break
 
-            if len(time_elapse) != 0:
-                correlation_data[rxn_ind]['time'].append(np.mean(np.array(time_elapse)))
-                correlation_data[rxn_ind]['steps'].append(np.mean(np.array(step_elapse)))
-                correlation_data[rxn_ind]['occurrences'].append(occurrences)
+                if len(time_elapse) == 0:
+                    correlation_data[rxn_ind]['occurrences'].append(0)
+                else:
+                    correlation_data[rxn_ind]['time'].append(np.mean(np.array(time_elapse)))
+                    correlation_data[rxn_ind]['steps'].append(np.mean(np.array(step_elapse)))
+                    correlation_data[rxn_ind]['occurrences'].append(occurrences)
 
         for rxn_ind, data_dict in correlation_data.items():
-
             if len(data_dict['time']) != 0:
                 correlation_analysis[rxn_ind]['time'] = (np.mean(np.array(data_dict['time'])),
                                                          np.std(np.array(data_dict['time'])))
@@ -631,10 +623,10 @@ class KMC_data_analyzer:
                 relevant_rxns = [r for r in rxns_fired if r in rxns_of_type]
             else:
                 relevant_rxns = rxns_fired
+
             for rxn_ind in relevant_rxns:
                 if rxn_ind not in reaction_data:
                     reaction_data[rxn_ind] = list()
-
                 reaction_data[rxn_ind].append(np.sum(self.reaction_history[n_sim] == rxn_ind))
 
         reaction_analysis = dict()
@@ -644,7 +636,6 @@ class KMC_data_analyzer:
         # Sort reactions by the average amount fired
         sorted_reaction_analysis = sorted([(i, c) for i, c in reaction_analysis.items()], key=lambda x: x[1][0],
                                           reverse=True)
-
         if num_rxns == None:
             return sorted_reaction_analysis
         else:
@@ -676,22 +667,18 @@ class KMC_data_analyzer:
     def frequency_analysis(self, rxn_inds, spec_inds, partitions=100):
         """
         Calculate the frequency of reaction and species formation as a function of time. Simulation data is
-        discretized into many time intervals, and probabilities in this set is obtained.
+        discretized into time intervals, and probabilities in each set are obtained.
 
         :param time_step_analysis:
         :param rxn_ind: list of indeces of reactions of interest
         :param partitions: number of intervals in which to discretize time
         :return:
-
         """
-        # t_avg = time_step_analysis['t_avg']
-        # t_cascade = time_step_analysis['t_cascade']
         reaction_frequency_data = dict()
         reaction_frequency_array = dict()  # Growing arrays of reaction frequencies as fxn of time
         species_frequency_data = dict()
         species_frequency_array = dict()
         new_species_counters = dict()
-
         for ind in rxn_inds:
             reaction_frequency_data[ind] = [0 for j in range(partitions)]
 
@@ -700,77 +687,66 @@ class KMC_data_analyzer:
             new_species_counters[ind] = 0
 
         for n_sim in range(self.num_sims):
-
             delta_t = np.sum(self.time_history[n_sim]) / partitions
-
-            # cascade_end = np.where(self.time_history[n_sim] >= t_cascade)[0][0]
-            # cascade_freq = np.count_nonzero(self.reaction_history[n_sim][:cascade_end] == rxn_ind) / cascade_end
-            # intervals = np.arange(0, len(self.time_history[n_sim]), step=n)  # discretize time into sizes of n steps
-            # sim_rxn_frequencies = dict()
-            # freq_list = list()
-            # for i in range(len(intervals[1:])):
             ind_0 = 0
             t = 0
-            n = 1  # for tracking the discretization of time
-            species_counters = new_species_counters  # for counting species as they appear
-            rxn_freq_data = reaction_frequency_data
-            spec_freq_data = species_frequency_data
+            n = 0  # for tracking which time interval we are in
+            species_counters = copy.deepcopy(new_species_counters)  # for counting species as they appear
+            rxn_freq_data = copy.deepcopy(reaction_frequency_data)
+            spec_freq_data = copy.deepcopy(species_frequency_data)
             for step_num, tau in enumerate(self.time_history[n_sim]):
                 t += tau
                 this_rxn_ind = int(self.reaction_history[n_sim][step_num])
+                if this_rxn_ind % 2:  # reverse reaction
+                    prods = self.reactants[math.floor(this_rxn_ind / 2), :]
+                else:
+                    prods = self.products[math.floor(this_rxn_ind / 2), :]
+
                 for spec_ind in spec_inds:
-                    if spec_ind in self.products[math.floor(this_rxn_ind/2), :]:
+                    if spec_ind in prods:
                         species_counters[spec_ind] += 1
+
                 # When t reaches the next discretized time step, or end of the simulation
-                if (t >= n * delta_t) or (t == self.time_history[n_sim][-1]):
-                    steps = step_num - ind_0 + 1
-
-                    for spec_ind in spec_inds:
-                        spec_freq_data[spec_ind][n] = species_counters[spec_ind] / steps
-
-                    for rxn_ind in rxn_inds:
-                        rxn_freq = np.count_nonzero(self.reaction_history[n_sim][ind_0:step_num] == rxn_ind) \
-                                   / steps
-                        # t_mdpt = (self.time_history[n_sim][step_num] + self.time_history[n_sim][ind_0]) / 2
-                        rxn_freq_data[rxn_ind][n] = rxn_freq
-
-                    # Reset and update counters
-                    species_counters = new_species_counters
-                    if t >= (n+1)*delta_t:
-                        # n_over = math.floor(t / delta_t - n)  # need to fill in the gaps, if time advances quickly
-                        # for i in range(n_over):
-                        #     for rxn_ind in rxn_inds:
-                        #         rxn_freq_data[rxn_ind].append(0)
-                        #     for spec_ind in spec_inds:
-                        #         spec_freq_data[spec_ind].append(0)
+                if (t >= (n+1) * delta_t) or (step_num == len(self.reaction_history[n_sim]) - 1):
+                    n_to_fill = n
+                    if t >= (n+2) * delta_t:
                         n += math.floor(t/delta_t - n)
-                        print('n = ', n)
                     else:
                         n += 1
-                        print('n = ', n)
-                    ind_0 = step_num
-
-                if tau == self.time_history[n_sim][-1]:  # Reach the end of simulation
-                    print('reaction_freq_data: ', rxn_freq_data)
-                    for rxn_ind in rxn_freq_data:
-                        if n_sim == 0:
-                            reaction_frequency_array[rxn_ind] = np.array(rxn_freq_data[rxn_ind])
-                        else:
-                            reaction_frequency_array[rxn_ind] = np.vstack((reaction_frequency_array[rxn_ind],
-                                                                          rxn_freq_data[rxn_ind]))
-                    print('array data: ', reaction_frequency_array)
+                    steps = step_num - ind_0 + 1
                     for spec_ind in spec_inds:
-                        if n_sim == 0:
-                            species_frequency_array[spec_ind] = np.array(spec_freq_data[spec_ind])
-                        else:
-                            species_frequency_array[spec_ind] = np.vstack((species_frequency_array,
-                                                                           spec_freq_data[spec_ind]))
+                        spec_freq_data[spec_ind][n_to_fill] = species_counters[spec_ind] / steps
 
+                    for rxn_ind in rxn_inds:
+                        rxn_freq = np.count_nonzero(self.reaction_history[n_sim][ind_0:step_num + 1] == rxn_ind) \
+                                   / steps
+                        # t_mdpt = (self.time_history[n_sim][step_num] + self.time_history[n_sim][ind_0]) / 2
+                        rxn_freq_data[rxn_ind][n_to_fill] = rxn_freq
+
+                    # Reset and update counters
+                    species_counters = copy.deepcopy(new_species_counters)
+                    ind_0 = step_num + 1
+
+            for rxn_ind in rxn_inds:
+                if n_sim == 0:
+                    reaction_frequency_array[rxn_ind] = np.array(rxn_freq_data[rxn_ind])
+                else:
+                    reaction_frequency_array[rxn_ind] = np.vstack((reaction_frequency_array[rxn_ind],
+                                                                   rxn_freq_data[rxn_ind]))
+            # print('reaction freq array', reaction_frequency_array)
+
+            for spec_ind in spec_inds:
+                if n_sim == 0:
+                    species_frequency_array[spec_ind] = np.array(spec_freq_data[spec_ind])
+                else:
+                    species_frequency_array[spec_ind] = np.vstack((species_frequency_array[spec_ind],
+                                                                  spec_freq_data[spec_ind]))
         # Statistical analysis
         statistical_rxn_data = dict()
-        avg_delta_t = np.mean(np.array([self.time_history[i][-1] for i in range(self.num_sims)])) / partitions
+        statistical_spec_data = dict()
+        avg_delta_t = np.mean(np.array([sum(self.time_history[i]) for i in range(self.num_sims)])) / partitions
         time_list = [i * avg_delta_t + avg_delta_t/2 for i in range(partitions)]
-        print('time_list: ', time_list)
+        # print('time_list: ', time_list)
         for rxn_ind in rxn_inds:
             if self.num_sims == 1:
                 avgs = reaction_frequency_array[rxn_ind]
@@ -778,12 +754,18 @@ class KMC_data_analyzer:
             else:
                 avgs = np.mean(reaction_frequency_array[rxn_ind], 0)
                 stds = np.std(reaction_frequency_array[rxn_ind], 0)
-            print('avgs: ', avgs)
-
-            print('stds: ', stds)
             statistical_rxn_data[rxn_ind] = [(time_list[n], avgs[n], stds[n]) for n in range(partitions)]
 
-        return statistical_rxn_data
+        for spec_ind in spec_inds:
+            if self.num_sims == 1:
+                spec_avgs = species_frequency_array[spec_ind]
+                spec_stds = np.zeros(partitions)
+            else:
+                spec_avgs = np.mean(species_frequency_array[spec_ind], 0)
+                spec_stds = np.std(species_frequency_array[spec_ind], 0)
+            statistical_spec_data[spec_ind] = [(time_list[n], spec_avgs[n], spec_stds[n]) for n in range(partitions)]
+
+        return {'reaction_data': statistical_rxn_data, 'species_data': statistical_spec_data}
 
     def find_rxn_index(self, reaction, reverse):
 
