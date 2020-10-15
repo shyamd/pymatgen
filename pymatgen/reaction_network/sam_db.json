@@ -1,9 +1,0 @@
-{
-   "database": "sb_qchem",
-   "collection": "tasks",
-   "admin_user": "smblau_lbl.gov_readWrite",
-   "admin_password": "baffler-underranger-sanguinely-distent-flukeworm",
-   "host": "mongodb07.nersc.gov",
-   "port": 27017,
-   "aliases": {}
-}
