@@ -47,7 +47,7 @@ The algorithm is described by Gillespie (1976).
 
 def initialize_simulation(reaction_network, initial_cond, volume=10**-24):
     """Initial loop through reactions to create lists, mappings, and initial states needed for simulation without
-    reaction network object.
+    reaction network objects.
 
     Args:
         reaction_network (ReactionNetwork): Fully generated reaction network
@@ -314,7 +314,7 @@ class KMC_data_analyzer:
         """
         Generate plottable time-dependent profiles of species and rxns from raw KMC output, obtain final states.
         :return dict containing species profiles, reaction profiles, and final states from each simulation.
-                species_profiles: [ {mol_ind1: [(t0, n(t0)), (t1, n(t1)...], mol_ind2: ... ,  ... }, {...}, ... ]
+                species_profiles: [ {mol_ind1: [(t0, n(t0)), (t1, n(t1)...], mol_ind2: [...] ,  ... }, {...}, ... ]
                 reaction_profiles: [ {rxn_ind1: [t0, t1, ...], rxn_ind2: ..., ...}, {...}, ...]
                 final_states: [ {mol_ind1: n1, mol_ind2: ..., ...}, {...}, ...]
 
@@ -400,7 +400,7 @@ class KMC_data_analyzer:
         return {'species_profiles': species_profiles, 'reaction_profiles': reaction_profiles,
                 'final_states': final_states}
 
-    def plot_species_profiles(self, species_profiles, final_states, num_label, filename='KMC', file_dir = None):
+    def plot_species_profiles(self, species_profiles, final_states, num_label, filename='KMC', file_dir=None):
         """
         Sorting and plotting species profiles for a specified number of simulations. The profiles might be very similar,
         so may not need to plot all of the runs for good understanding of results.
@@ -411,7 +411,6 @@ class KMC_data_analyzer:
             num_label (int): number of species in the legend
             filename (str)
             file_dir (str)
-            num_plots (int): number of simulations desired to plot. If None, plot all the data.
 
         """
         num_plots = self.num_sims
@@ -459,7 +458,7 @@ class KMC_data_analyzer:
                       ncol=2, fontsize="small")
 
             sim_filename = filename + '_run_' + str(n_sim+1)
-            if file_dir == None:
+            if file_dir is None:
                 plt.savefig(sim_filename)
             else:
                 plt.savefig(file_dir + '/' + sim_filename)
@@ -597,7 +596,7 @@ class KMC_data_analyzer:
              [(rxn1, (avg, std)), (rxn2, (avg, std)) ... ]
          """
 
-        if reaction_type != None:
+        if reaction_type is not None:
             rxns_of_type = list()
             if (reaction_type != 'One electron reduction') or (reaction_type != 'One electron oxidation') or \
                     (reaction_type != 'Intramolecular single bond breakage') or \
@@ -615,11 +614,11 @@ class KMC_data_analyzer:
                 elif rxn.reaction_type()['rxn_type_B'] == reaction_type:
                     rxns_of_type.append(2*ind + 1)
         reaction_counts = dict()  # a growing count of all reactions fired
-        reaction_data = dict() # keeping record of each iteration
+        reaction_data = dict()  # keeping record of each iteration
         # Loop to count all reactions fired
         for n_sim in range(self.num_sims):
             rxns_fired = set(self.reaction_history[n_sim])
-            if reaction_type != None:
+            if reaction_type is not None:
                 relevant_rxns = [r for r in rxns_fired if r in rxns_of_type]
             else:
                 relevant_rxns = rxns_fired
@@ -636,7 +635,7 @@ class KMC_data_analyzer:
         # Sort reactions by the average amount fired
         sorted_reaction_analysis = sorted([(i, c) for i, c in reaction_analysis.items()], key=lambda x: x[1][0],
                                           reverse=True)
-        if num_rxns == None:
+        if num_rxns is None:
             return sorted_reaction_analysis
         else:
             return sorted_reaction_analysis[:num_rxns]
@@ -672,7 +671,10 @@ class KMC_data_analyzer:
         :param time_step_analysis:
         :param rxn_ind: list of indeces of reactions of interest
         :param partitions: number of intervals in which to discretize time
-        :return:
+        :return: dicts containing the statistics of reaction fired, product formed at each time interval.
+        {reaction_data: {rxn_ind1: [(t0, avg0, std0), (t1, avg1, std1), ...], rxn_ind2: [...], ... rxn_ind_n: [...]}
+        {species_data: {spec1: [(t0, avg0, std0), (t1, avg1, std1), ...], spec2: [...], ... specn: [...]}}
+
         """
         reaction_frequency_data = dict()
         reaction_frequency_array = dict()  # Growing arrays of reaction frequencies as fxn of time
@@ -771,7 +773,7 @@ class KMC_data_analyzer:
 
         for ind, rxn in enumerate(self.reaction_network.reactions):
             if rxn == reaction:
-                if reverse == True:
+                if reverse is True:
                     rxn_ind = 2*ind + 1
                 else:
                     rxn_ind = 2*ind

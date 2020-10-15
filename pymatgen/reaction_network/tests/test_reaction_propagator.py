@@ -18,7 +18,7 @@ __email__ = "kamronald@berkeley.edu"
 __copyright__ = "Copyright 2020, The Materials Project"
 __version__ = "0.1"
 
-test_dir = os.path.join(os.path.dirname(__file__))
+test_dir = os.path.dirname(__file__)
 
 
 class TestKineticMonteCarloSimulator(PymatgenTest):
@@ -422,8 +422,8 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         exp_initial_state[2] = self.num_mols  # h+
         exp_initial_state[3] = self.num_mols  # oh-
         exp_initial_state[7] = self.num_mols  # h2
-        exp_initial_state[10] = self.num_mols  #h2o
-        exp_initial_state[16] = self.num_mols  #o2
+        exp_initial_state[10] = self.num_mols  # h2o
+        exp_initial_state[16] = self.num_mols  # o2
 
         # exp_species_rxn_mapping = -1 * np.ones((18, 16))
         # exp_species_rxn_mapping_list = list()
@@ -605,26 +605,27 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
 
         intermediates_analysis = self.analyzer.analyze_intermediates(profiles['species_profiles'])
         exp_intermediates = {9: {'lifetime': (4.5, np.std([6, 3])), 't_max': (3.5, np.std([5, 2])),
-                                 'amt_produced': (4.5, np.std([6, 3]))} }
+                                 'amt_produced': (4.5, np.std([6, 3]))}}
         self.assertDictsAlmostEqual(intermediates_analysis, exp_intermediates)
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_quantify_rank_reactions(self):
         reaction_analysis = self.analyzer.quantify_rank_reactions()
-        expected = [(self.rxn_a, (20/3, np.std(np.array([6, 8, 6])))), (self.rxn_b, (16/3, np.std(np.array([6, 4, 6]))))]
+        expected = [(self.rxn_a, (20/3, np.std(np.array([6, 8, 6])))), (self.rxn_b,
+                                                                        (16/3, np.std(np.array([6, 4, 6]))))]
         self.assertCountEqual(reaction_analysis, expected)
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_frequency_analysis(self):
         freq_analysis = self.analyzer.frequency_analysis([self.rxn_a, self.rxn_b], [9, 10], 2)
         expected_rxn = {self.rxn_a: [(3, np.mean([1, 1, 1/2]), np.std([1, 1, 1/2])), (9, np.mean([0, 1/3, 1/2]),
-                                                                                  np.std([0, 1/3, 1/2]))],
-                    self.rxn_b: [(3, np.mean([0, 0, 1/2]), np.std([0, 0, 1/2])), (9, np.mean([1, 2/3, 1/2]),
-                                                                                  np.std([1, 2/3, 1/2]))]}
+                                                                                      np.std([0, 1/3, 1/2]))],
+                        self.rxn_b: [(3, np.mean([0, 0, 1/2]), np.std([0, 0, 1/2])), (9, np.mean([1, 2/3, 1/2]),
+                                                                                      np.std([1, 2/3, 1/2]))]}
         expected_spec = {9:  [(3, np.mean([1, 1, 1/2]), np.std([1, 1, 1/2])), (9, np.mean([0, 1/3, 1/2]),
-                                                                                  np.std([0, 1/3, 1/2]))],
+                                                                               np.std([0, 1/3, 1/2]))],
                          10: [(3, np.mean([0, 0, 1/2]), np.std([0, 0, 1/2])), (9, np.mean([1, 2/3, 1/2]),
-                                                                                  np.std([1, 2/3, 1/2]))]}
+                                                                               np.std([1, 2/3, 1/2]))]}
         self.assertDictsAlmostEqual(freq_analysis['reaction_data'], expected_rxn)
         self.assertDictsAlmostEqual(freq_analysis['species_data'], expected_spec)
 
@@ -636,6 +637,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
                                              'occurrences': (1/3, np.std([0, 0, 1]))}}
         rxn_correlations = self.analyzer.correlate_reactions([self.rxn_a, self.rxn_b])
         self.assertDictsAlmostEqual(expected_correlation, rxn_correlations)
+
 
 if __name__ == "__main__":
     unittest.main()
