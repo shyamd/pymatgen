@@ -188,10 +188,10 @@ class TestKineticMonteCarloSimulator(PymatgenTest):
         t_end = 10 ** (-12)
         simulation_data = self.propagator.simulate(t_end)
         time_record = simulation_data["times"]
-        self.assertAlmostEqual(time_record[-1], t_end, 10)
+        self.assertAlmostEqual(time_record[-2], t_end, 10)
         expected_tau = 1 / total_prop
         tau_list = np.diff(time_record)
-        self.assertAlmostEqual(np.average(tau_list), expected_tau)
+        self.assertAlmostEqual(np.average(tau_list[:-1]), expected_tau)
 
 
 class TestKMCReactionPropagatorFxns(PymatgenTest):

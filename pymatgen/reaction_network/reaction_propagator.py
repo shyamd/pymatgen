@@ -849,7 +849,6 @@ class KineticMonteCarloSimulator:
 
         self.propensity_array = np.multiply(self.rate_constants, self.coord_array)
         self.total_propensity = np.sum(self.propensity_array)
-        print("Initial total propensity = ", self.total_propensity)
         self.data = {"times": list(),
                      "reactions": list(),
                      "state": dict()}
