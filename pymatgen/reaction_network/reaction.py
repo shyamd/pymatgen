@@ -544,8 +544,6 @@ class IntramolSingleBondChangeReaction(Reaction):
                     continue
 
                 for charge in entries[formula][Nbonds0]:
-                    if charge not in families:
-                        families[charge] = dict()
                     if charge not in entries[formula][Nbonds1]:
                         continue
 
@@ -807,9 +805,6 @@ class IntermolecularReaction(Reaction):
                     continue
 
                 for charge in entries[formula][Nbonds]:
-                    if charge not in families:
-                        families[charge] = dict()
-
                     for entry in entries[formula][Nbonds][charge]:
                         rxns, subgs = cls._generate_one(entry, entries, charge, cls)
                         reactions.extend(rxns)
@@ -1081,8 +1076,7 @@ class CoordinationBondChangeReaction(Reaction):
         reactions = list()
         M_entries = dict()
         families = dict()
-        fam = dict()
-        temp = list()
+        templates = list()
         for formula in entries:
             if formula in ["Li1", "Mg1", "Ca1", "Zn1"]:
                 if formula not in M_entries:
@@ -1096,8 +1090,6 @@ class CoordinationBondChangeReaction(Reaction):
                     for Nbonds in entries[formula]:
                         if Nbonds > 2:
                             for charge in entries[formula][Nbonds]:
-                                if charge not in families:
-                                    families[charge] = dict()
                                 for entry in entries[formula][Nbonds][charge]:
                                     nosplit_M_bonds = list()
                                     for edge in entry.edges:
@@ -1144,9 +1136,9 @@ class CoordinationBondChangeReaction(Reaction):
                                                                                 indices = mg.extract_bond_environment(list(bond_pair))
                                                                                 subg = mg.graph.subgraph(list(indices)).copy().to_undirected()
 
-                                                                                fam, temp = categorize(r,
-                                                                                                       fam,
-                                                                                                       temp,
+                                                                                families, templates = categorize(r,
+                                                                                                       families,
+                                                                                                       templates,
                                                                                                        subg,
                                                                                                        charge)
 
@@ -1154,7 +1146,7 @@ class CoordinationBondChangeReaction(Reaction):
                                                                                 break
                                         except MolGraphSplitError:
                                             pass
-        return reactions, fam
+        return reactions, families
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
