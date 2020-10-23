@@ -7,13 +7,11 @@ import copy
 import pickle
 
 from pymatgen.util.testing import PymatgenTest
-from pymatgen.reaction_network.reaction_network import (RedoxReaction,
-                                                        IntramolSingleBondChangeReaction,
-                                                        IntermolecularReaction,
-                                                        CoordinationBondChangeReaction,
-                                                        ConcertedReaction,
-                                                        ReactionPath,
-                                                        ReactionNetwork)
+from pymatgen.reaction_network.reaction import (RedoxReaction,
+                                                IntramolSingleBondChangeReaction,
+                                                IntermolecularReaction,
+                                                CoordinationBondChangeReaction)
+from pymatgen.reaction_network.reaction_network import ReactionPath, ReactionNetwork
 from pymatgen.core.structure import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.analysis.graphs import MoleculeGraph
