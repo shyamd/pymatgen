@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 import copy
 import itertools
@@ -526,39 +527,68 @@ class IntramolSingleBondChangeReaction(Reaction):
         return graph_rep_1_1(self)
 
     @classmethod
-    def generate(cls, entries: MappingDict) -> Tuple[List[Reaction],
+    def generate(cls, entries: MappingDict) -> Tuple[List[IntramolSingleBondChangeReaction],
                                                      Mapping_Family_Dict]:
         reactions = list()
         families = dict()
         templates = list()
         for formula in entries:
             Nbonds_list = list(entries[formula].keys())
-            if len(Nbonds_list) > 1:
-                for ii in range(len(Nbonds_list) - 1):
-                    Nbonds0 = Nbonds_list[ii]
-                    Nbonds1 = Nbonds_list[ii + 1]
-                    if Nbonds1 - Nbonds0 == 1:
-                        for charge in entries[formula][Nbonds0]:
-                            if charge not in families:
-                                families[charge] = dict()
-                            if charge in entries[formula][Nbonds1]:
-                                for entry1 in entries[formula][Nbonds1][charge]:
-                                    for edge in entry1.edges:
-                                        mg = copy.deepcopy(entry1.mol_graph)
-                                        mg.break_edge(edge[0], edge[1], allow_reverse=True)
-                                        if nx.is_weakly_connected(mg.graph):
-                                            for entry0 in entries[formula][Nbonds0][charge]:
-                                                if entry0.mol_graph.isomorphic_to(mg):
-                                                    r = cls(entry0, entry1)
-                                                    reactions.append(r)
-                                                    indices = entry1.mol_graph.extract_bond_environment([edge])
-                                                    subg = entry1.graph.subgraph(list(indices)).copy().to_undirected()
+            if len(Nbonds_list) <= 1:
+                continue
 
-                                                    families, templates = categorize(r, families, templates,
-                                                                                     subg, charge)
-                                                    break
+            for ii in range(len(Nbonds_list) - 1):
+                Nbonds0 = Nbonds_list[ii]
+                Nbonds1 = Nbonds_list[ii + 1]
+                if Nbonds1 - Nbonds0 != 1:
+                    continue
+
+                for charge in entries[formula][Nbonds0]:
+                    if charge not in families:
+                        families[charge] = dict()
+                    if charge not in entries[formula][Nbonds1]:
+                        continue
+
+                    for entry1 in entries[formula][Nbonds1][charge]:
+                        rxns, subgs = cls._generate_one(entry1, entries, formula,
+                                                        Nbonds0, charge, cls)
+                        reactions.extend(rxns)
+                        families, templates = cls._update_families_and_templates(
+                                rxns, subgs, families, templates, charge
+                            )
 
         return reactions, families
+
+
+    @staticmethod
+    def _generate_one(entry1:MoleculeEntry, entries:MappingDict, formula:str,
+                      Nbonds0:int, charge:int, cls) -> \
+            Tuple[List[IntramolSingleBondChangeReaction], List[nx.MultiDiGraph]]:
+        """
+        Helper function to generate reactions for one molecule entry.
+        """
+        reactions = []
+        sub_graphs = []
+        for edge in entry1.edges:
+            mg = copy.deepcopy(entry1.mol_graph)
+            mg.break_edge(edge[0], edge[1], allow_reverse=True)
+            if nx.is_weakly_connected(mg.graph):
+                for entry0 in entries[formula][Nbonds0][charge]:
+                    if entry0.mol_graph.isomorphic_to(mg):
+                        r = cls(entry0, entry1)
+                        indices = entry1.mol_graph.extract_bond_environment([edge])
+                        subg = entry1.graph.subgraph(list(indices)).copy().to_undirected()
+                        reactions.append(r)
+                        sub_graphs.append(subg)
+                        break
+
+        return reactions, sub_graphs
+
+    @staticmethod
+    def _update_families_and_templates(reactions, sub_graphs, families, templates, charge):
+        for r, g in zip(reactions, sub_graphs):
+            families, templates = categorize(r, families, templates, g, charge)
+        return families, templates
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
