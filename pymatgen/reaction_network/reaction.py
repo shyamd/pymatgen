@@ -795,52 +795,83 @@ class IntermolecularReaction(Reaction):
         return graph_rep_1_2(self)
 
     @classmethod
-    def generate(cls, entries: MappingDict) -> Tuple[List[Reaction],
+    def generate(cls, entries: MappingDict) -> Tuple[List[IntermolecularReaction],
                                                      Mapping_Family_Dict]:
         reactions = list()
         families = dict()
         templates = list()
+
         for formula in entries:
             for Nbonds in entries[formula]:
-                if Nbonds > 0:
-                    for charge in entries[formula][Nbonds]:
-                        if charge not in families:
-                            families[charge] = dict()
-                        for entry in entries[formula][Nbonds][charge]:
-                            for edge in entry.edges:
-                                bond = [(edge[0], edge[1])]
-                                try:
-                                    frags = entry.mol_graph.split_molecule_subgraphs(bond,
-                                                                                     allow_reverse=True)
-                                    formula0 = frags[0].molecule.composition.alphabetical_formula
-                                    Nbonds0 = len(frags[0].graph.edges())
-                                    formula1 = frags[1].molecule.composition.alphabetical_formula
-                                    Nbonds1 = len(frags[1].graph.edges())
-                                    if formula0 in entries and formula1 in entries:
-                                        if Nbonds0 in entries[formula0] and Nbonds1 in entries[formula1]:
-                                            for charge0 in entries[formula0][Nbonds0]:
-                                                for entry0 in entries[formula0][Nbonds0][charge0]:
-                                                    if frags[0].isomorphic_to(entry0.mol_graph):
-                                                        charge1 = charge - charge0
-                                                        if charge1 in entries[formula1][Nbonds1]:
-                                                            for entry1 in entries[formula1][Nbonds1][charge1]:
-                                                                if frags[1].isomorphic_to(entry1.mol_graph):
-                                                                    r = cls(entry, [entry0, entry1])
-                                                                    mg = entry.mol_graph
-                                                                    indices = mg.extract_bond_environment([edge])
-                                                                    subg = mg.graph.subgraph(list(indices)).copy()
-                                                                    subg = subg.to_undirected()
+                if Nbonds <= 0:
+                    continue
 
-                                                                    families, templates = categorize(r, families,
-                                                                                                     templates, subg,
-                                                                                                     charge)
-                                                                    reactions.append(r)
-                                                                    break
-                                                        break
-                                except MolGraphSplitError:
-                                    pass
+                for charge in entries[formula][Nbonds]:
+                    if charge not in families:
+                        families[charge] = dict()
+
+                    for entry in entries[formula][Nbonds][charge]:
+                        rxns, subgs = cls._generate_one(entry, entries, charge, cls)
+                        reactions.extend(rxns)
+                        families, templates = cls._update_families_and_templates(
+                            rxns, subgs, families, templates, charge
+                        )
 
         return reactions, families
+
+
+    @staticmethod
+    def _generate_one(entry: MoleculeEntry, entries:MappingDict, charge:int, cls) \
+            -> Tuple[List[IntermolecularReaction], List[nx.MultiDiGraph]]:
+        """
+        Helper function to generate reactions for one molecule entry.
+        """
+
+        reactions = []
+        sub_graphs = []
+
+        for edge in entry.edges:
+            bond = [(edge[0], edge[1])]
+            try:
+                frags = entry.mol_graph.split_molecule_subgraphs(bond, allow_reverse=True)
+                formula0 = frags[0].molecule.composition.alphabetical_formula
+                Nbonds0 = len(frags[0].graph.edges())
+                formula1 = frags[1].molecule.composition.alphabetical_formula
+                Nbonds1 = len(frags[1].graph.edges())
+
+                if formula0 not in entries or formula1 not in entries \
+                        or Nbonds0 not in entries[formula0] or Nbonds1 not in entries[formula1]:
+                    continue
+
+                for charge0 in entries[formula0][Nbonds0]:
+                    for entry0 in entries[formula0][Nbonds0][charge0]:
+
+                        if frags[0].isomorphic_to(entry0.mol_graph):
+                            charge1 = charge - charge0
+                            if charge1 in entries[formula1][Nbonds1]:
+
+                                for entry1 in entries[formula1][Nbonds1][charge1]:
+                                    if frags[1].isomorphic_to(entry1.mol_graph):
+                                        r = cls(entry, [entry0, entry1])
+                                        mg = entry.mol_graph
+                                        indices = mg.extract_bond_environment([edge])
+                                        subg = mg.graph.subgraph(list(indices)).copy().to_undirected()
+                                        reactions.append(r)
+                                        sub_graphs.append(subg)
+                                        break
+                            break
+            except MolGraphSplitError:
+                pass
+
+        return reactions, sub_graphs
+
+
+    @staticmethod
+    def _update_families_and_templates(reactions, sub_graphs, families, templates, charge):
+        for r, g in zip(reactions, sub_graphs):
+            families, templates = categorize(r, families, templates, g, charge)
+        return families, templates
+
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
 
