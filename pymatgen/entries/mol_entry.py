@@ -3,17 +3,15 @@
 # Distributed under the terms of the MIT License.
 
 import copy
+from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
 from monty.json import MSONable
-
-from pymatgen.analysis.graphs import MoleculeGraph, MolGraphSplitError
-from pymatgen.analysis.local_env import OpenBabelNN
 from pymatgen import Molecule
 from pymatgen.analysis.fragmenter import metal_edge_extender
+from pymatgen.analysis.graphs import MoleculeGraph, MolGraphSplitError
+from pymatgen.analysis.local_env import OpenBabelNN
 
-from typing import Optional, Dict, Any, List, Tuple
-
-__author__ = "Sam Blau, Mingjian Wen"
+__author__ = "Sam Blau"
 __copyright__ = "Copyright 2019, The Materials Project"
 __version__ = "0.1"
 __email__ = "samblau1@gmail.com"
@@ -96,7 +94,13 @@ class MoleculeEntry(MSONable):
                 self.mol_graph = metal_edge_extender(mol_graph)
 
     @classmethod
-    def from_molecule_document(cls, mol_doc: Dict, correction: float = 0.0):
+    def from_molecule_document(
+        cls,
+        mol_doc: Dict,
+        correction: float = 0.0,
+        parameters: Optional[Dict] = None,
+        attribute=None,
+    ):
         """
         Initialize a MoleculeEntry from a molecule document.
 
@@ -105,6 +109,13 @@ class MoleculeEntry(MSONable):
                 molecule information.
             correction: A correction to be applied to the energy. This is used to modify
                 the energy for certain analyses. Defaults to 0.0.
+            parameters: An optional dict of parameters associated with
+                the molecule. Defaults to None.
+            attribute: Optional attribute of the entry. This can be used to
+                specify that the entry is a newly found compound, or to specify
+                a particular label for the entry, or else ... Used for further
+                analysis and plotting purposes. An attribute can be anything
+                but must be MSONable.
         """
 
         molecule = mol_doc["molecule"]
@@ -129,7 +140,9 @@ class MoleculeEntry(MSONable):
             enthalpy=enthalpy,
             entropy=entropy,
             mol_graph=mol_graph,
+            parameters=parameters,
             entry_id=entry_id,
+            attribute=attribute,
         )
 
     @property
