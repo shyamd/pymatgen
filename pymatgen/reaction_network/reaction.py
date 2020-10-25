@@ -2,7 +2,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 import copy
 import itertools
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Union
 import numpy as np
 from scipy.constants import h, k, R
 
@@ -31,19 +31,34 @@ MappingDict = Dict[str, Dict[int, Dict[int, List[MoleculeEntry]]]]
 Mapping_Energy_Dict = Dict[str, float]
 Mapping_ReactionType_Dict = Dict[str, str]
 Mapping_Record_Dict = Dict[str, List[str]]
+Atom_Mapping_Dict = Dict[int, int]
 
 
 class Reaction(MSONable, metaclass=ABCMeta):
     """
-       Abstract class for subsequent types of reaction class
+    Abstract class for subsequent types of reaction class
 
-       Args:
-            reactants ([MoleculeEntry]): A list of MoleculeEntry objects of len 1.
-            products ([MoleculeEntry]): A list of MoleculeEntry objects of max len 2.
-            transition_state (MoleculeEntry or None): A MoleculeEntry representing a
-                transition state for the reaction.
-            parameters (dict): Any additional data about this reaction
-       """
+    Args:
+        reactants ([MoleculeEntry]): A list of MoleculeEntry objects of len 1.
+        products ([MoleculeEntry]): A list of MoleculeEntry objects of max len 2.
+        transition_state (MoleculeEntry or None): A MoleculeEntry representing a
+            transition state for the reaction.
+        parameters (dict): Any additional data about this reaction
+        reactants_atom_mapping: A list of atom mapping number dicts, each dict for one
+            reactant with the style {atom_index: atom_mapping_number}, which is the
+            same as the rdkit style of atom mapping number. This can be used together
+            with `products_atom_mapping` to determine the correspondence of atoms between
+            the reactants and the products. Atoms with the same `atom_mapping_number`
+            in the reactants and products are the same atom before and after the reaction.
+            For example, `reactants_atom_mapping = [{0:1, 1:3}, {0:2, 1:0}]` and
+            `products_atom_mapping = [{0:2, 1:1, 2:3}, {0:0}]` means that:
+             atom 0 of the first reactant maps to atom 1 of the first product;
+             atom 1 of the first reactant maps to atom 2 of the first product;
+             atom 0 of the second reactant maps to atom 0 of the first product;
+             atom 1 of the second reactant maps to atom 0 of the second product.
+        products_atom_mapping: A list of atom mapping number dicts, each dict for one
+            product. See `reactants_atom_mapping` for more explanation.
+    """
 
     def __init__(
         self,
@@ -51,6 +66,8 @@ class Reaction(MSONable, metaclass=ABCMeta):
         products: List[MoleculeEntry],
         transition_state: Optional[MoleculeEntry] = None,
         parameters: Optional[Dict] = None,
+        reactants_atom_mapping: List[Atom_Mapping_Dict] = None,
+        products_atom_mapping: List[Atom_Mapping_Dict] = None,
     ):
         self.reactants = reactants
         self.products = products
@@ -65,14 +82,21 @@ class Reaction(MSONable, metaclass=ABCMeta):
 
         self.reactant_ids = [e.entry_id for e in self.reactants]
         self.product_ids = [e.entry_id for e in self.products]
+        # TODO (mjwen) should be the below?
+        #  self.entry_ids = {e.entry_id for e in self.reactants + self.products}
         self.entry_ids = {e.entry_id for e in self.reactants}
 
         self.parameters = parameters or dict()
+
+        self.reactants_atom_mapping = reactants_atom_mapping
+        self.products_atom_mapping = products_atom_mapping
 
     def __in__(self, entry: MoleculeEntry):
         return entry.entry_id in self.entry_ids
 
     def __len__(self):
+        # TODO (mjwen) define the length is a reaction to be the number of reactants of
+        #  value. We'd better directly define `num_reactants()`
         return len(self.reactants)
 
     def update_calculator(
@@ -205,8 +229,19 @@ class RedoxReaction(Reaction):
         isomorphic molecule graphs
 
     Args:
-       reactant([MoleculeEntry]): list of single molecular entry
-       product([MoleculeEntry]): list of single molecular entry
+        reactant: MoleculeEntry object
+        product: MoleculeEntry object
+        inner_reorganization_energy (float): Inner reorganization energy, in eV
+        dielectric (float): Dielectric constant of the solvent
+        refractive (float): Refractive index of the solvent
+        electron_free_energy (float): Free energy of the electron in the
+            electrode, in eV
+        radius (float): Solute cavity radius (including inner solvent shell)
+        electrode_dist (float): Distance from reactants to electrode, in
+            Angstrom
+        parameters (dict): Any additional data about this reaction
+        reactant_atom_mapping: atom mapping number dict for reactant
+        product_atom_mapping: atom mapping number dict for product
     """
 
     def __init__(
@@ -220,35 +255,22 @@ class RedoxReaction(Reaction):
         radius=None,
         electrode_dist=None,
         parameters=None,
+        reactant_atom_mapping: Atom_Mapping_Dict = None,
+        product_atom_mapping: Atom_Mapping_Dict = None,
     ):
-        """
-            Initilizes RedoxReaction.reactant to be in the form of a MoleculeEntry,
-            RedoxReaction.product to be in the form of MoleculeEntry,
-            Reaction.reactant to be in the form of a of a list of MoleculeEntry of length 1
-            Reaction.products to be in the form of a of a list of MoleculeEntry of length 1
-
-          Args:
-            reactant: MoleculeEntry object
-            product: MoleculeEntry object
-            inner_reorganization_energy (float): Inner reorganization energy, in eV
-            dielectric (float): Dielectric constant of the solvent
-            refractive (float): Refractive index of the solvent
-            electron_free_energy (float): Free energy of the electron in the
-                electrode, in eV
-            radius (float): Solute cavity radius (including inner solvent shell)
-            electrode_dist (float): Distance from reactants to electrode, in
-                Angstrom
-            parameters (dict): Any additional data about this reaction
-
-        """
         self.reactant = reactant
         self.product = product
+
+        rcts_mp = [reactant_atom_mapping] if reactant_atom_mapping is not None else None
+        prdts_mp = [product_atom_mapping] if product_atom_mapping is not None else None
 
         super().__init__(
             [self.reactant],
             [self.product],
             transition_state=None,
             parameters=parameters,
+            reactants_atom_mapping=rcts_mp,
+            products_atom_mapping=prdts_mp,
         )
 
         self.inner_reorganization_energy = inner_reorganization_energy
@@ -357,12 +379,51 @@ class RedoxReaction(Reaction):
                         if charge1 - charge0 == 1:
                             for entry0 in entries[formula][Nbonds][charge0]:
                                 for entry1 in entries[formula][Nbonds][charge1]:
-                                    if entry0.mol_graph.isomorphic_to(entry1.mol_graph):
-                                        r = cls(entry0, entry1)
+                                    isomorphic, node_mapping = is_isomorphic(
+                                        entry0.graph, entry1.graph
+                                    )
+                                    if isomorphic:
+                                        rct_mp, prdt_mp = cls._generate_atom_mapping(
+                                            node_mapping
+                                        )
+                                        r = cls(
+                                            entry0,
+                                            entry1,
+                                            reactant_atom_mapping=rct_mp,
+                                            product_atom_mapping=prdt_mp,
+                                        )
                                         reactions.append(r)
                                         families[formula][charge0].append(r)
 
         return reactions, families
+
+    @staticmethod
+    def _generate_atom_mapping(
+        node_mapping: Dict[int, int]
+    ) -> Tuple[Atom_Mapping_Dict, Atom_Mapping_Dict]:
+        """
+        Give node mapping from reactant to product, generate rdkit style atom mapping
+        number for reactants and products.
+
+        For example, `node_mapping = {0:2, 1:0, 2:1}` means atoms 0, 1, and 2 in the
+        reactant maps to atoms 2, 0, and 1 in the product, respectively.
+        Since there is only one reactant and only one product, the atom mapping number
+        for reactant atoms are simply set to their index, and the atom mapping number 
+        for product atoms are determined accordingly. As a result, this function gives:
+        `({0:0, 1:1, 2:2}, {0:1 1:2 2:0})` as the output. Atoms in the reactant and
+        product with the same atom mapping number (keys in the dicts) are corresponding
+        to each other.
+
+        Args:
+            node_mapping: node mapping from reactant to product
+        Returns:
+            reactant_atom_mapping: rdkit style atom mapping for reactant
+            product_atom_mapping: rdkit style atom mapping for product
+        """
+        reactant_atom_mapping = node_mapping
+        product_atom_mapping = {v: k for k, v in node_mapping.items()}
+
+        return reactant_atom_mapping, product_atom_mapping
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
@@ -2784,3 +2845,29 @@ def rexp(free_energy: float) -> float:
         r = np.exp(38.94 * d)
 
     return r[0][0]
+
+
+def is_isomorphic(
+    g1: nx.MultiDiGraph, g2: nx.MultiDiGraph
+) -> Tuple[bool, Union[None, Dict[int, int]]]:
+    """
+    Check the isomorphic between two graphs g1 and g2 and return the node mapping.
+
+    Args:
+        g1: nx graph
+        g2: nx graph
+
+    See Also:
+        https://networkx.github.io/documentation/stable/reference/algorithms/isomorphism.vf2.html
+
+    Returns:
+        is_isomorphic: Whether graphs g1 and g2 are isomorphic.
+        node_mapping: Node mapping from g1 to g2 (e.g. {0:2, 1:1, 2:0}), if g1 and g2
+            are isomorphic, `None` if not isomorphic.
+    """
+    nm = iso.categorical_node_match("specie", "ERROR")
+    GM = iso.GraphMatcher(g1.to_undirected(), g2.to_undirected(), node_match=nm)
+    if GM.is_isomorphic():
+        return True, GM.mapping
+    else:
+        return False, None

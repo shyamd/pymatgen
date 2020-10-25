@@ -149,6 +149,28 @@ class TestRedoxReaction(PymatgenTest):
                 self.assertEqual(r.product.entry_id, self.EC_0_entry.entry_id)
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    def test_atom_mapping(self):
+        entries = dict()
+        entries["C3 H4 O3"] = dict()
+        entries["C3 H4 O3"][10] = dict()
+        entries["C3 H4 O3"][10][-1] = [self.EC_minus_entry]
+        entries["C3 H4 O3"][10][0] = [self.EC_0_entry]
+        entries["C3 H4 O3"][10][1] = [self.EC_1_entry]
+
+        reactions, families = RedoxReaction.generate(entries)
+        self.assertEqual(len(reactions), 2)
+
+        for r in reactions:
+            self.assertEqual(
+                r.reactants_atom_mapping,
+                [{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9}],
+            )
+            self.assertEqual(
+                r.products_atom_mapping,
+                [{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9}],
+            )
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
 
         reaction = RedoxReaction(self.EC_0_entry, self.EC_1_entry)
