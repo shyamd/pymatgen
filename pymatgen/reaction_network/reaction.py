@@ -187,6 +187,8 @@ class Reaction(MSONable, metaclass=ABCMeta):
             "transition_state": ts,
             "rate_calculator": rc,
             "parameters": self.parameters,
+            "reactants_atom_mapping": self.reactants_atom_mapping,
+            "products_atom_mapping": self.products_atom_mapping,
         }
 
         return d
@@ -208,7 +210,12 @@ class Reaction(MSONable, metaclass=ABCMeta):
             rate_calculator = ReactionRateCalculator.from_dict(d["rate_calculator"])
 
         reaction = cls(
-            reactants, products, transition_state=ts, parameters=d["parameters"]
+            reactants,
+            products,
+            transition_state=ts,
+            parameters=d["parameters"],
+            reactants_atom_mapping=d["reactants_atom_mapping"],
+            products_atom_mapping=d["products_atom_mapping"],
         )
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -234,11 +241,9 @@ class RedoxReaction(Reaction):
         inner_reorganization_energy (float): Inner reorganization energy, in eV
         dielectric (float): Dielectric constant of the solvent
         refractive (float): Refractive index of the solvent
-        electron_free_energy (float): Free energy of the electron in the
-            electrode, in eV
+        electron_free_energy (float): Free energy of the electron in the electrode, in eV
         radius (float): Solute cavity radius (including inner solvent shell)
-        electrode_dist (float): Distance from reactants to electrode, in
-            Angstrom
+        electrode_dist (float): Distance from reactants to electrode, in Angstrom
         parameters (dict): Any additional data about this reaction
         reactant_atom_mapping: atom mapping number dict for reactant
         product_atom_mapping: atom mapping number dict for product
@@ -306,10 +311,11 @@ class RedoxReaction(Reaction):
 
     def graph_representation(self) -> nx.DiGraph:
         """
-            A method to convert a RedoxReaction class object into graph representation (nx.Digraph object).
-            Redox Reaction must be of type 1 reactant -> 1 product
+        A method to convert a RedoxReaction class object into graph representation
+        (nx.Digraph object). Redox Reaction must be of type 1 reactant -> 1 product
 
-            :return nx.Digraph object of a single Redox Reaction
+        Returns:
+            nx.Digraph object of a single Redox Reaction
         """
 
         return graph_rep_1_1(self)
@@ -334,8 +340,6 @@ class RedoxReaction(Reaction):
                     electron_free_energy: free energy of the electron, in eV
                     radius: radius of the reactant + inner solvation shell
                     electrode_dist: distance from the reactant to the electrode
-        Returns:
-            None
         """
 
         if reference is None:
@@ -360,9 +364,11 @@ class RedoxReaction(Reaction):
         A method to generate all the possible redox reactions from given entries
 
         Args:
-           :param entries: ReactionNetwork(input_entries).entries,
+            entries: ReactionNetwork(input_entries).entries,
                entries = {[formula]:{[Nbonds]:{[charge]:MoleculeEntry}}}
-           :return list of RedoxReaction class objects
+
+        Returns:
+            list of RedoxReaction class objects
         """
         reactions = list()
         families = dict()
@@ -416,6 +422,7 @@ class RedoxReaction(Reaction):
 
         Args:
             node_mapping: node mapping from reactant to product
+
         Returns:
             reactant_atom_mapping: rdkit style atom mapping for reactant
             product_atom_mapping: rdkit style atom mapping for product
@@ -429,12 +436,12 @@ class RedoxReaction(Reaction):
         """
         A method to identify type of redox reaction (oxidation or reduction)
 
-        Args:
-           :return dictionary of the form {"class": "RedoxReaction",
-                "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
-           where rnx_type_A is the primary type of the reaction based on the
-                reactant and product of the RedoxReaction
-           object, and the backwards of this reaction would be rnx_type_B
+        Returns:
+           Dictionary of the form
+           {"class": "RedoxReaction", "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B},
+           where rnx_type_A is the primary type of the reaction based on the reactant
+           and product of the RedoxReaction object, and the backwards of this reaction
+           would be rnx_type_B.
         """
 
         if self.product.charge < self.reactant.charge:
@@ -453,17 +460,19 @@ class RedoxReaction(Reaction):
 
     def free_energy(self, temperature=298.15) -> Mapping_Energy_Dict:
         """
-           A method to determine the free energy of the redox reaction. Note to
-           set RedoxReaction.eletron_free_energy a value.
+        A method to determine the free energy of the redox reaction. Note to
+        set RedoxReaction.eletron_free_energy a value.
 
-           Args:
-              :return dictionary of the form {"free_energy_A": free_energy_A,
-                                              "free_energy_B": free_energy_B}
-              where free_energy_A is the primary type of the reaction based on
-              the reactant and product of the RedoxReaction
-              object, and the backwards of this reaction would be free_energy_B.
+        Args:
+           temperature:
+
+        Returns:
+            dictionary of the form
+            {"free_energy_A": free_energy_A, "free_energy_B": free_energy_B}
+            where free_energy_A is the primary type of the reaction based on the reactant
+            and product of the RedoxReaction object, and the backwards of this reaction
+            would be free_energy_B.
         """
-
         entry0 = self.reactant
         entry1 = self.product
         if entry1.free_energy() is not None and entry0.free_energy() is not None:
@@ -487,12 +496,13 @@ class RedoxReaction(Reaction):
 
     def energy(self) -> Mapping_Energy_Dict:
         """
-           A method to determine the energy of the redox reaction
+        A method to determine the energy of the redox reaction
 
-           Args:
-              :return dictionary of the form {"energy_A": energy_A, "energy_B": energy_B}
-              where energy_A is the primary type of the reaction based on the reactant and product of the RedoxReaction
-              object, and the backwards of this reaction would be energy_B.
+        Returns:
+            Dictionary of the form {"energy_A": energy_A, "energy_B": energy_B}
+            where energy_A is the primary type of the reaction based on the reactant and
+            product of the RedoxReaction object, and the backwards of this reaction would
+            be energy_B.
         """
         if self.product.energy is not None and self.reactant.energy is not None:
             energy_A = self.product.energy - self.reactant.energy
@@ -585,6 +595,8 @@ class RedoxReaction(Reaction):
             "electrode_dist": self.electrode_dist,
             "rate_calculator": rc,
             "parameters": self.parameters,
+            "reactant_atom_mapping": self.reactants_atom_mapping[0],
+            "product_atom_mapping": self.products_atom_mapping[0],
         }
 
         return d
@@ -611,6 +623,8 @@ class RedoxReaction(Reaction):
             d["radius"],
             d["electrode_dist"],
             parameters=parameters,
+            reactant_atom_mapping=d["reactant_atom_mapping"],
+            product_atom_mapping=d["product_atom_mapping"],
         )
         reaction.rate_calculator = rate_calculator
 
@@ -620,21 +634,21 @@ class RedoxReaction(Reaction):
 class IntramolSingleBondChangeReaction(Reaction):
     """
     A class to define intramolecular single bond change as follows:
-        Intramolecular formation / breakage of one bond
-        A^n <-> B^n
-        Two entries with:
-            identical composition
-            number of edges differ by 1
-            identical charge
-            removing one of the edges in the graph with more edges yields a graph
-            isomorphic to the other entry
+
+    Intramolecular formation / breakage of one bond
+    A^n <-> B^n
+    Two entries with:
+        identical composition
+        number of edges differ by 1
+        identical charge
+        removing one of the edges in the graph with more edges yields a graph
+        isomorphic to the other entry
 
     Args:
-       reactant([MoleculeEntry]): list of single molecular entry
-       product([MoleculeEntry]): list of single molecular entry
-       transition_state (MoleculeEntry or None): A MoleculeEntry representing a
-            transition state for the reaction.
-        parameters (dict): Any additional data about this reaction
+        reactant: list of single molecular entry
+        product: list of single molecular entry
+        transition_state: A MoleculeEntry representing a transition state for the reaction.
+        parameters: Any additional data about this reaction
     """
 
     def __init__(
@@ -644,21 +658,6 @@ class IntramolSingleBondChangeReaction(Reaction):
         transition_state: Optional[MoleculeEntry] = None,
         parameters: Optional[Dict] = None,
     ):
-        """
-            Initilizes IntramolSingleBondChangeReaction.reactant to be in the form of a MoleculeEntry,
-            IntramolSingleBondChangeReaction.product to be in the form of MoleculeEntry,
-            Reaction.reactant to be in the form of a of a list of MoleculeEntry of length 1
-            Reaction.products to be in the form of a of a list of MoleculeEntry of length 1
-
-          Args:
-            reactant: MoleculeEntry object
-            product: MoleculeEntry object
-            transition_state (MoleculeEntry or None): A MoleculeEntry representing a
-                transition state for the reaction.
-            parameters (dict): Any additional data about this reaction
-
-        """
-
         self.reactant = reactant
         self.product = product
         super().__init__(
