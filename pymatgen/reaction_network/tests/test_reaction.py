@@ -552,7 +552,7 @@ class TestIntermolecularReaction(PymatgenTest):
             if r.reactant.entry_id == self.LiEC_RO_entry.entry_id:
                 if (
                     r.products[0].entry_id == self.C2H4_entry.entry_id
-                    or r.products[0].entry_id == self.C2H4_entry.entry_id
+                    or r.products[1].entry_id == self.C2H4_entry.entry_id
                 ):
                     self.assertTrue(
                         r.products[0].formula == "C1 Li1 O3"
@@ -566,6 +566,35 @@ class TestIntermolecularReaction(PymatgenTest):
                         or r.products[1].free_energy()
                         == self.C1Li1O3_entry.free_energy()
                     )
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    def test_atom_mapping(self):
+        entries = dict()
+        entries["C3 H4 Li1 O3"] = dict()
+        entries["C3 H4 Li1 O3"][11] = dict()
+        entries["C3 H4 Li1 O3"][11][0] = [self.LiEC_RO_entry]
+        entries["C1 Li1 O3"] = dict()
+        entries["C1 Li1 O3"][5] = dict()
+        entries["C1 Li1 O3"][5][0] = [self.C1Li1O3_entry]
+        entries["C2 H4"] = dict()
+        entries["C2 H4"][5] = dict()
+        entries["C2 H4"][5][0] = [self.C2H4_entry]
+
+        reactions, families = IntermolecularReaction.generate(entries)
+        self.assertEqual(len(reactions), 1)
+        rxn = reactions[0]
+        self.assertEqual(rxn.reactant.entry_id, self.LiEC_RO_entry.entry_id)
+        self.assertEqual(rxn.product_0.entry_id, self.C2H4_entry.entry_id)
+        self.assertEqual(rxn.product_1.entry_id, self.C1Li1O3_entry.entry_id)
+
+        self.assertEqual(
+            rxn.reactants_atom_mapping,
+            [{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10}],
+        )
+        self.assertEqual(
+            rxn.products_atom_mapping,
+            [{0: 0, 1: 1, 2: 7, 3: 8, 4: 9, 5: 10}, {0: 2, 1: 3, 2: 4, 3: 5, 4: 6}],
+        )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):

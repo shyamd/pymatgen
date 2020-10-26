@@ -913,24 +913,26 @@ class IntramolSingleBondChangeReaction(Reaction):
         return reaction
 
 
+# TODO rename to IntermolSingleBondChangeReaction, rename argument `product` to `products`
 class IntermolecularReaction(Reaction):
     """
-        A class to define intermolecular bond change as follows:
-            Intermolecular formation / breakage of one bond
-            A <-> B + C aka B + C <-> A
-            Three entries with:
-                comp(A) = comp(B) + comp(C)
-                charge(A) = charge(B) + charge(C)
-                removing one of the edges in A yields two disconnected subgraphs
-                that are isomorphic to B and C
+    A class to define intermolecular single bond change as follows:
 
-        Args:
-            reactant([MoleculeEntry]): list of single molecular entry
-            product([MoleculeEntry]): list of two molecular entries
-            transition_state (MoleculeEntry or None): A MoleculeEntry
-                representing a
-                transition state for the reaction.
-            parameters (dict): Any additional data about this reaction
+    Intermolecular breakage / formation of one bond
+    A <-> B + C aka B + C <-> A
+    Three entries with:
+        comp(A) = comp(B) + comp(C)
+        charge(A) = charge(B) + charge(C)
+        removing one of the edges in A yields two disconnected subgraphs
+        that are isomorphic to B and C
+
+    Args:
+        reactant: list of single molecular entry
+        product: list of two molecular entries
+        transition_state: A MoleculeEntry representing a transition state for the reaction.
+        parameters: Any additional data about this reaction
+        reactant_atom_mapping: atom mapping number dict for reactant
+        products_atom_mapping: list of atom mapping number dict for products
     """
 
     def __init__(
@@ -939,44 +941,33 @@ class IntermolecularReaction(Reaction):
         product: List[MoleculeEntry],
         transition_state: Optional[MoleculeEntry] = None,
         parameters: Optional[Dict] = None,
+        reactant_atom_mapping: Optional[Atom_Mapping_Dict] = None,
+        products_atom_mapping: Optional[List[Atom_Mapping_Dict]] = None,
     ):
-        """
-            Initilizes IntermolecularReaction.reactant to be in the form of a
-            MoleculeEntry,
-            IntermolecularReaction.product to be in the form of [MoleculeEntry_0,
-                                                                 MoleculeEntry_1],
-            Reaction.reactant to be in the form of a of a list of MoleculeEntry
-                of length 1
-            Reaction.products to be in the form of a of a list of MoleculeEntry
-                of length 2
-
-          Args:
-            reactant: MoleculeEntry object
-            product: list of MoleculeEntry object of length 2
-            transition_state (MoleculeEntry or None): A MoleculeEntry
-                representing a transition state for the reaction.
-            parameters (dict): Any additional data about this reaction
-
-        """
-
         self.reactant = reactant
         self.product_0 = product[0]
         self.product_1 = product[1]
+
+        rcts_mp = [reactant_atom_mapping] if reactant_atom_mapping is not None else None
+        prdts_mp = products_atom_mapping if products_atom_mapping is not None else None
+
         super().__init__(
             [self.reactant],
             [self.product_0, self.product_1],
             transition_state=transition_state,
             parameters=parameters,
+            reactants_atom_mapping=rcts_mp,
+            products_atom_mapping=prdts_mp,
         )
 
     def graph_representation(self) -> nx.DiGraph:
-
         """
-            A method to convert a IntermolecularReaction class object into graph
-            representation (nx.Digraph object).
-            IntermolecularReaction must be of type 1 reactant -> 2 products
+        A method to convert a IntermolecularReaction class object into graph
+        representation (nx.Digraph object).
+        IntermolecularReaction must be of type 1 reactant -> 2 products
 
-            :return nx.Digraph object of a single IntermolecularReaction object
+        Returns:
+            nx.Digraph object of a single IntermolecularReaction object
         """
 
         return graph_rep_1_2(self)
@@ -1011,7 +1002,6 @@ class IntermolecularReaction(Reaction):
         """
         Helper function to generate reactions for one molecule entry.
         """
-
         reactions = []
         sub_graphs = []
 
@@ -1035,27 +1025,41 @@ class IntermolecularReaction(Reaction):
                     continue
 
                 for charge0 in entries[formula0][Nbonds0]:
+                    charge1 = charge - charge0
+                    if charge1 not in entries[formula1][Nbonds1]:
+                        continue
+
                     for entry0 in entries[formula0][Nbonds0][charge0]:
+                        isomorphic0, _ = is_isomorphic(frags[0].graph, entry0.graph)
+                        if isomorphic0:
 
-                        if frags[0].isomorphic_to(entry0.mol_graph):
-                            charge1 = charge - charge0
-                            if charge1 in entries[formula1][Nbonds1]:
+                            for entry1 in entries[formula1][Nbonds1][charge1]:
+                                isomorphic1, _ = is_isomorphic(
+                                    frags[1].graph, entry1.graph
+                                )
+                                if isomorphic1:
+                                    rct_mp, prdts_mp = generate_atom_mapping_1_2(
+                                        entry, [entry0, entry1], edge
+                                    )
+                                    r = cls(
+                                        entry,
+                                        [entry0, entry1],
+                                        reactant_atom_mapping=rct_mp,
+                                        products_atom_mapping=prdts_mp,
+                                    )
 
-                                for entry1 in entries[formula1][Nbonds1][charge1]:
-                                    if frags[1].isomorphic_to(entry1.mol_graph):
-                                        r = cls(entry, [entry0, entry1])
-                                        mg = entry.mol_graph
-                                        indices = mg.extract_bond_environment([edge])
-                                        subg = (
-                                            mg.graph.subgraph(list(indices))
-                                            .copy()
-                                            .to_undirected()
-                                        )
+                                    mg = entry.mol_graph
+                                    indices = mg.extract_bond_environment([edge])
+                                    subg = (
+                                        mg.graph.subgraph(list(indices))
+                                        .copy()
+                                        .to_undirected()
+                                    )
 
-                                        reactions.append(r)
-                                        sub_graphs.append(subg)
+                                    reactions.append(r)
+                                    sub_graphs.append(subg)
 
-                                        break
+                                    break
                             break
             except MolGraphSplitError:
                 pass
@@ -1071,19 +1075,17 @@ class IntermolecularReaction(Reaction):
         return families, templates
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
-
         """
-           A method to identify type of intermoleular reaction (bond
-           decomposition from one to two or formation from two to one molecules)
+        A method to identify type of intermoleular reaction (bond
+        decomposition from one to two or formation from two to one molecules)
 
-           Args:
-              :return dictionary of the form {"class": "IntermolecularReaction",
-              "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
-              where rnx_type_A is the primary type of the reaction based on the
-              reactant and product of the IntermolecularReaction
-              object, and the backwards of this reaction would be rnx_type_B
+        Returns:
+            Dictionary of the form {"class": "IntermolecularReaction",
+            "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B},
+            where rnx_type_A is the primary type of the reaction based on the
+            reactant and product of the IntermolecularReaction
+            object, and the backwards of this reaction would be rnx_type_B
         """
-
         rxn_type_A = "Molecular decomposition breaking one bond A -> B+C"
         rxn_type_B = "Molecular formation from one new bond A+B -> C"
 
@@ -1096,14 +1098,16 @@ class IntermolecularReaction(Reaction):
 
     def free_energy(self, temperature=298.15) -> Mapping_Energy_Dict:
         """
-          A method to determine the free energy of the intermolecular reaction
+        A method to determine the free energy of the intermolecular reaction.
 
-          Args:
-             :return dictionary of the form {"free_energy_A": energy_A,
-                                             "free_energy_B": energy_B}
-             where free_energy_A is the primary type of the reaction based on
-             the reactant and product of the IntermolecularReaction
-             object, and the backwards of this reaction would be free_energy_B.
+        Args:
+            temperature:
+
+        Returns:
+            Dictionary of the form {"free_energy_A": energy_A, "free_energy_B": energy_B}
+            where free_energy_A is the primary type of the reaction based on
+            the reactant and product of the IntermolecularReaction
+            object, and the backwards of this reaction would be free_energy_B.
          """
         g_entry = self.reactant.free_energy
         g_0 = self.product_0.free_energy
@@ -1129,14 +1133,13 @@ class IntermolecularReaction(Reaction):
 
     def energy(self) -> Mapping_Energy_Dict:
         """
-          A method to determine the energy of the intermolecular reaction
+        A method to determine the energy of the intermolecular reaction.
 
-          Args:
-             :return dictionary of the form {"energy_A": energy_A,
-                                             "energy_B": energy_B}
-             where energy_A is the primary type of the reaction based on the
-             reactant and product of the IntermolecularReaction
-             object, and the backwards of this reaction would be energy_B.
+        Returns:
+            Dictionary of the form {"energy_A": energy_A, "energy_B": energy_B}
+            where energy_A is the primary type of the reaction based on the
+            reactant and product of the IntermolecularReaction
+            object, and the backwards of this reaction would be energy_B.
         """
         if (
             self.product_1.energy is not None
@@ -1220,6 +1223,8 @@ class IntermolecularReaction(Reaction):
             "transition_state": ts,
             "rate_calculator": rc,
             "parameters": self.parameters,
+            "reactant_atom_mapping": self.reactants_atom_mapping[0],
+            "products_atom_mapping": self.products_atom_mapping,
         }
 
         return d
@@ -1244,7 +1249,12 @@ class IntermolecularReaction(Reaction):
         parameters = d["parameters"]
 
         reaction = cls(
-            reactant, [product_0, product_1], transition_state=ts, parameters=parameters
+            reactant,
+            [product_0, product_1],
+            transition_state=ts,
+            parameters=parameters,
+            reactant_atom_mapping=d["reactant_atom_mapping"],
+            products_atom_mapping=d["products_atom_mapping"],
         )
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -2890,10 +2900,88 @@ def generate_atom_mapping_1_1(
         node_mapping: node mapping from reactant to product
 
     Returns:
-        reactant_atom_mapping: rdkit style atom mapping for reactant
-        product_atom_mapping: rdkit style atom mapping for product
+        reactant_atom_mapping: rdkit style atom mapping for the reactant
+        product_atom_mapping: rdkit style atom mapping for the product
     """
     reactant_atom_mapping = node_mapping
     product_atom_mapping = {v: k for k, v in node_mapping.items()}
 
     return reactant_atom_mapping, product_atom_mapping
+
+
+def generate_atom_mapping_1_2(
+    reactant: MoleculeEntry, products: List[MoleculeEntry], edge: Tuple[int, int],
+) -> Tuple[Atom_Mapping_Dict, List[Atom_Mapping_Dict]]:
+    """
+    Generate rdkit style atom mapping for reactions with one reactant and two products.
+
+    The atom mapping number for reactant atoms are simply set to their index,
+    and the atom mapping number for product atoms are determined accordingly.
+    Atoms in the reactant and products with the same atom mapping number (value in the
+    atom mapping dictionary {atom_index: atom_mapping_number}) corresponds to each other.
+    
+    For example, given reactant
+
+          C 0
+         / \
+        /___\
+       O     N---H
+       1     2   3
+
+    and the two products
+          C 1
+         / \
+        /___\
+       O     N
+       2     0
+
+    and
+       H 0
+
+    This function returns:
+    reactant_atom_mapping = {0:0, 1:1, 2:2, 3:3}
+    products_atom_mapping = [{0:2, 1:0, 2:1}, {0:3}]
+
+    Args:
+        reactant: reactant molecule entry
+        products: products molecule entry
+        edge: the bond in reactant, by breaking which can form the two products
+
+    Note:
+        This function assumes the two subgraphs of the reactant obtained by breaking
+        the edge are ordered the same as the products. i.e. subgraphs[0] corresponds to
+        products[0] and subgraphs[1] corresponds to products[1].
+
+    Returns:
+        reactant_atom_mapping: rdkit style atom mapping number for the reactant
+        products_atom_mapping: rdkit style atom mapping number for the two products
+    """
+
+    def split_subgraphs(mol_graph, edge):
+        """
+        Split a mol graph into two subgraphs.
+
+        This is similar to MoleculeGraph.split_molecule_subbraphs(), but do not reorder
+        the nodes, i.e. the nodes in the subgraphs will have the same node indexes as
+        in the main graph.
+        """
+        original = copy.deepcopy(mol_graph)
+        original.break_edge(edge[0], edge[1], allow_reverse=True)
+        components = nx.weakly_connected_components(original.graph)
+        subgraphs = [original.graph.subgraph(c) for c in components]
+
+        return subgraphs
+
+    assert len(products) == 2, f"Expect 2 product molecules, got {len(products)}."
+
+    reactant_atom_mapping = {i: i for i in range(reactant.num_atoms)}
+
+    sub_graphs = split_subgraphs(reactant.mol_graph, edge)
+
+    products_atom_mapping = []
+    for subg, prdt in zip(sub_graphs, products):
+        _, node_mapping = is_isomorphic(prdt.graph, subg)
+        assert node_mapping is not None, "Cannot obtain node mapping."
+        products_atom_mapping.append(node_mapping)
+
+    return reactant_atom_mapping, products_atom_mapping
