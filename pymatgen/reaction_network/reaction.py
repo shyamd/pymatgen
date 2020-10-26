@@ -389,7 +389,7 @@ class RedoxReaction(Reaction):
                                         entry0.graph, entry1.graph
                                     )
                                     if isomorphic:
-                                        rct_mp, prdt_mp = cls._generate_atom_mapping(
+                                        rct_mp, prdt_mp = generate_atom_mapping_1_1(
                                             node_mapping
                                         )
                                         r = cls(
@@ -402,35 +402,6 @@ class RedoxReaction(Reaction):
                                         families[formula][charge0].append(r)
 
         return reactions, families
-
-    @staticmethod
-    def _generate_atom_mapping(
-        node_mapping: Dict[int, int]
-    ) -> Tuple[Atom_Mapping_Dict, Atom_Mapping_Dict]:
-        """
-        Give node mapping from reactant to product, generate rdkit style atom mapping
-        number for reactants and products.
-
-        For example, `node_mapping = {0:2, 1:0, 2:1}` means atoms 0, 1, and 2 in the
-        reactant maps to atoms 2, 0, and 1 in the product, respectively.
-        Since there is only one reactant and only one product, the atom mapping number
-        for reactant atoms are simply set to their index, and the atom mapping number 
-        for product atoms are determined accordingly. As a result, this function gives:
-        `({0:0, 1:1, 2:2}, {0:1 1:2 2:0})` as the output. Atoms in the reactant and
-        product with the same atom mapping number (keys in the dicts) are corresponding
-        to each other.
-
-        Args:
-            node_mapping: node mapping from reactant to product
-
-        Returns:
-            reactant_atom_mapping: rdkit style atom mapping for reactant
-            product_atom_mapping: rdkit style atom mapping for product
-        """
-        reactant_atom_mapping = node_mapping
-        product_atom_mapping = {v: k for k, v in node_mapping.items()}
-
-        return reactant_atom_mapping, product_atom_mapping
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
@@ -647,8 +618,11 @@ class IntramolSingleBondChangeReaction(Reaction):
     Args:
         reactant: list of single molecular entry
         product: list of single molecular entry
-        transition_state: A MoleculeEntry representing a transition state for the reaction.
+        transition_state: A MoleculeEntry representing a transition state for the
+            reaction.
         parameters: Any additional data about this reaction
+        reactant_atom_mapping: atom mapping number dict for reactant
+        product_atom_mapping: atom mapping number dict for product
     """
 
     def __init__(
@@ -657,23 +631,32 @@ class IntramolSingleBondChangeReaction(Reaction):
         product: MoleculeEntry,
         transition_state: Optional[MoleculeEntry] = None,
         parameters: Optional[Dict] = None,
+        reactant_atom_mapping: Atom_Mapping_Dict = None,
+        product_atom_mapping: Atom_Mapping_Dict = None,
     ):
         self.reactant = reactant
         self.product = product
+
+        rcts_mp = [reactant_atom_mapping] if reactant_atom_mapping is not None else None
+        prdts_mp = [product_atom_mapping] if product_atom_mapping is not None else None
+
         super().__init__(
             [self.reactant],
             [self.product],
             transition_state=transition_state,
             parameters=parameters,
+            reactants_atom_mapping=rcts_mp,
+            products_atom_mapping=prdts_mp,
         )
 
     def graph_representation(self) -> nx.DiGraph:
         """
-            A method to convert a IntramolSingleBondChangeReaction class object into
-            graph representation (nx.Digraph object).
-            IntramolSingleBondChangeReaction must be of type 1 reactant -> 1 product
+        A method to convert a IntramolSingleBondChangeReaction class object into
+        graph representation (nx.Digraph object).
+        IntramolSingleBondChangeReaction must be of type 1 reactant -> 1 product
 
-            :return nx.Digraph object of a single IntramolSingleBondChangeReaction object
+        Returns:
+            nx.Digraph object of a single IntramolSingleBondChangeReaction object
         """
 
         return graph_rep_1_1(self)
@@ -725,8 +708,15 @@ class IntramolSingleBondChangeReaction(Reaction):
             mg.break_edge(edge[0], edge[1], allow_reverse=True)
             if nx.is_weakly_connected(mg.graph):
                 for entry0 in entries[formula][Nbonds0][charge]:
-                    if entry0.mol_graph.isomorphic_to(mg):
-                        r = cls(entry0, entry1)
+                    isomorphic, node_mapping = is_isomorphic(entry0.graph, mg.graph)
+                    if isomorphic:
+                        rct_mp, prdt_mp = generate_atom_mapping_1_1(node_mapping)
+                        r = cls(
+                            entry0,
+                            entry1,
+                            reactant_atom_mapping=rct_mp,
+                            product_atom_mapping=prdt_mp,
+                        )
                         indices = entry1.mol_graph.extract_bond_environment([edge])
                         subg = (
                             entry1.graph.subgraph(list(indices)).copy().to_undirected()
@@ -749,15 +739,15 @@ class IntramolSingleBondChangeReaction(Reaction):
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
-            A method to identify type of intramolecular single bond change
-            reaction (bond breakage or formation)
+        A method to identify type of intramolecular single bond change
+        reaction (bond breakage or formation)
 
-            Args:
-               :return dictionary of the form {"class": "IntramolSingleBondChangeReaction",
-               "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
-               where rnx_type_A is the primary type of the reaction based on the
-               reactant and product of the IntramolSingleBondChangeReaction
-               object, and the backwards of this reaction would be rnx_type_B
+        Returns:
+            Dictionary of the form {"class": "IntramolSingleBondChangeReaction",
+            "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
+            where rnx_type_A is the primary type of the reaction based on the
+            reactant and product of the IntramolSingleBondChangeReaction
+            object, and the backwards of this reaction would be rnx_type_B
         """
         if self.product.charge < self.reactant.charge:
             rxn_type_A = "Intramolecular single bond breakage"
@@ -775,15 +765,17 @@ class IntramolSingleBondChangeReaction(Reaction):
 
     def free_energy(self, temperature=298.15) -> Mapping_Energy_Dict:
         """
-          A method to  determine the free energy of the intramolecular single
-          bond change reaction
+        A method to determine the free energy of the intramolecular single bond change
+        reaction.
 
-          Args:
-             :return dictionary of the form {"free_energy_A": energy_A,
-                                             "free_energy_B": energy_B}
-             where free_energy_A is the primary type of the reaction based on
-             the reactant and product of the IntramolSingleBondChangeReaction
-             object, and the backwards of this reaction would be free_energy_B.
+        Args:
+            temperature:
+
+        Returns:
+            Dictionary of the form {"free_energy_A": energy_A, "free_energy_B": energy_B}
+            where free_energy_A is the primary type of the reaction based on
+            the reactant and product of the IntramolSingleBondChangeReaction
+            object, and the backwards of this reaction would be free_energy_B.
         """
         entry0 = self.reactant
         entry1 = self.product
@@ -802,15 +794,14 @@ class IntramolSingleBondChangeReaction(Reaction):
 
     def energy(self) -> Mapping_Energy_Dict:
         """
-          A method to determine the energy of the intramolecular single bond
-          change reaction
+        A method to determine the energy of the intramolecular single bond change
+        reaction.
 
-          Args:
-             :return dictionary of the form {"energy_A": energy_A,
-                                             "energy_B": energy_B}
-             where energy_A is the primary type of the reaction based on the
-             reactant and product of the IntramolSingleBondChangeReaction
-             object, and the backwards of this reaction would be energy_B.
+        Returns:
+            Dictionary of the form {"energy_A": energy_A, "energy_B": energy_B}
+            where energy_A is the primary type of the reaction based on
+            the reactant and product of the IntramolSingleBondChangeReaction object,
+            and the backwards of this reaction would be energy_B.
          """
 
         if self.product.energy is not None and self.reactant.energy is not None:
@@ -886,6 +877,8 @@ class IntramolSingleBondChangeReaction(Reaction):
             "transition_state": ts,
             "rate_calculator": rc,
             "parameters": self.parameters,
+            "reactant_atom_mapping": self.reactants_atom_mapping[0],
+            "product_atom_mapping": self.products_atom_mapping[0],
         }
 
         return d
@@ -908,7 +901,14 @@ class IntramolSingleBondChangeReaction(Reaction):
 
         parameters = d["parameters"]
 
-        reaction = cls(reactant, product, transition_state=ts, parameters=parameters)
+        reaction = cls(
+            reactant,
+            product,
+            transition_state=ts,
+            parameters=parameters,
+            reactant_atom_mapping=d["reactant_atom_mapping"],
+            product_atom_mapping=d["product_atom_mapping"],
+        )
         reaction.rate_calculator = rate_calculator
         return reaction
 
@@ -2870,3 +2870,30 @@ def is_isomorphic(
         return True, GM.mapping
     else:
         return False, None
+
+
+def generate_atom_mapping_1_1(
+    node_mapping: Dict[int, int]
+) -> Tuple[Atom_Mapping_Dict, Atom_Mapping_Dict]:
+    """
+    Generate rdkit style atom mapping for reactions with one reactant and one product.
+
+    For example, given `node_mapping = {0:2, 1:0, 2:1}`, which means atoms 0, 1,
+    and 2 in the reactant maps to atoms 2, 0, and 1 in the product, respectively,
+    the atom mapping number for reactant atoms are simply set to their index,
+    and the atom mapping number for product atoms are determined accordingly.
+    As a result, this function gives: `({0:0, 1:1, 2:2}, {0:1 1:2 2:0})` as the output.
+    Atoms in the reactant and product with the same atom mapping number
+    (keys in the dicts) are corresponding to each other.
+
+    Args:
+        node_mapping: node mapping from reactant to product
+
+    Returns:
+        reactant_atom_mapping: rdkit style atom mapping for reactant
+        product_atom_mapping: rdkit style atom mapping for product
+    """
+    reactant_atom_mapping = node_mapping
+    product_atom_mapping = {v: k for k, v in node_mapping.items()}
+
+    return reactant_atom_mapping, product_atom_mapping

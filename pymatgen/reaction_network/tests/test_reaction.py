@@ -315,8 +315,48 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
         self.assertEqual(len(reactions), 93)
 
         for r in reactions:
+            # TODO (mjwen) this is never run for two reasons:
+            #  1. It should be:
+            #  if r.reactant == self.LiEC_RO_entry:
+            #     self.assertEqual(r.product.entry_id, self.LiEC_entry.entry_id)
+            #  since this class generates bond formation reactions
+            #  Even, after fixing 1, there is still another problem.
+            #  2. There are multiple MoleculeEntry with the same `formula`,`Nbonds`,
+            #  and `charge` as self.LiEC_entry. In `setUpClass`, one of such
+            #  MoleculeEntry is set to self.LiEC_entry,
+            #  but in IntramolSingleBondChangeReaction, another MoleculeEntry will be
+            #  used as the reactant. This happens because in both `setUpClass` and
+            #  `IntramolSingleBondChangeReaction`, the code `break` when one entry is
+            #  found.
+            #  To fix this, we can either clean the input data to make sure there is
+            #  only one LiEC, or we do some bookkeeping in `setUpClass` and then make
+            #  the correct check.
             if r.reactant == self.LiEC_entry:
                 self.assertEqual(r.product.entry_id, self.LiEC_RO_entry.entry_id)
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    def test_atom_mapping(self):
+        entries = dict()
+        entries["C3 H4 Li1 O3"] = dict()
+        entries["C3 H4 Li1 O3"][11] = dict()
+        entries["C3 H4 Li1 O3"][11][0] = [self.LiEC_RO_entry]
+        entries["C3 H4 Li1 O3"][12] = dict()
+        entries["C3 H4 Li1 O3"][12][0] = [self.LiEC_entry]
+
+        reactions, families = IntramolSingleBondChangeReaction.generate(entries)
+        self.assertEqual(len(reactions), 1)
+        rxn = reactions[0]
+        self.assertEqual(rxn.reactant.entry_id, self.LiEC_RO_entry.entry_id)
+        self.assertEqual(rxn.product.entry_id, self.LiEC_entry.entry_id)
+
+        self.assertEqual(
+            rxn.reactants_atom_mapping,
+            [{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10}],
+        )
+        self.assertEqual(
+            rxn.products_atom_mapping,
+            [{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10}],
+        )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
