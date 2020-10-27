@@ -34,6 +34,12 @@ Mapping_Record_Dict = Dict[str, List[str]]
 Atom_Mapping_Dict = Dict[int, int]
 
 
+# TODO create OneReactantOneProductReaction, subclassing Reaction, but superclassing
+#  RedoxReaction and IntramolSingleBondChangeReaction
+# TODO create OneReactantTwoProductsReaction, subclassing Reaction, but superclassing
+#  IntermolecularReaction and CoordinationBondChangeReaction
+
+
 class Reaction(MSONable, metaclass=ABCMeta):
     """
     Abstract class for subsequent types of reaction class
@@ -1039,7 +1045,7 @@ class IntermolecularReaction(Reaction):
                                 )
                                 if isomorphic1:
                                     rct_mp, prdts_mp = generate_atom_mapping_1_2(
-                                        entry, [entry0, entry1], edge
+                                        entry, [entry0, entry1], [edge]
                                     )
                                     r = cls(
                                         entry,
@@ -1260,24 +1266,27 @@ class IntermolecularReaction(Reaction):
         return reaction
 
 
+# TODO rename argument `product` to `products`
 class CoordinationBondChangeReaction(Reaction):
     """
     A class to define coordination bond change as follows:
-        Simultaneous formation / breakage of multiple coordination bonds
-        A + M <-> AM aka AM <-> A + M
-        Three entries with:
-            M = Li or Mg
-            comp(AM) = comp(A) + comp(M)
-            charge(AM) = charge(A) + charge(M)
-            removing two M-containing edges in AM yields two disconnected
-            subgraphs that are isomorphic to B and C
+
+    Simultaneous formation / breakage of multiple coordination bonds
+    A + M <-> AM aka AM <-> A + M
+    Three entries with:
+        M = Li, Mg, Ca, or Zn
+        comp(AM) = comp(A) + comp(M)
+        charge(AM) = charge(A) + charge(M)
+        removing two M-containing edges in AM yields two disconnected subgraphs that
+        are isomorphic to A and M
 
     Args:
-        reactant([MoleculeEntry]): list of single molecular entry
-        product([MoleculeEntry]): list of two molecular entries
-        transition_state (MoleculeEntry or None): A MoleculeEntry representing a
-            transition state for the reaction.
-        parameters (dict): Any additional data about this reaction
+        reactant: molecular entry
+        product: list of two molecular entries
+        transition_state: a MoleculeEntry representing a transition state
+        parameters: any additional data about this reaction
+        reactant_atom_mapping: atom mapping number dict for reactant
+        products_atom_mapping: list of atom mapping number dict for products
     """
 
     def __init__(
@@ -1286,42 +1295,34 @@ class CoordinationBondChangeReaction(Reaction):
         product: List[MoleculeEntry],
         transition_state: Optional[MoleculeEntry] = None,
         parameters: Optional[Dict] = None,
+        reactant_atom_mapping: Optional[Atom_Mapping_Dict] = None,
+        products_atom_mapping: Optional[List[Atom_Mapping_Dict]] = None,
     ):
-        """
-            Initilizes CoordinationBondChangeReaction.reactant to be in the
-            form of a MoleculeEntry,
-            CoordinationBondChangeReaction.product to be in the form of
-                [MoleculeEntry_0, MoleculeEntry_1],
-            Reaction.reactant to be in the form of a of a list of MoleculeEntry
-                of length 1
-            Reaction.products to be in the form of a of a list of MoleculeEntry
-                of length 2
-
-        Args:
-            reactant: MoleculeEntry object
-            product: list of MoleculeEntry object of length 2
-            transition_state (MoleculeEntry or None): A MoleculeEntry
-                representing a transition state for the reaction.
-            parameters (dict): Any additional data about this reaction
-
-        """
         self.reactant = reactant
         self.product_0 = product[0]
         self.product_1 = product[1]
+
+        rcts_mp = [reactant_atom_mapping] if reactant_atom_mapping is not None else None
+        prdts_mp = products_atom_mapping if products_atom_mapping is not None else None
+
         super().__init__(
             [self.reactant],
             [self.product_0, self.product_1],
             transition_state=transition_state,
             parameters=parameters,
+            reactants_atom_mapping=rcts_mp,
+            products_atom_mapping=prdts_mp,
         )
 
     def graph_representation(self) -> nx.DiGraph:
         """
-            A method to convert a CoordinationBondChangeReaction class object
-                into graph representation (nx.Digraph object).
-            CoordinationBondChangeReaction must be of type 1 reactant -> 2 products
+        A method to convert a CoordinationBondChangeReaction class object into graph
+        representation (nx.Digraph object).
 
-            :return nx.Digraph object of a single CoordinationBondChangeReaction object
+        CoordinationBondChangeReaction must be of type 1 reactant -> 2 products
+
+        Returns:
+             nx.Digraph object of a single CoordinationBondChangeReaction object
         """
 
         return graph_rep_1_2(self)
@@ -1371,6 +1372,9 @@ class CoordinationBondChangeReaction(Reaction):
     def _generate_one(
         entry, entries, M_entries, cls
     ) -> Tuple[List[CoordinationBondChangeReaction], List[nx.MultiDiGraph]]:
+        """
+        Helper function to generate reactions for one molecule entry.
+        """
 
         reactions = []
         sub_graphs = []
@@ -1430,9 +1434,20 @@ class CoordinationBondChangeReaction(Reaction):
                         for nonM_entry in entries[nonM_formula][nonM_Nbonds][
                             nonM_charge
                         ]:
-                            if frag.isomorphic_to(nonM_entry.mol_graph):
+                            isomorphic, _ = is_isomorphic(frag.graph, nonM_entry.graph)
+                            if isomorphic:
                                 this_m = M_entries[M_formula][M_charge]
-                                r = cls(entry, [nonM_entry, this_m])
+
+                                rct_mp, prdts_mp = generate_atom_mapping_1_2(
+                                    entry, [nonM_entry, this_m], bond_pair
+                                )
+
+                                r = cls(
+                                    entry,
+                                    [nonM_entry, this_m],
+                                    reactant_atom_mapping=rct_mp,
+                                    products_atom_mapping=prdts_mp,
+                                )
                                 mg = entry.mol_graph
                                 indices = mg.extract_bond_environment(list(bond_pair))
                                 subg = (
@@ -1461,16 +1476,15 @@ class CoordinationBondChangeReaction(Reaction):
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
-           A method to identify type of coordination bond change reaction
-           (bond breaking from one to two or forming from two to one molecules)
+        A method to identify type of coordination bond change reaction (bond breaking
+        from one to two or forming from two to one molecules)
 
-           Args:
-              :return dictionary of the form {"class": "CoordinationBondChangeReaction",
-                                              "rxn_type_A": rxn_type_A,
-                                              "rxn_type_B": rxn_type_B}
-              where rnx_type_A is the primary type of the reaction based on the
-              reactant and product of the CoordinationBondChangeReaction
-              object, and the backwards of this reaction would be rnx_type_B
+        Returns:
+            Dictionary of the form {"class": "CoordinationBondChangeReaction",
+                                    "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
+            where rnx_type_A is the primary type of the reaction based on the
+            reactant and product of the CoordinationBondChangeReaction
+            object, and the backwards of this reaction would be rnx_type_B
         """
 
         rxn_type_A = "Coordination bond breaking AM -> A+M"
@@ -1485,15 +1499,16 @@ class CoordinationBondChangeReaction(Reaction):
 
     def free_energy(self, temperature=298.15) -> Mapping_Energy_Dict:
         """
-              A method to determine the free energy of the coordination bond
-                change reaction
+        A method to determine the free energy of the coordination bond change reaction
 
-              Args:
-                 :return dictionary of the form {"free_energy_A": energy_A,
-                                                 "free_energy_B": energy_B}
-                 where free_energy_A is the primary type of the reaction based
-                 on the reactant and product of the CoordinationBondChangeReaction
-                 object, and the backwards of this reaction would be free_energy_B.
+        Args:
+            temperature:
+
+        Returns:
+            Dictionary of the form {"free_energy_A": energy_A, "free_energy_B": energy_B}
+            where free_energy_A is the primary type of the reaction based
+            on the reactant and product of the CoordinationBondChangeReaction
+            object, and the backwards of this reaction would be free_energy_B.
          """
         g_entry = self.reactant.free_energy
         g_0 = self.product_0.free_energy
@@ -1519,15 +1534,13 @@ class CoordinationBondChangeReaction(Reaction):
 
     def energy(self) -> Mapping_Energy_Dict:
         """
-              A method to determine the energy of the coordination bond change
-              reaction
+        A method to determine the energy of the coordination bond change reaction
 
-              Args:
-                 :return dictionary of the form {"energy_A": energy_A,
-                                                 "energy_B": energy_B}
-                 where energy_A is the primary type of the reaction based on the
-                 reactant and product of the CoordinationBondChangeReaction
-                 object, and the backwards of this reaction would be energy_B.
+        Returns:
+            Dictionary of the form {"energy_A": energy_A, "energy_B": energy_B}
+            where energy_A is the primary type of the reaction based on the
+            reactant and product of the CoordinationBondChangeReaction
+            object, and the backwards of this reaction would be energy_B.
         """
         if (
             self.product_1.energy is not None
@@ -1611,6 +1624,8 @@ class CoordinationBondChangeReaction(Reaction):
             "transition_state": ts,
             "rate_calculator": rc,
             "parameters": self.parameters,
+            "reactant_atom_mapping": self.reactants_atom_mapping[0],
+            "products_atom_mapping": self.products_atom_mapping,
         }
 
         return d
@@ -1635,7 +1650,12 @@ class CoordinationBondChangeReaction(Reaction):
         parameters = d["parameters"]
 
         reaction = cls(
-            reactant, [product_0, product_1], transition_state=ts, parameters=parameters
+            reactant,
+            [product_0, product_1],
+            transition_state=ts,
+            parameters=parameters,
+            reactant_atom_mapping=d["reactant_atom_mapping"],
+            products_atom_mapping=d["products_atom_mapping"],
         )
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -2910,7 +2930,9 @@ def generate_atom_mapping_1_1(
 
 
 def generate_atom_mapping_1_2(
-    reactant: MoleculeEntry, products: List[MoleculeEntry], edge: Tuple[int, int],
+    reactant: MoleculeEntry,
+    products: List[MoleculeEntry],
+    edges: List[Tuple[int, int]],
 ) -> Tuple[Atom_Mapping_Dict, List[Atom_Mapping_Dict]]:
     """
     Generate rdkit style atom mapping for reactions with one reactant and two products.
@@ -2945,7 +2967,7 @@ def generate_atom_mapping_1_2(
     Args:
         reactant: reactant molecule entry
         products: products molecule entry
-        edge: the bond in reactant, by breaking which can form the two products
+        edges: a list of bonds in reactant, by breaking which can form the two products
 
     Note:
         This function assumes the two subgraphs of the reactant obtained by breaking
@@ -2957,7 +2979,7 @@ def generate_atom_mapping_1_2(
         products_atom_mapping: rdkit style atom mapping number for the two products
     """
 
-    def split_subgraphs(mol_graph, edge):
+    def split_subgraphs(mol_graph, edges):
         """
         Split a mol graph into two subgraphs.
 
@@ -2966,7 +2988,8 @@ def generate_atom_mapping_1_2(
         in the main graph.
         """
         original = copy.deepcopy(mol_graph)
-        original.break_edge(edge[0], edge[1], allow_reverse=True)
+        for edge in edges:
+            original.break_edge(edge[0], edge[1], allow_reverse=True)
         components = nx.weakly_connected_components(original.graph)
         subgraphs = [original.graph.subgraph(c) for c in components]
 
@@ -2976,7 +2999,7 @@ def generate_atom_mapping_1_2(
 
     reactant_atom_mapping = {i: i for i in range(reactant.num_atoms)}
 
-    sub_graphs = split_subgraphs(reactant.mol_graph, edge)
+    sub_graphs = split_subgraphs(reactant.mol_graph, edges)
 
     products_atom_mapping = []
     for subg, prdt in zip(sub_graphs, products):

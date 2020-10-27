@@ -1,6 +1,7 @@
 # coding: utf-8
 import os
 import unittest
+from typing import List, Optional
 
 from pymatgen.util.testing import PymatgenTest
 from pymatgen.reaction_network.reaction import (
@@ -150,12 +151,10 @@ class TestRedoxReaction(PymatgenTest):
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_atom_mapping(self):
-        entries = dict()
-        entries["C3 H4 O3"] = dict()
-        entries["C3 H4 O3"][10] = dict()
-        entries["C3 H4 O3"][10][-1] = [self.EC_minus_entry]
-        entries["C3 H4 O3"][10][0] = [self.EC_0_entry]
-        entries["C3 H4 O3"][10][1] = [self.EC_1_entry]
+
+        entries = bucket_mol_entries(
+            [self.EC_minus_entry, self.EC_0_entry, self.EC_1_entry]
+        )
 
         reactions, families = RedoxReaction.generate(entries)
         self.assertEqual(len(reactions), 2)
@@ -336,12 +335,8 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_atom_mapping(self):
-        entries = dict()
-        entries["C3 H4 Li1 O3"] = dict()
-        entries["C3 H4 Li1 O3"][11] = dict()
-        entries["C3 H4 Li1 O3"][11][0] = [self.LiEC_RO_entry]
-        entries["C3 H4 Li1 O3"][12] = dict()
-        entries["C3 H4 Li1 O3"][12][0] = [self.LiEC_entry]
+
+        entries = bucket_mol_entries([self.LiEC_RO_entry, self.LiEC_entry])
 
         reactions, families = IntramolSingleBondChangeReaction.generate(entries)
         self.assertEqual(len(reactions), 1)
@@ -569,16 +564,10 @@ class TestIntermolecularReaction(PymatgenTest):
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_atom_mapping(self):
-        entries = dict()
-        entries["C3 H4 Li1 O3"] = dict()
-        entries["C3 H4 Li1 O3"][11] = dict()
-        entries["C3 H4 Li1 O3"][11][0] = [self.LiEC_RO_entry]
-        entries["C1 Li1 O3"] = dict()
-        entries["C1 Li1 O3"][5] = dict()
-        entries["C1 Li1 O3"][5][0] = [self.C1Li1O3_entry]
-        entries["C2 H4"] = dict()
-        entries["C2 H4"][5] = dict()
-        entries["C2 H4"][5][0] = [self.C2H4_entry]
+
+        entries = bucket_mol_entries(
+            [self.LiEC_RO_entry, self.C1Li1O3_entry, self.C2H4_entry]
+        )
 
         reactions, families = IntermolecularReaction.generate(entries)
         self.assertEqual(len(reactions), 1)
@@ -795,6 +784,30 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
                     )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+    def test_atom_mapping(self):
+
+        entries = bucket_mol_entries(
+            [self.LiEC_entry, self.EC_minus_entry, self.Li_entry]
+        )
+
+        reactions, families = CoordinationBondChangeReaction.generate(entries)
+        self.assertEqual(len(reactions), 1)
+        rxn = reactions[0]
+        self.assertEqual(rxn.reactant.entry_id, self.LiEC_entry.entry_id)
+        self.assertEqual(rxn.product_0.entry_id, self.EC_minus_entry.entry_id)
+        self.assertEqual(rxn.product_1.entry_id, self.Li_entry.entry_id)
+
+        self.assertEqual(
+            rxn.reactants_atom_mapping,
+            [{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10}],
+        )
+
+        self.assertEqual(
+            rxn.products_atom_mapping,
+            [{0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 7, 7: 8, 8: 9, 9: 10}, {0: 6}],
+        )
+
+    @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
 
         reaction = CoordinationBondChangeReaction(
@@ -833,6 +846,44 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
                 "rxn_type_B": "Coordination bond forming A+M -> AM",
             },
         )
+
+
+def bucket_mol_entries(entries: List[MoleculeEntry], keys: Optional[List[str]] = None):
+    """
+    Bucket molecules into nested dictionaries according to molecule properties
+    specified in keys.
+
+    The nested dictionary has keys as given in `keys`, and the innermost value is a
+    list. For example, if `keys = ['formula', 'Nbonds', 'charge']`, then the returned
+    bucket dictionary is something like:
+
+    bucket[formula][Nbonds][charge] = [mol_entry1, mol_entry2, ...]
+
+    where mol_entry1, mol_entry2, ... have the same formula, number of bonds, nad charge.
+
+    Args:
+        entries: a list of molecule entries to bucket
+        keys: each str should be a molecule property.
+            default to ['formula', 'Nbonds', 'charge']
+
+    Returns:
+        Nested dictionary of molecule entry bucketed according to keys.
+    """
+    keys = ["formula", "Nbonds", "charge"] if keys is None else keys
+
+    num_keys = len(keys)
+    buckets = {}
+    for m in entries:
+        b = buckets
+        for i, k in enumerate(keys):
+            v = getattr(m, k)
+            if i == num_keys - 1:
+                b.setdefault(v, []).append(m)
+            else:
+                b.setdefault(v, {})
+            b = b[v]
+
+    return buckets
 
 
 if __name__ == "__main__":
