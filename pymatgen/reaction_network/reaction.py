@@ -1,4 +1,3 @@
-from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 import copy
 import itertools
@@ -527,8 +526,7 @@ class IntramolSingleBondChangeReaction(Reaction):
         return graph_rep_1_1(self)
 
     @classmethod
-    def generate(cls, entries: MappingDict) -> Tuple[List[IntramolSingleBondChangeReaction],
-                                                     Mapping_Family_Dict]:
+    def generate(cls, entries: MappingDict) -> Tuple[List[Reaction], Mapping_Family_Dict]:
         reactions = list()
         families = dict()
         templates = list()
@@ -560,7 +558,7 @@ class IntramolSingleBondChangeReaction(Reaction):
 
     @staticmethod
     def _generate_one(entry1, entries, formula, Nbonds0, charge, cls) -> \
-            Tuple[List[IntramolSingleBondChangeReaction], List[nx.MultiDiGraph]]:
+            Tuple[List[Reaction], List[nx.MultiDiGraph]]:
         """
         Helper function to generate reactions for one molecule entry.
         """
@@ -794,8 +792,7 @@ class IntermolecularReaction(Reaction):
         return graph_rep_1_2(self)
 
     @classmethod
-    def generate(cls, entries: MappingDict) -> Tuple[List[IntermolecularReaction],
-                                                     Mapping_Family_Dict]:
+    def generate(cls, entries: MappingDict) -> Tuple[List[Reaction], Mapping_Family_Dict]:
         reactions = list()
         families = dict()
         templates = list()
@@ -817,8 +814,7 @@ class IntermolecularReaction(Reaction):
 
 
     @staticmethod
-    def _generate_one(entry, entries, charge, cls) -> Tuple[List[IntermolecularReaction],
-                                                            List[nx.MultiDiGraph]]:
+    def _generate_one(entry, entries, charge, cls) -> Tuple[List[Reaction], List[nx.MultiDiGraph]]:
         """
         Helper function to generate reactions for one molecule entry.
         """
@@ -1112,8 +1108,7 @@ class CoordinationBondChangeReaction(Reaction):
         return reactions, families
 
     @staticmethod
-    def _generate_one(entry, entries, M_entries, cls) -> \
-            Tuple[List[CoordinationBondChangeReaction], List[nx.MultiDiGraph]]:
+    def _generate_one(entry, entries, M_entries, cls) -> Tuple[List[Reaction], List[nx.MultiDiGraph]]:
 
         reactions = []
         sub_graphs = []
