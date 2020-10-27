@@ -19,24 +19,6 @@ __email__ = "kamronald@berkeley.edu"
 __copyright__ = "Copyright 2020, The Materials Project"
 __version__ = "0.1"
 
-spec = [('products', int64[:, :]),
-        ('reactants', int64[:, :]),
-        ('initial_state', int64[:]),
-        ('state', int64[:]),
-        ('rate_constants', float64[:]),
-        ('coord_array', float64[:]),
-        ('species_rxn_mapping', int64[:, :]),
-        ('volume', float64),
-        ('num_species', int64),
-        ('num_rxns', int64),
-        ('rxn_ind', int64[:]),
-        ('propensity_array', float64[:]),
-        ('total_propensity', float64),
-        ('state', int64[:]),
-        ('times', float64[:]),
-        ('reaction_history', int64[:])
-        ]
-
 """
 Kinetic Monte Carlo (kMC) simulation for a reaction network, assuming spatial homogeneity. Simulation can be performed 
 with and without ReactionNetwork objects. The version without ReactionNetwork objects is computationally cheaper. 
@@ -44,32 +26,30 @@ The algorithm is described by Gillespie (1976).
 
 """
 
-
 def initialize_simulation(reaction_network, initial_cond, volume=10**-24):
-    """Initial loop through reactions to create lists, mappings, and initial states needed for simulation without
+    """
+    Initial loop through reactions to create lists, mappings, and initial states needed for simulation without
     reaction network objects.
 
     Args:
-        reaction_network (ReactionNetwork): Fully generated reaction network
-        initial_cond (dict): [mol_id: initial_conc [M] (float)]
-        volume [m^3] (float)
+        reaction_network: Fully generated ReactionNetwork
+        initial_cond: dict mapping mol_index to initial concentration [M]. mol_index is entry position in
+                             reaction_network.entries_list
+        volume: float of system volume
 
-    Returns:
-        initial_state (list): Initial molecule amounts. Species indexing corresponds to reaction_network.entries_list
-        initial_state_dict (dict): convert initial_cond to a dict of [initial_mol_ind: #molecules...]
-        species_rxn_mapping (list of list): each species has a list of reaction (indexes) which they take part in
-        molid_index_mapping (dict): mapping between species index and its Molecule entry id
-                                    [molecule_index: molecule_entry_id]
-        reactant_array (array) (n_rxns x 2): each row contains the reactant indexes of forward reaction
-        products_array (array) (n_rxns x 2): each row contains the product indexes of forward reaction
-        coord_array (array) (2*n_rxns x 1): coordination number for each forward and reverse reaction
-                                            [c1_f, c1_r, c2_f, c2_r ...]
-        rate_constants (array) (2*n_rxns x 1): rate constant of each for and rev reaction [k1_f, k1_r, k2_f, k2_r ...]
-        propensities (array) (2*n_rxns x 1): reaction propensities, obtained by element-wise multiplication of
-                                            coord_array and rate_constants
-        molid_index_mapping (dict): [mol_id: mol_index (int) ... ]
+    :return:
+        initial_state: array of initial molecule amounts, indexed corresponding to reaction_network.entries_list
+        initial_state_dict: dict mapping molecule index to initial molecule amounts
+        species_rxn_mapping: 2d array; each row i contains reactions which molecule_i takes part in
+        molid_index_mapping: mapping between species entry id and its molecule index
+        reactants_array: (n_rxns x 2) array, each row containing reactant mol_index of forward reaction
+        products_array: (n_rxns x 2) array, each row containing product mol_index of forward reaction
+        coord_array: (2*n_rxns x 1) array, with coordination number of each for and rev rxn: [c1_f, c1_r, c2_f, c2_r...]
+        rate_constants: (2*n_rxns x 1) array, with rate constant of each for and rev rxn: [k1_f, k1_r, k2_f, k2_r ...]
+        propensities: (2*n_rxns x 1) array of reaction propensities, defined as coord_num*rate_constant
 
     """
+
     num_rxns = len(reaction_network.reactions)
     num_species = len(reaction_network.entries_list)
     molid_index_mapping = dict()
@@ -84,12 +64,14 @@ def initialize_simulation(reaction_network, initial_cond, volume=10**-24):
         if mol.entry_id in initial_cond:
             initial_state_dict[ind] = this_mol_amt
 
+    # Initially compile each species' reactions in lists, later convert to a 2d array
     species_rxn_mapping_list = [[] for j in range(num_species)]
     reactant_array = -1 * np.ones((num_rxns, 2), dtype=int)
     product_array = -1 * np.ones((num_rxns, 2), dtype=int)
     coord_array = np.zeros(2 * num_rxns)
     rate_constants = np.zeros(2 * num_rxns)
     for id, reaction in enumerate(reaction_network.reactions):
+        # Keep track of reactant amounts, for later calculating coordination number
         num_reactants_for = list()
         num_reactants_rev = list()
         rate_constants[2 * id] = reaction.rate_constant()["k_A"]
@@ -142,29 +124,30 @@ def initialize_simulation(reaction_network, initial_cond, volume=10**-24):
 @jit(nopython=True, parallel=True)
 def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
                  species_rxn_mapping, reactants, products, state):
-
-    """ KMC Simulation of reaction network and specified initial conditions.
+    """
+    KMC Simulation of reaction network and specified initial conditions. Args are all Numpy arrays, to allow
+    computational speed up with Numba.
 
     Args:
-         time_steps (int): Number of time steps/iterations desired to run.
-         coord_array (array): Numpy array containing coordination numbers of forward and reverse reactions.
-                                [h1f, h1r, h2f, h2r, ...]
-         rate_constants (array): Numpy array containing rate constants of forward and reverse reactions.
-         propensity_array (array): Numpy array containing propensities of for and rev reactions.
-         species_rxn_mapping (2d array): Contains all the reaction indexes that each species takes part in
-         reactants (2d array): Species IDs corresponding to the reactants of each forward reaction
-         products (2d array): Species IDs corresponding to products of each forward reaction
-         state (array): Array containing molecular amounts of each species in the reaction network
+        time_steps: int number of time steps desired to run
+        coord_array: array containing coordination numbers of for and rev rxns.
+        rate_constants: array containing rate constants of for and rev rxns
+        propensity_array: array containing propensities of for and rev rxns
+        species_rxn_mapping: 2d array; each row i contains reactions which molecule_i takes part in
+        reactants: (n_rxns x 2) array, each row containing reactant mol_index of forward reaction
+        products: (n_rxns x 2) array, each row containing product mol_index of forward reaction
+        state: array of initial molecule amounts, indexed corresponding to reaction_network.entries_list
 
-    Returns:
-        A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred.
-        Second row are the time steps generated at each iteration.
+    :return: A (2 x time_steps) Numpy array. First row contains the indeces of reactions that occurred.
+             Second row are the time steps generated at each iteration.
+
     """
+
     total_propensity = np.sum(propensity_array)
     t = 0.0
     reaction_history = [0 for step in range(time_steps)]
     times = [0.0 for step in range(time_steps)]
-    relevant_ind = np.where(propensity_array > 0)[0]
+    relevant_ind = np.where(propensity_array > 0)[0]  # Take advantage of sparsity - many propensities will be 0.
     for step_counter in range(time_steps):
         r1 = random.random()
         r2 = random.random()
@@ -213,15 +196,19 @@ def kmc_simulate(time_steps, coord_array, rate_constants, propensity_array,
 
 @jit(nopython=True)
 def update_state(reactants, products, state, rxn_ind, reverse):
-    """ Update the system based on the reaction chosen
-            Args:
-                reaction (Reaction)
-                reverse (bool): If True, let the reverse reaction proceed.
-                    Otherwise, let the forwards reaction proceed.
+    """
+    Updating the system state based on chosen reaction, during kMC simulation.
 
-            Returns:
-                None
-            """
+    Args:
+        reactants: (n_rxns x 2) array, each row containing reactant mol_index of forward reaction
+        products: (n_rxns x 2) array, each row containing product mol_index of forward reaction
+        state: array of initial molecule amounts, indexed corresponding to reaction_network.entries_list
+        rxn_ind: int of reaction index, corresponding to position in reaction_network.reactions list
+        reverse: bool of whether this is the reverse reaction or not
+
+    :return: updated state array, after performing the specified reaction
+    """
+
     if rxn_ind == -1:
         raise RuntimeError("Incorrect reaction index when updating state")
     if reverse:
@@ -250,23 +237,29 @@ def update_state(reactants, products, state, rxn_ind, reverse):
                 continue
             else:
                 state[product_id] += 1
+
     return state
 
 
 @jit(nopython=True)
 def get_coordination(reactants, products, state, rxn_id, reverse):
-    """ Calculate the coordination number for a particular reaction, based on the reaction type
-    number of molecules for the reactants.
+    """
+    Calculate the coordination number of a reaction, for reactions involving two reactions of less.
+    They are defined as follows:
+    A -> B;  coord = n(A)
+    A + A --> B; coord = n(A) * (n(A) - 1)
+    A + B --> C; coord = n(A) * n(B)
 
     Args:
-        rxn_id (int): index of the reaction chosen in the array [R1f, R1r, R2f, R2r, ...]
-        reverse (bool): If True, give the propensity for the reverse
-            reaction. If False, give the propensity for the forwards
-            reaction.
+        reactants: (n_rxns x 2) array, each row containing reactant mol_index of forward reaction
+        products: (n_rxns x 2) array, each row containing product mol_index of forward reaction
+        state: array of initial molecule amounts, indexed corresponding to reaction_network.entries_list
+        rxn_ind: int of reaction index, corresponding to position in reaction_network.reactions list
+        reverse: bool of whether this is the reverse reaction or not
 
-    Returns:
-        propensity (float)
+    :return: float of reaction coordination number
     """
+
     if reverse:
         reactant_array = products[rxn_id, :]
         num_reactants = len(np.where(reactant_array != -1)[0])
@@ -290,9 +283,20 @@ def get_coordination(reactants, products, state, rxn_id, reverse):
     return h_prop
 
 
-class KMC_data_analyzer:
+class KmcDataAnalyzer:
     """
-    Functions to analyze (function-based) KMC outputs from many simulation runs.
+    Functions to analyze (function-based) KMC outputs from many simulation runs. Ideally, the reaction history and
+    time history data are list of arrays.
+
+    Args:
+        reaction_network: fully generated ReactionNetwork, used for kMC simulation
+        molid_ind_mapping: dict mapping each entry's id to its index; of form {entry_id: mol_index, ... }
+        species_rxn_mapping: 2d array; each row i contains reactions which molecule_i takes part in
+        initial_state_dict: dict mapping mol_id to its initial amount {mol1_id: amt_1, mol2_id: amt2 ... }
+        products: (n_rxns x 2) array, each row containing product mol_index of forward reaction
+        reactants: (n_rxns x 2) array, each row containing reactant mol_index of forward reaction
+        reaction_history: list of arrays of reaction histories of each simulation.
+        time_history: list of arrays of time histories of each simulation.
 
     """
     def __init__(self, reaction_network, molid_ind_mapping, species_rxn_mapping, initial_state_dict, products,
@@ -305,23 +309,25 @@ class KMC_data_analyzer:
         self.reactants = reactants
         self.reaction_history = reaction_history
         self.time_history = time_history
-
         self.num_sims = len(self.reaction_history)
         if self.num_sims != len(self.time_history):
             raise RuntimeError('Number of datasets for rxn history and time step history should be same!')
+        self.molind_id_mapping = [mol.entry_id for mol in self.reaction_network.entries_list]
 
     def generate_time_dep_profiles(self):
         """
         Generate plottable time-dependent profiles of species and rxns from raw KMC output, obtain final states.
+
         :return dict containing species profiles, reaction profiles, and final states from each simulation.
-                species_profiles: [ {mol_ind1: [(t0, n(t0)), (t1, n(t1)...], mol_ind2: [...] ,  ... }, {...}, ... ]
+                {species_profiles: [ {mol_ind1: [(t0, n(t0)), (t1, n(t1)...], mol_ind2: [...] ,  ... }, {...}, ... ]
                 reaction_profiles: [ {rxn_ind1: [t0, t1, ...], rxn_ind2: ..., ...}, {...}, ...]
-                final_states: [ {mol_ind1: n1, mol_ind2: ..., ...}, {...}, ...]
+                final_states: [ {mol_ind1: n1, mol_ind2: ..., ...}, {...}, ...] }
 
         """
         species_profiles = list()
         reaction_profiles = list()
         final_states = list()
+
         for n_sim in range(self.num_sims):
             sim_time_history = self.time_history[n_sim]
             sim_rxn_history = self.reaction_history[n_sim]
@@ -343,46 +349,28 @@ class KMC_data_analyzer:
                 converted_ind = math.floor(rxn_ind/2)
 
                 if rxn_ind % 2:
-                    for r_ind in self.products[converted_ind, :]:
-                        if r_ind == -1:
-                            continue
-                        else:
-                            try:
-                                state[r_ind] -= 1
-                                if state[r_ind] < 0:
-                                    raise ValueError("State invalid: negative specie: {}".format(r_ind))
-                                sim_species_profile[r_ind].append((t, state[r_ind]))
-                            except KeyError:
-                                raise ValueError("Reactant specie {} given is not in state!".format(r_ind))
-                    for p_ind in self.reactants[converted_ind, :]:
-                        if p_ind == -1:
-                            continue
-                        else:
-                            if (p_ind in state) and (p_ind in sim_species_profile):
-                                state[p_ind] += 1
-                                sim_species_profile[p_ind].append((t, state[p_ind]))
-                            else:
-                                state[p_ind] = 1
-                                sim_species_profile[p_ind] = [(0.0, 0), (t, state[p_ind])]
-
+                    reacts = self.products[converted_ind, :]
+                    prods = self.reactants[converted_ind, :]
                 else:
-                    for r_ind in self.reactants[converted_ind, :]:
-                        if r_ind == -1:
-                            continue
-                        else:
-                            try:
-                                state[r_ind] -= 1
-                                if state[r_ind] < 0:
-                                    print(state)
-                                    raise ValueError("State invalid: negative specie: {} during sim {}, iter {}"
-                                                     .format(r_ind, n_sim, iter))
-                                sim_species_profile[r_ind].append((t, state[r_ind]))
-                            except KeyError:
-                                raise ValueError("Specie {} given is not in state!".format(r_ind))
-                    for p_ind in self.products[converted_ind, :]:
-                        if p_ind == -1:
-                            continue
-                        elif (p_ind in state) and (p_ind in sim_species_profile):
+                    reacts = self.reactants[converted_ind, :]
+                    prods = self.products[converted_ind, :]
+
+                for r_ind in reacts:
+                    if r_ind == -1:
+                        continue
+                    else:
+                        try:
+                            state[r_ind] -= 1
+                            if state[r_ind] < 0:
+                                raise ValueError("State invalid: negative specie: {}".format(r_ind))
+                            sim_species_profile[r_ind].append((t, state[r_ind]))
+                        except KeyError:
+                            raise ValueError("Reactant specie {} given is not in state!".format(r_ind))
+                for p_ind in prods:
+                    if p_ind == -1:
+                        continue
+                    else:
+                        if (p_ind in state) and (p_ind in sim_species_profile):
                             state[p_ind] += 1
                             sim_species_profile[p_ind].append((t, state[p_ind]))
                         else:
@@ -400,20 +388,49 @@ class KMC_data_analyzer:
         return {'species_profiles': species_profiles, 'reaction_profiles': reaction_profiles,
                 'final_states': final_states}
 
-    def plot_species_profiles(self, species_profiles, final_states, num_label, filename='KMC', file_dir=None):
+    def final_state_analysis(self, final_states):
+        """
+        Gather statistical analysis of the final states of simulation.
+
+        Args:
+            final_states: list of dicts of final states, as generated in generate_time_dep_profiles()
+
+        :return: list of tuples containing statistical data for each species, sorted from highest to low avg occurrence
+        """
+        state_arrays = dict()  # For each molecule, compile an array of its final amounts
+        for iter, final_state in enumerate(final_states):
+            for mol_ind, amt in final_state.items():
+                # Store the amount, and convert key from mol_ind to entry_id
+                if self.molind_id_mapping[mol_ind] not in state_arrays:
+                    state_arrays[self.molind_id_mapping[mol_ind]] = np.zeros(self.num_sims)
+                state_arrays[self.molind_id_mapping[mol_ind]][iter] = amt
+        analyzed_states = dict()  # will contain statistical results of final states
+        for mol_entry, state_array in state_arrays.items():
+            analyzed_states[mol_entry] = (np.mean(state_array), np.std(state_array))
+        # Sort from highest avg final amount to lowest
+        sorted_analyzed_states = sorted([(entry_id, data_tup) for entry_id, data_tup in analyzed_states.items()],
+                                        key=lambda x: x[1][0], reverse=True)
+        return sorted_analyzed_states
+
+    def plot_species_profiles(self, species_profiles, final_states, num_label=12, num_plots=None,
+                              filename=None, file_dir=None):
         """
         Sorting and plotting species profiles for a specified number of simulations. The profiles might be very similar,
         so may not need to plot all of the runs for good understanding of results.
 
         Args:
-            species_profiles (list of dicts): species as function of time, for each simulation
-            final_states (list of dicts): final states of each simulation
-            num_label (int): number of species in the legend
+            species_profiles: list of dicts of species as function of time, for each simulation
+            final_states: list of dicts of final states of each simulation
+            num_label: integer number of species in the legend
             filename (str)
             file_dir (str)
 
         """
-        num_plots = self.num_sims
+        if num_plots is None:
+            num_plots = self.num_sims
+        elif num_plots > self.num_sims:
+            num_plots = self.num_sims
+
         for n_sim in range(num_plots):
             # Sorting and plotting:
             fig, ax = plt.subplots()
@@ -459,64 +476,83 @@ class KMC_data_analyzer:
 
             sim_filename = filename + '_run_' + str(n_sim+1)
             if file_dir is None:
-                plt.savefig(sim_filename)
+                plt.show()
             else:
                 plt.savefig(file_dir + '/' + sim_filename)
 
-    def analyze_intermediates(self, species_profiles, cutoff=0.1):
+    def analyze_intermediates(self, species_profiles, cutoff=0.9):
         """
-        Identify intermediates from species vs time profiles. It is an intermediate if its final state
-        contains less than 1/10 of its maximal amount. User can adjust this fraction.
-        :param species_profile: (Dict of list of tuple)
-        :param cutoff: (float) fraction to adjust definition of intermediate
+        Identify intermediates from species vs time profiles. Species are intermediates if consumed nearly as much
+        as they are created.
+
+        Args:
+            species_profile: Dict of list of tuples, as generated in generate_time_dep_profiles()
+            cutoff: (float) fraction to adjust definition of intermediate
+
         :return: Analyzed data in a dict, of the form:
             {mol1: {'freqency': (float), 'lifetime': (avg, std), 't_max': (avg, std), 'amt_produced': (avg, std)},
             mol2: {...}, ... }
         """
         intermediates = dict()
         for n_sim in range(self.num_sims):
-            for mol_ind in species_profiles[n_sim]:
-                history = np.array([t[1] for t in species_profiles[n_sim][mol_ind]])
+            for mol_ind, prof in species_profiles[n_sim].items():
+                history = np.array([t[1] for t in prof])
+                diff_history = np.diff(history)
                 max_amt = max(history)
-                amt_produced = max_amt - history[0]
-                # Identify the intermediate, accounting for fluctuations and incomplete rxns
-                if (amt_produced >= 3) and (history[-1] < cutoff*amt_produced + history[0]):
+                amt_produced = np.sum(diff_history == 1)
+                amt_consumed = np.sum(diff_history == -1)
+                # Identify the intermediate, accounting for fluctuations
+                if (amt_produced >= 3) and (amt_consumed > amt_produced*cutoff):
                     if mol_ind not in intermediates:
                         intermediates[mol_ind] = dict()
                         intermediates[mol_ind]['lifetime'] = list()
                         intermediates[mol_ind]['amt_produced'] = list()
                         intermediates[mol_ind]['t_max'] = list()
-
+                        intermediates[mol_ind]['amt_consumed'] = list()
+                    # Intermediate lifetime is approximately the time from its max amount to when nearly all consumed
                     max_ind = np.where(history == max_amt)[0][0]
-                    t_max = species_profiles[n_sim][mol_ind][max_ind][0]
-                    for state in species_profiles[n_sim][mol_ind][max_ind:]:
-                        if state[1] < cutoff*amt_produced + history[0]:
+                    t_max = prof[max_ind][0]
+                    for state in prof[max_ind+1:]:
+                        if state[1] < (1-cutoff) * amt_produced + history[0]:
                             intermediates[mol_ind]['lifetime'].append(state[0] - t_max)
                             intermediates[mol_ind]['t_max'].append(t_max)
                             intermediates[mol_ind]['amt_produced'].append(amt_produced)
+                            intermediates[mol_ind]['amt_consumed'].append(amt_consumed)
                             break
 
         intermediates_analysis = dict()
         for mol_ind in intermediates:
-            intermediates_analysis[mol_ind] = dict()
+            entry_id = self.molind_id_mapping[mol_ind]
+            intermediates_analysis[entry_id] = dict()  # convert keys to entry id
             if len(intermediates[mol_ind]['lifetime']) != len(intermediates[mol_ind]['t_max']):
                 raise RuntimeError('Intermediates data should be of the same length')
-            intermediates_analysis[mol_ind]['frequency'] = len(intermediates[mol_ind]['lifetime']) / self.num_sims
+            intermediates_analysis[entry_id]['frequency'] = len(intermediates[mol_ind]['lifetime']) / self.num_sims
             lifetime_array = np.array(intermediates[mol_ind]['lifetime'])
-            intermediates_analysis[mol_ind]['lifetime'] = (np.mean(lifetime_array), np.std(lifetime_array))
+            intermediates_analysis[entry_id]['lifetime'] = (np.mean(lifetime_array), np.std(lifetime_array))
             t_max_array = np.array(intermediates[mol_ind]['t_max'])
-            intermediates_analysis[mol_ind]['t_max'] = (np.mean(t_max_array), np.std(t_max_array))
+            intermediates_analysis[entry_id]['t_max'] = (np.mean(t_max_array), np.std(t_max_array))
             amt_produced_array = np.array(intermediates[mol_ind]['amt_produced'])
-            intermediates_analysis[mol_ind]['amt_produced'] = (np.mean(amt_produced_array), np.std(amt_produced_array))
+            intermediates_analysis[entry_id]['amt_produced'] = (np.mean(amt_produced_array), np.std(amt_produced_array))
+            amt_consumed_array = np.array(intermediates[mol_ind]['amt_consumed'])
+            intermediates_analysis[entry_id]['amt_consumed'] = (np.mean(amt_consumed_array), np.std(amt_produced_array))
 
-        return intermediates_analysis
+        # Sort by highest average amount produced
+        sorted_intermediates_analysis = sorted([(entry_id, mol_data) for entry_id, mol_data
+                                                in intermediates_analysis.items()],
+                                               key=lambda x: x[1]['amt_produced'][0], reverse=True)
+
+        return sorted_intermediates_analysis
 
     def correlate_reactions(self, reaction_inds):
         """
         Correlate two reactions, by finding the average time and steps elapsed for rxn2 to fire after rxn1,
         and vice-versa.
-        :param reactions: list, array, or tuple of two reaction indexes
-        :return: {rxn1: {'time': (float), 'steps': (float), 'occurrences': float}, rxn2: {...}}
+
+        Args:
+            reaction_inds: list, array, or tuple of two reaction indexes
+
+        :return: dict containing analysis of how reactions are correlated {rxn1: {'time': (float), 'steps': (float),
+                'occurrences': float}, rxn2: {...} }
         """
         correlation_data = dict()
         correlation_analysis = dict()
@@ -573,11 +609,20 @@ class KMC_data_analyzer:
 
         return correlation_analysis
 
-    def quantify_specific_reaction(self, reaction_profile, reaction_index):
+    def quantify_specific_reaction(self, reaction_history, reaction_index):
+        """
+        Quantify a reaction from one simulation reaction history
 
-        if reaction_index not in reaction_profile:
-            raise RuntimeError('Reaction did not occur in this simulation run.')
-        reaction_count = len(reaction_profile[reaction_index])
+        Args:
+            reaction_history: array containing sequence of reactions fired during a simulation.
+            reaction_index: integer of reaction index of interest
+
+        :return: integer number of times reaction is fired
+        """
+        if reaction_index not in reaction_history:
+            reaction_count = 0
+        else:
+            reaction_count = len(reaction_history[reaction_index])
 
         return reaction_count
 
@@ -595,17 +640,14 @@ class KMC_data_analyzer:
              reaction_data: list of reactions and their avg, std of times fired. Sorted by the average times fired.
              [(rxn1, (avg, std)), (rxn2, (avg, std)) ... ]
          """
-
+        allowed_rxn_types = ['One electron reduction', 'One electron oxidation', 'Intramolecular single bond breakage',
+                             'Intramolecular single bond formation', 'Coordination bond breaking AM -> A+M',
+                             'Coordination bond forming A+M -> AM',
+                             'Molecular decomposition breaking one bond A -> B+C',
+                             'Molecular formation from one new bond A+B -> C', 'Concerted']
         if reaction_type is not None:
             rxns_of_type = list()
-            if (reaction_type != 'One electron reduction') or (reaction_type != 'One electron oxidation') or \
-                    (reaction_type != 'Intramolecular single bond breakage') or \
-                    (reaction_type != 'Intramolecular single bond formation') or \
-                    (reaction_type != 'Coordination bond breaking AM -> A+M') or \
-                    (reaction_type != 'Coordination bond forming A+M -> AM') or \
-                    (reaction_type != 'Molecular decomposition breaking one bond A -> B+C') or \
-                    (reaction_type != 'Molecular formation from one new bond A+B -> C') or \
-                    (reaction_type != 'Concerted'):
+            if reaction_type not in allowed_rxn_types:
                 raise RuntimeError('This reaction type does not (yet) exist in our reaction networks.')
 
             for ind, rxn in enumerate(self.reaction_network.reactions):
@@ -640,38 +682,17 @@ class KMC_data_analyzer:
         else:
             return sorted_reaction_analysis[:num_rxns]
 
-    def time_step_analysis(self, sim_time_array):
-        t_avg = np.average(sim_time_array)
-        t_std = np.std(sim_time_array)
-        log_time = np.log10(sim_time_array)
-        logt_avg = np.average(log_time)
-        logt_std = np.std(log_time)
-
-        # loop through and identify "initial cascade"
-
-        for step_num, log_tau in enumerate(log_time):
-            if log_tau >= logt_avg - logt_std:
-                if all(log_time[step_num-5:step_num] >= logt_avg - logt_std):
-                    # ensure we are in steady region after cascade
-                    t_cascade = 10**log_tau
-                    break
-        for log_tau in log_time[step_num:]:
-            if log_tau > 2*logt_std + logt_avg:
-                t_steady_state = 10**log_tau
-                break
-
-        return {'t_avg': t_avg, 't_std': t_std, 'logt_avg': logt_avg, 'logt_std': logt_std, 't_cascade': t_cascade,
-                't_steady_state': t_steady_state, 'steps': len(sim_time_array), 'total_t': sim_time_array[-1]}
-
     def frequency_analysis(self, rxn_inds, spec_inds, partitions=100):
         """
         Calculate the frequency of reaction and species formation as a function of time. Simulation data is
         discretized into time intervals, and probabilities in each set are obtained.
 
-        :param time_step_analysis:
-        :param rxn_ind: list of indeces of reactions of interest
-        :param partitions: number of intervals in which to discretize time
-        :return: dicts containing the statistics of reaction fired, product formed at each time interval.
+        Args:
+            rxn_inds: list of indeces of reactions of interest
+            spec_inds: list of molecule indexes of interest
+            partitions: number of intervals in which to discretize time
+
+        :return: dict of dicts containing the statistics of reaction fired, product formed at each time interval.
         {reaction_data: {rxn_ind1: [(t0, avg0, std0), (t1, avg1, std1), ...], rxn_ind2: [...], ... rxn_ind_n: [...]}
         {species_data: {spec1: [(t0, avg0, std0), (t1, avg1, std1), ...], spec2: [...], ... specn: [...]}}
 
@@ -770,7 +791,14 @@ class KMC_data_analyzer:
         return {'reaction_data': statistical_rxn_data, 'species_data': statistical_spec_data}
 
     def find_rxn_index(self, reaction, reverse):
+        """
+        Find the reaction index of a given reaction object
 
+        Args:
+            reaction: Reaction object
+            reverse: bool to say whether reaction is reverse or forward
+        :return: integer reaction index
+        """
         for ind, rxn in enumerate(self.reaction_network.reactions):
             if rxn == reaction:
                 if reverse is True:
@@ -799,12 +827,9 @@ class KineticMonteCarloSimulator:
     def __init__(self, reaction_network, initial_state, volume=1.0*10**-24,
                  temperature=298.15):
         self.reaction_network = reaction_network
-
         self.num_rxns = len(self.reaction_network.reactions)
-
         self.volume = volume
         self.temperature = temperature
-
         self._state = dict()
         self.initial_state = dict()
 
@@ -907,33 +932,26 @@ class KineticMonteCarloSimulator:
             None
         """
         if reverse:
-            for reactant in reaction.products:
-                try:
-                    self._state[reactant.entry_id] -= 1
-                    if self._state[reactant.entry_id] < 0:
-                        raise ValueError("State invalid! Negative specie: {}!".format(reactant.entry_id))
-                except KeyError:
-                    raise ValueError("Specie {} given is not in state!".format(reactant.entry_id))
-            for product in reaction.reactants:
-                p_id = product.entry_id
-                if p_id in self.state:
-                    self._state[p_id] += 1
-                else:
-                    self._state[p_id] = 1
+            reacts = reaction.products
+            prods = reaction.reactants
         else:
-            for reactant in reaction.reactants:
-                try:
-                    self._state[reactant.entry_id] -= 1
-                    if self._state[reactant.entry_id] < 0:
-                        raise ValueError("State invalid! Negative specie: {}!".format(reactant.entry_id))
-                except KeyError:
-                    raise ValueError("Specie {} given is not in state!".format(reactant.entry_id))
-            for product in reaction.products:
-                p_id = product.entry_id
-                if p_id in self.state:
-                    self._state[p_id] += 1
-                else:
-                    self._state[p_id] = 1
+            reacts = reaction.reactants
+            prods = reaction.products
+
+        for reactant in reacts:
+            try:
+                self._state[reactant.entry_id] -= 1
+                if self._state[reactant.entry_id] < 0:
+                    raise ValueError("State invalid! Negative specie: {}!".format(reactant.entry_id))
+            except KeyError:
+                raise ValueError("Specie {} given is not in state!".format(reactant.entry_id))
+        for product in prods:
+            p_id = product.entry_id
+            if p_id in self.state:
+                self._state[p_id] += 1
+            else:
+                self._state[p_id] = 1
+
         return self._state
 
     def choose_reaction(self, rando):

@@ -5,9 +5,17 @@ from pymatgen.util.testing import PymatgenTest
 from pymatgen.reaction_network.reaction_network import ReactionNetwork
 from pymatgen.core import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
-from pymatgen.reaction_network.reaction_propagator import *
+from pymatgen.reaction_network.reaction_propagator import KineticMonteCarloSimulator
+from pymatgen.reaction_network.reaction_propagator import initialize_simulation
+from pymatgen.reaction_network.reaction_propagator import kmc_simulate
+from pymatgen.reaction_network.reaction_propagator import update_state
+from pymatgen.reaction_network.reaction_propagator import get_coordination
+from pymatgen.reaction_network.reaction_propagator import KmcDataAnalyzer
 import unittest
 import copy
+import pickle
+import math
+
 try:
     from openbabel import openbabel as ob
 except ImportError:
@@ -27,104 +35,17 @@ class TestKineticMonteCarloSimulator(PymatgenTest):
         Species include H2, H2O, H, O, O2, OH, H3O
         """
         self.volume = 10**-24  # m^3
-
         # 100 molecules each of H2O, H2, O2
         self.num_mols = 100
         self.concentration = self.num_mols / N_A / self.volume / 1000
 
-        # Make molecule objects
-        H2O_mol = Molecule.from_file(os.path.join(test_dir, "H2O.xyz"))
-        H2O_mol1 = copy.deepcopy(H2O_mol)
-        H2O_mol_1 = copy.deepcopy(H2O_mol)
-        H2O_mol1.set_charge_and_spin(charge=1)
-        H2O_mol_1.set_charge_and_spin(charge=-1)
-
-        H2_mol = Molecule.from_file(os.path.join(test_dir, "H2.xyz"))
-        H2_mol1 = copy.deepcopy(H2_mol)
-        H2_mol_1 = copy.deepcopy(H2_mol)
-        H2_mol1.set_charge_and_spin(charge=1)
-        H2_mol_1.set_charge_and_spin(charge=-1)
-
-        O2_mol = Molecule.from_file(os.path.join(test_dir, "O2.xyz"))
-        O2_mol1 = copy.deepcopy(O2_mol)
-        O2_mol_1 = copy.deepcopy(O2_mol)
-        O2_mol1.set_charge_and_spin(charge=1)
-        O2_mol_1.set_charge_and_spin(charge=-1)
-
-        OH_mol = Molecule.from_file(os.path.join(test_dir, "OH.xyz"))
-        OH_mol1 = copy.deepcopy(OH_mol)
-        OH_mol_1 = copy.deepcopy(OH_mol)
-        OH_mol1.set_charge_and_spin(charge=1)
-        OH_mol_1.set_charge_and_spin(charge=-1)
-
-        H_mol = Molecule.from_file(os.path.join(test_dir, "H.xyz"))
-        H_mol1 = copy.deepcopy(H_mol)
-        H_mol_1 = copy.deepcopy(H_mol)
-        H_mol1.set_charge_and_spin(charge=1)
-        H_mol_1.set_charge_and_spin(charge=-1)
-
-        O_mol = Molecule.from_file(os.path.join(test_dir, "O.xyz"))
-        O_mol1 = copy.deepcopy(O_mol)
-        O_mol_1 = copy.deepcopy(O_mol)
-        O_mol1.set_charge_and_spin(charge=1)
-        O_mol_1.set_charge_and_spin(charge=-1)
-
-        # Make molecule entries
-        # H2O 1-3
         if ob:
-            H2O = MoleculeEntry(H2O_mol, energy=-76.4447861695239, correction=0, enthalpy=15.702, entropy=46.474,
-                                parameters=None, entry_id=1, attribute=None)
-            H2O_1 = MoleculeEntry(H2O_mol_1, energy=-76.4634569330715, correction=0, enthalpy=13.298, entropy=46.601,
-                                  parameters=None, entry_id=2, attribute=None)
-            H2O_1p = MoleculeEntry(H2O_mol1, energy=-76.0924662469782, correction=0, enthalpy=13.697, entropy=46.765,
-                                   parameters=None, entry_id=3, attribute=None)
-            # H2 4-6
-            H2 = MoleculeEntry(H2_mol, energy=-1.17275734244991, correction=0, enthalpy=8.685, entropy=31.141,
-                               parameters=None, entry_id=4, attribute=None)
-            H2_1 = MoleculeEntry(H2_mol_1, energy=-1.16232420718418, correction=0, enthalpy=3.56, entropy=33.346,
-                                 parameters=None, entry_id=5, attribute=None)
-            H2_1p = MoleculeEntry(H2_mol1, energy=-0.781383960574136, correction=0, enthalpy=5.773, entropy=32.507,
-                                  parameters=None, entry_id=6, attribute=None)
-
-            # OH 7-9
-            OH = MoleculeEntry(OH_mol, energy=-75.7471080255785, correction=0, enthalpy=7.659, entropy=41.21,
-                               parameters=None, entry_id=7, attribute=None)
-            OH_1 = MoleculeEntry(OH_mol_1, energy=-75.909589774742, correction=0, enthalpy=7.877, entropy=41.145,
-                                 parameters=None, entry_id=8, attribute=None)
-            OH_1p = MoleculeEntry(OH_mol1, energy=-75.2707068199185, correction=0, enthalpy=6.469, entropy=41.518,
-                                  parameters=None, entry_id=9, attribute=None)
-            # O2 10-12
-            O2 = MoleculeEntry(O2_mol, energy=-150.291045922131, correction=0, enthalpy=4.821, entropy=46.76,
-                               parameters=None, entry_id=10, attribute=None)
-            O2_1p = MoleculeEntry(O2_mol1, energy=-149.995474036502, correction=0, enthalpy=5.435, entropy=46.428,
-                                  parameters=None, entry_id=11, attribute=None)
-            O2_1 = MoleculeEntry(O2_mol_1, energy=-150.454499528454, correction=0, enthalpy=4.198, entropy=47.192,
-                                 parameters=None, entry_id=12, attribute=None)
-
-            # O 13-15
-            O = MoleculeEntry(O_mol, energy=-74.9760564004, correction=0, enthalpy=1.481, entropy=34.254,
-                              parameters=None, entry_id=13, attribute=None)
-            O_1 = MoleculeEntry(O_mol_1, energy=-75.2301047938, correction=0, enthalpy=1.481, entropy=34.254,
-                                parameters=None, entry_id=14, attribute=None)
-            O_1p = MoleculeEntry(O_mol1, energy=-74.5266804995, correction=0, enthalpy=1.481, entropy=34.254,
-                                 parameters=None, entry_id=15, attribute=None)
-            # H 15-18
-            H = MoleculeEntry(H_mol, energy=-0.5004488848, correction=0, enthalpy=1.481, entropy=26.014,
-                              parameters=None, entry_id=16, attribute=None)
-            H_1p = MoleculeEntry(H_mol1, energy=-0.2027210483, correction=0, enthalpy=1.481, entropy=26.066,
-                                 parameters=None, entry_id=17, attribute=None)
-            H_1 = MoleculeEntry(H_mol_1, energy=-0.6430639079, correction=0, enthalpy=1.481, entropy=26.014,
-                                parameters=None, entry_id=18, attribute=None)
-
-            self.mol_entries = [H2O, H2O_1, H2O_1p, H2, H2_1, H2_1p,
-                                OH, OH_1, OH_1p, O2, O2_1p, O2_1,
-                                O, O_1, O_1p, H, H_1p, H_1]
-
-            self.reaction_network = ReactionNetwork.from_input_entries(self.mol_entries, electron_free_energy=-2.15)
-            self.reaction_network.build()
+            pickle_in = open('h2o_test_network.pickle', 'rb')
+            self.reaction_network = pickle.load(pickle_in)
+            pickle_in.close()
 
             # Only H2O, H2, O2 present initially
-            self.initial_state = {1: self.concentration, 4: self.concentration, 10: self.concentration}
+            self.initial_state = {'h2o': self.concentration, 'h2': self.concentration, 'o2': self.concentration}
             self.propagator = KineticMonteCarloSimulator(self.reaction_network, self.initial_state, self.volume)
 
     def tearDown(self) -> None:
@@ -132,7 +53,6 @@ class TestKineticMonteCarloSimulator(PymatgenTest):
             del self.volume
             del self.num_mols
             del self.concentration
-            del self.mol_entries
             del self.reaction_network
             del self.propagator
             del self.initial_state
@@ -140,39 +60,39 @@ class TestKineticMonteCarloSimulator(PymatgenTest):
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_get_coordination(self):
         for rr, reaction in self.propagator.reactions.items():
-            if reaction.reactant_ids == [1]:
+            if reaction.reactant_ids == ['h2o']:
                 self.assertEqual(self.propagator.get_coordination(reaction, False),
                                  99)
 
-        diff_prop = KineticMonteCarloSimulator(self.reaction_network, {13: self.concentration,
-                                                                       16: self.concentration}, self.volume)
+        diff_prop = KineticMonteCarloSimulator(self.reaction_network, {'o': self.concentration,
+                                                                       'h': self.concentration}, self.volume)
         for rr, reaction in diff_prop.reactions.items():
-            if set(reaction.product_ids) == {13, 16}:
+            if set(reaction.product_ids) == {'o', 'h'}:
                 self.assertEqual(diff_prop.get_coordination(reaction, True),
                                  99 * 99)
-            elif reaction.product_ids in [[13, 13], [16, 16]]:
+            elif reaction.product_ids in [['o', 'o'], ['h', 'h']]:
                 self.assertEqual(diff_prop.get_coordination(reaction, True),
                                  99 * 98 / 2)
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_update_state(self):
         for rr, reaction in self.propagator.reactions.items():
-            if reaction.reactant_ids == [1] and 8 in reaction.product_ids and 17 in reaction.product_ids:
+            if reaction.reactant_ids == ['h2o'] and 'oh-' in reaction.product_ids and 'h+' in reaction.product_ids:
                 state = self.propagator.update_state(reaction, False)
-                self.assertEqual(state[1], 98)
-                self.assertEqual(state[8], 1)
-                self.assertEqual(state[17], 1)
+                self.assertEqual(state['h2o'], 98)
+                self.assertEqual(state['oh-'], 1)
+                self.assertEqual(state['h+'], 1)
                 break
 
         for rr, reaction in self.propagator.reactions.items():
-            if reaction.reactant_ids == [2] and reaction.product_ids == [1]:
+            if reaction.reactant_ids == ['h2o-'] and reaction.product_ids == ['h2o']:
                 state = self.propagator.update_state(reaction, True)
-                self.assertEqual(state[1], 97)
-                self.assertEqual(state[2], 1)
+                self.assertEqual(state['h2o'], 97)
+                self.assertEqual(state['h2o-'], 1)
                 break
 
         for rr, reaction in self.propagator.reactions.items():
-            if reaction.reactant_ids == [18]:
+            if reaction.reactant_ids == ['h-']:
                 with self.assertRaises(ValueError):
                     self.propagator.update_state(reaction, False)
                 break
@@ -205,91 +125,11 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         self.num_mols = int(100)
         self.concentration = self.num_mols / N_A / self.volume / 1000
 
-        H2O_mol = Molecule.from_file(os.path.join(test_dir, "H2O.xyz"))
-        H2O_mol1 = copy.deepcopy(H2O_mol)
-        H2O_mol_1 = copy.deepcopy(H2O_mol)
-        H2O_mol1.set_charge_and_spin(charge=1)
-        H2O_mol_1.set_charge_and_spin(charge=-1)
-
-        H2_mol = Molecule.from_file(os.path.join(test_dir, "H2.xyz"))
-        H2_mol1 = copy.deepcopy(H2_mol)
-        H2_mol_1 = copy.deepcopy(H2_mol)
-        H2_mol1.set_charge_and_spin(charge=1)
-        H2_mol_1.set_charge_and_spin(charge=-1)
-
-        O2_mol = Molecule.from_file(os.path.join(test_dir, "O2.xyz"))
-        O2_mol1 = copy.deepcopy(O2_mol)
-        O2_mol_1 = copy.deepcopy(O2_mol)
-        O2_mol1.set_charge_and_spin(charge=1)
-        O2_mol_1.set_charge_and_spin(charge=-1)
-
-        OH_mol = Molecule.from_file(os.path.join(test_dir, "OH.xyz"))
-        OH_mol1 = copy.deepcopy(OH_mol)
-        OH_mol_1 = copy.deepcopy(OH_mol)
-        OH_mol1.set_charge_and_spin(charge=1)
-        OH_mol_1.set_charge_and_spin(charge=-1)
-
-        H_mol = Molecule.from_file(os.path.join(test_dir, "H.xyz"))
-        H_mol1 = copy.deepcopy(H_mol)
-        H_mol_1 = copy.deepcopy(H_mol)
-        H_mol1.set_charge_and_spin(charge=1)
-        H_mol_1.set_charge_and_spin(charge=-1)
-
-        O_mol = Molecule.from_file(os.path.join(test_dir, "O.xyz"))
-        O_mol1 = copy.deepcopy(O_mol)
-        O_mol_1 = copy.deepcopy(O_mol)
-        O_mol1.set_charge_and_spin(charge=1)
-        O_mol_1.set_charge_and_spin(charge=-1)
-        # Make molecule entries
-        # H2O 1-3
         if ob:
-            H2O = MoleculeEntry(H2O_mol, energy=-76.4447861695239, correction=0, enthalpy=15.702, entropy=46.474,
-                                parameters=None, entry_id='h2o', attribute=None)
-            H2O_1 = MoleculeEntry(H2O_mol_1, energy=-76.4634569330715, correction=0, enthalpy=13.298, entropy=46.601,
-                                  parameters=None, entry_id='h2o-', attribute=None)
-            H2O_1p = MoleculeEntry(H2O_mol1, energy=-76.0924662469782, correction=0, enthalpy=13.697, entropy=46.765,
-                                   parameters=None, entry_id='h2o+', attribute=None)
-            # H2 4-6
-            H2 = MoleculeEntry(H2_mol, energy=-1.17275734244991, correction=0, enthalpy=8.685, entropy=31.141,
-                               parameters=None, entry_id='h2', attribute=None)
-            H2_1 = MoleculeEntry(H2_mol_1, energy=-1.16232420718418, correction=0, enthalpy=3.56, entropy=33.346,
-                                 parameters=None, entry_id='h2-', attribute=None)
-            H2_1p = MoleculeEntry(H2_mol1, energy=-0.781383960574136, correction=0, enthalpy=5.773, entropy=32.507,
-                                  parameters=None, entry_id='h2+', attribute=None)
-            # OH 7-9
-            OH = MoleculeEntry(OH_mol, energy=-75.7471080255785, correction=0, enthalpy=7.659, entropy=41.21,
-                               parameters=None, entry_id='oh', attribute=None)
-            OH_1 = MoleculeEntry(OH_mol_1, energy=-75.909589774742, correction=0, enthalpy=7.877, entropy=41.145,
-                                 parameters=None, entry_id='oh-', attribute=None)
-            OH_1p = MoleculeEntry(OH_mol1, energy=-75.2707068199185, correction=0, enthalpy=6.469, entropy=41.518,
-                                  parameters=None, entry_id='oh+', attribute=None)
-            # O2 10-12
-            O2 = MoleculeEntry(O2_mol, energy=-150.291045922131, correction=0, enthalpy=4.821, entropy=46.76,
-                               parameters=None, entry_id='o2', attribute=None)
-            O2_1p = MoleculeEntry(O2_mol1, energy=-149.995474036502, correction=0, enthalpy=5.435, entropy=46.428,
-                                  parameters=None, entry_id='o2+', attribute=None)
-            O2_1 = MoleculeEntry(O2_mol_1, energy=-150.454499528454, correction=0, enthalpy=4.198, entropy=47.192,
-                                 parameters=None, entry_id='o2-', attribute=None)
-            # O 13-15
-            O = MoleculeEntry(O_mol, energy=-74.9760564004, correction=0, enthalpy=1.481, entropy=34.254,
-                              parameters=None, entry_id='o', attribute=None)
-            O_1 = MoleculeEntry(O_mol_1, energy=-75.2301047938, correction=0, enthalpy=1.481, entropy=34.254,
-                                parameters=None, entry_id='o-', attribute=None)
-            O_1p = MoleculeEntry(O_mol1, energy=-74.5266804995, correction=0, enthalpy=1.481, entropy=34.254,
-                                 parameters=None, entry_id='o+', attribute=None)
-            # H 15-18
-            H = MoleculeEntry(H_mol, energy=-0.5004488848, correction=0, enthalpy=1.481, entropy=26.014,
-                              parameters=None, entry_id='h', attribute=None)
-            H_1p = MoleculeEntry(H_mol1, energy=-0.2027210483, correction=0, enthalpy=1.481, entropy=26.066,
-                                 parameters=None, entry_id='h+', attribute=None)
-            H_1 = MoleculeEntry(H_mol_1, energy=-0.6430639079, correction=0, enthalpy=1.481, entropy=26.014,
-                                parameters=None, entry_id='h-', attribute=None)
-            self.mol_entries = [H2O, H2O_1, H2O_1p, H2, H2_1, H2_1p,
-                                OH, OH_1, OH_1p, O2, O2_1p, O2_1,
-                                O, O_1, O_1p, H, H_1p, H_1]
-            self.reaction_network = ReactionNetwork.from_input_entries(self.mol_entries, electron_free_energy=-2.15)
-            self.reaction_network.build()
-            # print('number of reactions: ', len(self.reaction_network.reactions))
+            pickle_in = open('h2o_test_network.pickle', 'rb')
+            self.reaction_network = pickle.load(pickle_in)
+            pickle_in.close()
+
             # Only H2O, H2, O2 present initially
             self.initial_conditions = {'h2o': self.concentration, 'h2': self.concentration, 'o2': self.concentration,
                                        'oh-': self.concentration, 'h+': self.concentration}
@@ -300,13 +140,16 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             self.products = np.ones((self.num_reactions, 2), dtype=int) * -1
             self.rate_constants = np.zeros(2*self.num_reactions)
             self.coord_array = np.zeros(2*self.num_reactions)
-            self.initial_state = np.array([0 for i in range(self.num_species)])
-            self.initial_state[2] = self.num_mols  # h+
-            self.initial_state[3] = self.num_mols  # oh-
-            self.initial_state[7] = self.num_mols  # h2
-            self.initial_state[10] = self.num_mols  # h2o
-            self.initial_state[16] = self.num_mols  # o2
             self.molid_ind_mapping = dict()
+            self.initial_state = list()
+            for ind, mol in enumerate(self.reaction_network.entries_list):
+                if mol.entry_id in self.initial_conditions:
+                    self.initial_state.append(self.num_mols)
+                else:
+                    self.initial_state.append(0)
+                self.molid_ind_mapping[mol.entry_id] = ind
+            self.initial_state = np.array(self.initial_state)
+
             species_rxn_mapping_list = [[] for i in range(self.num_species)]
 
             for ind, spec in enumerate(self.reaction_network.entries_list):
@@ -366,31 +209,12 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             for rxn_ind, reaction in enumerate(self.reaction_network.reactions):
                 react_id_list = [r.entry_id for r in reaction.reactants]
                 prod_id_list = [p.entry_id for p in reaction.products]
-                if (['h2o'] == react_id_list) and (['h2o-'] == prod_id_list):
-                    self.rxn_a = 2 * rxn_ind
-                    self.rxn_b = 2*rxn_ind + 1
-                    break
-                elif (['h2o-'] == react_id_list) and (['h2o'] == prod_id_list):
-                    self.rxn_b = 2 * rxn_ind
-                    self.rxn_a = 2*rxn_ind + 1
-                    break
-
-            rxns_1 = np.append(self.rxn_a * np.ones(6, dtype=int), self.rxn_b * np.ones(6, dtype=int))
-            rxns_2 = np.append(self.rxn_a * np.ones(8, dtype=int), self.rxn_b * np.ones(4, dtype=int))
-            rxns_3 = np.append(self.rxn_a * np.ones(3, dtype=int), self.rxn_b * np.ones(3, dtype=int))
-            rxns_3 = np.append(rxns_3, rxns_3)
-            self.reaction_history = [rxns_1, rxns_2, rxns_3]
-            self.time_history = [np.ones(12) for i in range(3)]
-            self.analyzer = KMC_data_analyzer(self.reaction_network, self.molid_ind_mapping, self.species_rxn_mapping,
-                                              self.initial_cond_mols, self.products, self.reactants,
-                                              self.reaction_history, self.time_history)
 
     def tearDown(self) -> None:
         if ob:
             del self.volume
             del self.num_mols
             del self.concentration
-            del self.mol_entries
             del self.reaction_network
             del self.initial_conditions
             del self.initial_cond_mols
@@ -404,11 +228,7 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             del self.species_rxn_mapping
             del self.propensities
             del self.molid_ind_mapping
-            del self.reaction_history
-            del self.time_history
-            del self.analyzer
-            del self.rxn_b
-            del self.rxn_a
+
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_initialize_simulation(self):
@@ -424,27 +244,6 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         exp_initial_state[7] = self.num_mols  # h2
         exp_initial_state[10] = self.num_mols  # h2o
         exp_initial_state[16] = self.num_mols  # o2
-
-        # exp_species_rxn_mapping = -1 * np.ones((18, 16))
-        # exp_species_rxn_mapping_list = list()
-        # exp_species_rxn_mapping_list.append([0, 13, 16, 19, 20, 21, 23, 27, 29, 32, 35]) # Reactions for H-
-        # exp_species_rxn_mapping_list.append([0, 1, 12, 15, 18, 19, 20, 22, 24,25, 26, 28, 31, 34, 37, 39]) #H
-        # exp_species_rxn_mapping_list.append([1, 14, 17, 21, 23, 24, 25, 30, 33, 36, 38]) #H+
-        # exp_species_rxn_mapping_list.append([2, 12, 13, 26, 28, 30, 33]) #oh-
-        # exp_species_rxn_mapping_list.append([2, 3, 14, 15, 16, 27, 29, 31, 34, 36, 38]) #oh
-        # exp_species_rxn_mapping_list.append([3, 17, 18, 32, 35, 37, 39]) #oh+
-        # exp_species_rxn_mapping_list.append([4, 19, 20]) #h2-
-        # exp_species_rxn_mapping_list.append([4, 5, 21, 22, 23]) #h2
-        # exp_species_rxn_mapping_list.append([5, 24, 25]) #h2+
-        # exp_species_rxn_mapping_list.append([6, 26, 27, 28, 29]) #h2o-
-        # exp_species_rxn_mapping_list.append([6, 7, 30, 31, 32, 33, 34, 35]) #h2o
-        # exp_species_rxn_mapping_list.append([7, 36, 37, 38, 39]) #h2o+
-        # exp_species_rxn_mapping_list.append([8, 14, 40, 41, 42, 44]) #o-
-        # exp_species_rxn_mapping_list.append([8, 9, 13, 15, 17, 40, 41, 43, 45, 46]) #o
-        # exp_species_rxn_mapping_list.append([9, 16, 18, 42, 44, 45, 46]) #o+
-        # exp_species_rxn_mapping_list.append([10, 40, 41]) #o2-
-        # exp_species_rxn_mapping_list.append([10, 11, 42, 43, 44]) #o2
-        # exp_species_rxn_mapping_list.append([11, 45, 46]) #o2+
         self.assertArrayAlmostEqual(exp_initial_state, initial_state)
         self.assertArrayAlmostEqual(self.initial_state, initial_state)
         self.assertArrayAlmostEqual(self.products, product_array)
@@ -559,10 +358,147 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
         reaction_history = np.array(reaction_history)
         time_steps = np.array(time_steps)
         avg_tau = np.average(time_steps)
-        self.assertAlmostEqual(avg_tau, exp_tau)
+        self.assertAlmostEqual(avg_tau, exp_tau, places=7)
+
+
+class TestKmcDataAnalyzer(PymatgenTest):
+    def setUp(self):
+        """ Create an initial state and reaction network, based on H2O molecule.
+        Species include H2, H2O, H, O, O2, OH, H3O
+        """
+        self.volume = 10**-24  # m^3
+
+        # 100 molecules each of H2O, H2, O2, OH-, H+
+        self.num_mols = int(100)
+        self.concentration = self.num_mols / N_A / self.volume / 1000
+
+        if ob:
+            pickle_in = open('h2o_test_network.pickle', 'rb')
+            self.reaction_network = pickle.load(pickle_in)
+            pickle_in.close()
+
+            # Define initially present molecules
+            self.initial_conditions = {'h2o': self.concentration, 'h2': self.concentration, 'o2': self.concentration,
+                                       'oh-': self.concentration, 'h+': self.concentration}
+            self.initial_cond_mols = dict()
+            self.num_species = len(self.reaction_network.entries_list)
+            self.num_reactions = len(self.reaction_network.reactions)
+            self.reactants = np.ones((self.num_reactions, 2), dtype=int) * -1
+            self.products = np.ones((self.num_reactions, 2), dtype=int) * -1
+            self.rate_constants = np.zeros(2*self.num_reactions)
+            self.coord_array = np.zeros(2*self.num_reactions)
+            self.molid_ind_mapping = dict()
+            self.initial_state = list()
+            for ind, mol in enumerate(self.reaction_network.entries_list):
+                if mol.entry_id in self.initial_conditions:
+                    self.initial_state.append(self.num_mols)
+                else:
+                    self.initial_state.append(0)
+                self.molid_ind_mapping[mol.entry_id] = ind
+            self.initial_state = np.array(self.initial_state)
+
+            species_rxn_mapping_list = [[] for i in range(self.num_species)]
+            # print('molid_ind mapping:', self.molid_ind_mapping)
+            # construct the product and reactants arrays
+
+            for mol_id, conc in self.initial_conditions.items():
+                self.initial_cond_mols[self.molid_ind_mapping[mol_id]] = self.num_mols
+
+            for ind, reaction in enumerate(self.reaction_network.reactions):
+                num_reactants_for = list()
+                num_reactants_rev = list()
+                for idx, react in enumerate(reaction.reactants):
+                    mol_ind = self.molid_ind_mapping[react.entry_id]
+                    self.reactants[ind, idx] = mol_ind
+                    num_reactants_for.append(self.initial_state[mol_ind])
+                    species_rxn_mapping_list[mol_ind].append(2*ind)
+                for idx, prod in enumerate(reaction.products):
+                    mol_ind = self.molid_ind_mapping[prod.entry_id]
+                    self.products[ind, idx] = mol_ind
+                    num_reactants_rev.append(self.initial_state[mol_ind])
+                    species_rxn_mapping_list[mol_ind].append(2*ind+1)
+
+                self.rate_constants[2*ind] = reaction.rate_constant()["k_A"]
+                self.rate_constants[2*ind+1] = reaction.rate_constant()["k_B"]
+                # set up coordination array
+                if len(reaction.reactants) == 1:
+                    self.coord_array[2 * ind] = num_reactants_for[0]
+                elif (len(reaction.reactants) == 2) and (reaction.reactants[0] == reaction.reactants[1]):
+                    self.coord_array[2 * ind] = num_reactants_for[0] * (num_reactants_for[0] - 1)
+                elif (len(reaction.reactants) == 2) and (reaction.reactants[0] != reaction.reactants[1]):
+                    self.coord_array[2 * ind] = num_reactants_for[0] * num_reactants_for[1]
+                else:
+                    raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
+                # For reverse reaction
+                if len(reaction.products) == 1:
+                    self.coord_array[2 * ind + 1] = num_reactants_rev[0]
+                elif (len(reaction.products) == 2) and (reaction.products[0] == reaction.products[1]):
+                    self.coord_array[2 * ind + 1] = num_reactants_rev[0] * (num_reactants_rev[0] - 1)
+                elif (len(reaction.products) == 2) and (reaction.products[0] != reaction.products[1]):
+                    self.coord_array[2 * ind + 1] = num_reactants_rev[0] * num_reactants_rev[1]
+                else:
+                    raise RuntimeError("Only single and bimolecular reactions supported by this simulation")
+
+            self.propensities = np.multiply(self.coord_array, self.rate_constants)
+            # Set up molind_rxn_mapping
+            spec_rxn_map_lengths = [len(rxn_list) for rxn_list in species_rxn_mapping_list]
+            max_map_length = max(spec_rxn_map_lengths)
+            self.species_rxn_mapping = np.ones((self.num_species, max_map_length), dtype=int) * -1
+            for ind, rxn_list in enumerate(species_rxn_mapping_list):
+                if len(rxn_list) == max_map_length:
+                    self.species_rxn_mapping[ind, :] = rxn_list
+                else:
+                    self.species_rxn_mapping[ind, : len(rxn_list)] = rxn_list
+
+            for rxn_ind, reaction in enumerate(self.reaction_network.reactions):
+                react_id_list = [r.entry_id for r in reaction.reactants]
+                prod_id_list = [p.entry_id for p in reaction.products]
+                if (['h2o'] == react_id_list) and (['h2o-'] == prod_id_list):
+                    self.rxn_a = 2 * rxn_ind
+                    self.rxn_b = 2*rxn_ind + 1
+                    break
+                elif (['h2o-'] == react_id_list) and (['h2o'] == prod_id_list):
+                    self.rxn_b = 2 * rxn_ind
+                    self.rxn_a = 2*rxn_ind + 1
+                    break
+            # setting up a sequence of reaction histories
+            rxns_1 = np.append(self.rxn_a * np.ones(6, dtype=int), self.rxn_b * np.ones(6, dtype=int))
+            rxns_2 = np.append(self.rxn_a * np.ones(8, dtype=int), self.rxn_b * np.ones(4, dtype=int))
+            rxns_3 = np.append(self.rxn_a * np.ones(3, dtype=int), self.rxn_b * np.ones(3, dtype=int))
+            rxns_3 = np.append(rxns_3, rxns_3)
+            self.reaction_history = [rxns_1, rxns_2, rxns_3]
+            # time increment between each reaction is 1
+            self.time_history = [np.ones(12) for i in range(3)]
+            self.analyzer = KmcDataAnalyzer(self.reaction_network, self.molid_ind_mapping, self.species_rxn_mapping,
+                                              self.initial_cond_mols, self.products, self.reactants,
+                                              self.reaction_history, self.time_history)
+
+    def tearDown(self) -> None:
+        if ob:
+            del self.volume
+            del self.num_mols
+            del self.concentration
+            del self.reaction_network
+            del self.initial_conditions
+            del self.initial_cond_mols
+            del self.products
+            del self.reactants
+            del self.rate_constants
+            del self.initial_state
+            del self.coord_array
+            del self.num_species
+            del self.num_reactions
+            del self.species_rxn_mapping
+            del self.propensities
+            del self.molid_ind_mapping
+            del self.reaction_history
+            del self.time_history
+            del self.analyzer
+            del self.rxn_b
+            del self.rxn_a
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
-    def test_generate_time_dep_profiles_intermediates_analysis(self):
+    def test_generate_time_dep_profiles_intermediates_analysis_final_state_analysis(self):
         exp_trajectories = list()
         initial_cond = dict()
         for mol_id in self.initial_conditions:
@@ -574,39 +510,90 @@ class TestKMCReactionPropagatorFxns(PymatgenTest):
             exp_trajectories.append(copy.deepcopy(initial_cond))
 
         # first sequence of reactions: [a, a, a, a, a, a, b, b, b, b, b, b]
-        exp_trajectories[0][10].extend([(1.0, self.num_mols-1), (2.0, self.num_mols-2), (3.0, self.num_mols-3),
-                                        (4.0, self.num_mols-4), (5.0, self.num_mols-5), (6.0, self.num_mols-6),
-                                       (7.0, self.num_mols-5), (8.0, self.num_mols-4), (9.0, self.num_mols-3),
-                                        (10.0, self.num_mols-2), (11.0, self.num_mols-1), (12.0, self.num_mols),
-                                       (12.0, self.num_mols)])
-        exp_trajectories[0][9] = [(0.0, 0), (1.0, 1), (2.0, 2), (3.0, 3), (4.0, 4), (5.0, 5), (6.0, 6), (7.0, 5),
-                                  (8.0, 4), (9.0, 3), (10.0, 2), (11.0, 1), (12.0, 0), (12.0, 0)]
+        # generate expected trajectories
+        for i in range(1, 13):
+            if i <= 6:
+                exp_trajectories[0][10].append((float(i), self.num_mols - i))
+            else:
+                exp_trajectories[0][10].append((float(i), self.num_mols - 12 + i))
+        exp_trajectories[0][10].append(exp_trajectories[0][10][-1])
+
+        exp_trajectories[0][9] = list()
+        for i in range(13):
+            if i <= 6:
+                exp_trajectories[0][9].append((float(i), i))
+            else:
+                exp_trajectories[0][9].append((float(i), 12 - i))
+        exp_trajectories[0][9].append(exp_trajectories[0][9][-1])
 
         # second sequence: [a, a, a, a, a, a, a, a, b, b, b, b]
-        exp_trajectories[1][10].extend([(1.0, self.num_mols-1), (2.0, self.num_mols-2), (3.0, self.num_mols-3),
-                                        (4.0, self.num_mols-4), (5.0, self.num_mols-5), (6.0, self.num_mols-6),
-                                       (7.0, self.num_mols-7), (8.0, self.num_mols-8), (9.0, self.num_mols-7),
-                                        (10.0, self.num_mols-6), (11.0, self.num_mols-5), (12.0, self.num_mols-4),
-                                        (12.0, self.num_mols-4)])
-        exp_trajectories[1][9] = [(0.0, 0), (1.0, 1), (2.0, 2), (3.0, 3), (4.0, 4), (5.0, 5), (6.0, 6), (7.0, 7),
-                                  (8.0, 8), (9.0, 7), (10.0, 6), (11.0, 5), (12.0, 4), (12.0, 4)]
+        for i in range(1, 13):
+            if i <= 8:
+                exp_trajectories[1][10].append((float(i), self.num_mols - i))
+            else:
+                exp_trajectories[1][10].append((float(i), self.num_mols - 16 + i))
+        exp_trajectories[1][10].append(exp_trajectories[1][10][-1])
+
+        exp_trajectories[1][9] = list()
+        for i in range(13):
+            if i <= 8:
+                exp_trajectories[1][9].append((float(i), i))
+            else:
+                exp_trajectories[1][9].append((float(i), 16 - i))
+        exp_trajectories[1][9].append(exp_trajectories[1][9][-1])
 
         # third sequence: [a, a, a, b, b, b, a, a, a, b, b, b]
-        exp_trajectories[2][10].extend([(1.0, self.num_mols - 1), (2.0, self.num_mols - 2), (3.0, self.num_mols - 3),
-                                        (4.0, self.num_mols - 2), (5.0, self.num_mols - 1), (6.0, self.num_mols),
-                                        (7.0, self.num_mols - 1), (8.0, self.num_mols - 2), (9.0, self.num_mols - 3),
-                                        (10.0, self.num_mols - 2), (11.0, self.num_mols - 1), (12.0, self.num_mols),
-                                        (12.0, self.num_mols)])
-        exp_trajectories[2][9] = [(0.0, 0), (1.0, 1), (2.0, 2), (3.0, 3), (4.0, 2), (5.0, 1), (6.0, 0), (7.0, 1),
-                                  (8.0, 2), (9.0, 3), (10.0, 2), (11.0, 1), (12.0, 0), (12.0, 0)]
+        for i in range(1, 13):
+            if i <= 3:
+                exp_trajectories[2][10].append((float(i), self.num_mols - i))
+            elif i <= 6:
+                exp_trajectories[2][10].append((float(i), self.num_mols - 6 + i))
+            elif i <= 9:
+                exp_trajectories[2][10].append((float(i), self.num_mols + 6 - i))
+            else:
+                exp_trajectories[2][10].append((float(i), self.num_mols - 12 + i))
+        exp_trajectories[2][10].append(exp_trajectories[2][10][-1])
+
+        exp_trajectories[2][9] = list()
+        for i in range(13):
+            if i <= 3:
+                exp_trajectories[2][9].append((float(i), i))
+            elif i <= 6:
+                exp_trajectories[2][9].append((float(i), 6 - i))
+            elif i <= 9:
+                exp_trajectories[2][9].append((float(i), i - 6))
+            else:
+                exp_trajectories[2][9].append((float(i), 12 - i))
+        exp_trajectories[2][9].append(exp_trajectories[2][9][-1])
+
         profiles = self.analyzer.generate_time_dep_profiles()
         for i in range(3):
             self.assertDictsAlmostEqual(profiles['species_profiles'][i], exp_trajectories[i])
 
+        # Test intermediates analysis
         intermediates_analysis = self.analyzer.analyze_intermediates(profiles['species_profiles'])
-        exp_intermediates = {9: {'lifetime': (4.5, np.std([6, 3])), 't_max': (3.5, np.std([5, 2])),
-                                 'amt_produced': (4.5, np.std([6, 3]))}}
-        self.assertDictsAlmostEqual(intermediates_analysis, exp_intermediates)
+        exp_intermediates = {'h2o-': {'frequency': 2/3, 'lifetime': (4.5, np.std([6, 3])), 't_max': (4.5, 1.5),
+                                      'amt_produced': (6.0, 0.0), 'amt_consumed': (6.0, 0.0)},
+                             'h2o': {'frequency': 1.0, 'lifetime': (1.0, 0.0), 't_max': (0.0, 0.0),
+                                     'amt_produced': (16/3, np.std([6, 4, 6])),
+                                     'amt_consumed': (20/3, np.std([6, 8, 6]))}}
+        exp_sorted_intermediates = sorted([(ind, data) for ind, data in exp_intermediates.items()],
+                                          key=lambda x: x[1]['amt_produced'][0], reverse=True)
+        self.assertCountEqual(intermediates_analysis, exp_sorted_intermediates)
+
+        # Test final state analysis
+        actual_final_states = self.analyzer.final_state_analysis(profiles['final_states'])
+        expected_final_states = dict()
+        unchanged_species = ['h2', 'o2', 'h+', 'oh-']
+        for id in unchanged_species:
+            expected_final_states[id] = (self.num_mols, 0)  # (avg, std dev) of final state
+        h2o_final_states = [self.num_mols, self.num_mols - 4, self.num_mols]
+        expected_final_states['h2o'] = (np.mean(h2o_final_states), np.std(h2o_final_states))
+        h2ominus_final_states = [0, 4, 0]
+        expected_final_states['h2o-'] = (np.mean(h2ominus_final_states), np.std(h2ominus_final_states))
+        expected_sorted_final_states = sorted([(entry_id, data_tup) for entry_id, data_tup in
+                                                expected_final_states.items()], key=lambda x: x[1][0], reverse=True)
+        self.assertCountEqual(expected_sorted_final_states, actual_final_states)
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_quantify_rank_reactions(self):
