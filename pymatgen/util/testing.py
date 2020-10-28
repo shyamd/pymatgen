@@ -86,7 +86,7 @@ class PymatgenTest(unittest.TestCase):
                 return False
             v2 = desired[k]
             if isinstance(v, dict):
-                pass_test = PymatgenTest.assertDictArraysAlmostEqual(
+                pass_test = PymatgenTest.assertDictsAlmostEqual(
                     v, v2, decimal=decimal, err_msg=err_msg, verbose=verbose)
                 if not pass_test:
                     return False
