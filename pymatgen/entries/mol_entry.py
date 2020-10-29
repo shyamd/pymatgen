@@ -119,7 +119,7 @@ class MoleculeEntry(MSONable):
         """
         try:
             molecule = mol_doc["molecule"]
-            energy = mol_doc["energy"]
+            energy = mol_doc["energy_Ha"]
             enthalpy = mol_doc["enthalpy_kcal/mol"]
             entropy = mol_doc["entropy_cal/molK"]
             entry_id = mol_doc["task_id"]
