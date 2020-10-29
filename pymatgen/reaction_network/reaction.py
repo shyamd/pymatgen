@@ -1,4 +1,3 @@
-from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 import copy
 import itertools
@@ -21,7 +20,7 @@ from pymatgen.reaction_network.reaction_rates import (
 )
 
 
-__author__ = "Sam Blau, Hetal Patel, Xiaowei Xie, Evan Spotte-Smith"
+__author__ = "Sam Blau, Hetal Patel, Xiaowei Xie, Evan Spotte-Smith, Mingjian Wen"
 __version__ = "0.1"
 __maintainer__ = "Sam Blau"
 __status__ = "Alpha"
@@ -36,8 +35,6 @@ Atom_Mapping_Dict = Dict[int, int]
 
 # TODO create OneReactantOneProductReaction, subclassing Reaction, but superclassing
 #  RedoxReaction and IntramolSingleBondChangeReaction
-# TODO create OneReactantTwoProductsReaction, subclassing Reaction, but superclassing
-#  IntermolecularReaction and CoordinationBondChangeReaction
 
 
 class Reaction(MSONable, metaclass=ABCMeta):
@@ -670,7 +667,7 @@ class IntramolSingleBondChangeReaction(Reaction):
     @classmethod
     def generate(
         cls, entries: MappingDict
-    ) -> Tuple[List[IntramolSingleBondChangeReaction], Mapping_Family_Dict]:
+    ) -> Tuple[List[Reaction], Mapping_Family_Dict]:
         reactions = list()
         families = dict()
         templates = list()
@@ -694,16 +691,17 @@ class IntramolSingleBondChangeReaction(Reaction):
                             entry1, entries, formula, Nbonds0, charge, cls
                         )
                         reactions.extend(rxns)
-                        families, templates = cls._update_families_and_templates(
-                            rxns, subgs, families, templates, charge
-                        )
+                        for r, g in zip(rxns, subgs):
+                            families, templates = categorize(
+                                r, families, templates, g, charge
+                            )
 
         return reactions, families
 
     @staticmethod
     def _generate_one(
         entry1, entries, formula, Nbonds0, charge, cls
-    ) -> Tuple[List[IntramolSingleBondChangeReaction], List[nx.MultiDiGraph]]:
+    ) -> Tuple[List[Reaction], List[nx.MultiDiGraph]]:
         """
         Helper function to generate reactions for one molecule entry.
         """
@@ -734,14 +732,6 @@ class IntramolSingleBondChangeReaction(Reaction):
                         break
 
         return reactions, sub_graphs
-
-    @staticmethod
-    def _update_families_and_templates(
-        reactions, sub_graphs, families, templates, charge
-    ):
-        for r, g in zip(reactions, sub_graphs):
-            families, templates = categorize(r, families, templates, g, charge)
-        return families, templates
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
@@ -808,7 +798,7 @@ class IntramolSingleBondChangeReaction(Reaction):
             where energy_A is the primary type of the reaction based on
             the reactant and product of the IntramolSingleBondChangeReaction object,
             and the backwards of this reaction would be energy_B.
-         """
+        """
 
         if self.product.energy is not None and self.reactant.energy is not None:
             energy_A = self.product.energy - self.reactant.energy
@@ -981,7 +971,7 @@ class IntermolecularReaction(Reaction):
     @classmethod
     def generate(
         cls, entries: MappingDict
-    ) -> Tuple[List[IntermolecularReaction], Mapping_Family_Dict]:
+    ) -> Tuple[List[Reaction], Mapping_Family_Dict]:
         reactions = list()
         families = dict()
         templates = list()
@@ -995,16 +985,17 @@ class IntermolecularReaction(Reaction):
                     for entry in entries[formula][Nbonds][charge]:
                         rxns, subgs = cls._generate_one(entry, entries, charge, cls)
                         reactions.extend(rxns)
-                        families, templates = cls._update_families_and_templates(
-                            rxns, subgs, families, templates, charge
-                        )
+                        for r, g in zip(rxns, subgs):
+                            families, templates = categorize(
+                                r, families, templates, g, charge
+                            )
 
         return reactions, families
 
     @staticmethod
     def _generate_one(
         entry, entries, charge, cls
-    ) -> Tuple[List[IntermolecularReaction], List[nx.MultiDiGraph]]:
+    ) -> Tuple[List[Reaction], List[nx.MultiDiGraph]]:
         """
         Helper function to generate reactions for one molecule entry.
         """
@@ -1072,14 +1063,6 @@ class IntermolecularReaction(Reaction):
 
         return reactions, sub_graphs
 
-    @staticmethod
-    def _update_families_and_templates(
-        reactions, sub_graphs, families, templates, charge
-    ):
-        for r, g in zip(reactions, sub_graphs):
-            families, templates = categorize(r, families, templates, g, charge)
-        return families, templates
-
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
         A method to identify type of intermoleular reaction (bond
@@ -1114,7 +1097,7 @@ class IntermolecularReaction(Reaction):
             where free_energy_A is the primary type of the reaction based on
             the reactant and product of the IntermolecularReaction
             object, and the backwards of this reaction would be free_energy_B.
-         """
+        """
         g_entry = self.reactant.free_energy
         g_0 = self.product_0.free_energy
         g_1 = self.product_1.free_energy
@@ -1362,20 +1345,20 @@ class CoordinationBondChangeReaction(Reaction):
                                 entry, entries, M_entries, cls
                             )
                             reactions.extend(rxns)
-                            families, templates = cls._update_families_and_templates(
-                                rxns, subgs, families, templates, charge
-                            )
+                            for r, g in zip(rxns, subgs):
+                                families, templates = categorize(
+                                    r, families, templates, g, charge
+                                )
 
         return reactions, families
 
     @staticmethod
     def _generate_one(
         entry, entries, M_entries, cls
-    ) -> Tuple[List[CoordinationBondChangeReaction], List[nx.MultiDiGraph]]:
+    ) -> Tuple[List[Reaction], List[nx.MultiDiGraph]]:
         """
         Helper function to generate reactions for one molecule entry.
         """
-
         reactions = []
         sub_graphs = []
 
@@ -1466,14 +1449,6 @@ class CoordinationBondChangeReaction(Reaction):
 
         return reactions, sub_graphs
 
-    @staticmethod
-    def _update_families_and_templates(
-        reactions, sub_graphs, families, templates, charge
-    ):
-        for r, g in zip(reactions, sub_graphs):
-            families, templates = categorize(r, families, templates, g, charge)
-        return families, templates
-
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
         A method to identify type of coordination bond change reaction (bond breaking
@@ -1509,7 +1484,7 @@ class CoordinationBondChangeReaction(Reaction):
             where free_energy_A is the primary type of the reaction based
             on the reactant and product of the CoordinationBondChangeReaction
             object, and the backwards of this reaction would be free_energy_B.
-         """
+        """
         g_entry = self.reactant.free_energy
         g_0 = self.product_0.free_energy
         g_1 = self.product_1.free_energy
@@ -1663,22 +1638,22 @@ class CoordinationBondChangeReaction(Reaction):
 
 class ConcertedReaction(Reaction):
     """
-        A class to define concerted reactions.
-        User can specify either allowing <=1 bond breakage + <=1 bond formation
-        OR <=2 bond breakage + <=2 bond formation.
-        User can also specify how many electrons are allowed to involve in a
-        reaction.
-        Can only deal with <= 2 reactants and <=2 products for now.
-        For 1 reactant -> 1 product reactions, a maximum 1 bond breakage and 1
-        bond formation is allowed,
-        even when the user specify "<=2 bond breakage + <=2 bond formation".
-        Args:
-            reactant([MoleculeEntry]): list of 1-2 molecular entries
-            product([MoleculeEntry]): list of 1-2 molecular entries
-            transition_state (MoleculeEntry or None): A MoleculeEntry
-            representing a
-                transition state for the reaction.
-            parameters (dict): Any additional data about this reaction
+    A class to define concerted reactions.
+    User can specify either allowing <=1 bond breakage + <=1 bond formation
+    OR <=2 bond breakage + <=2 bond formation.
+    User can also specify how many electrons are allowed to involve in a
+    reaction.
+    Can only deal with <= 2 reactants and <=2 products for now.
+    For 1 reactant -> 1 product reactions, a maximum 1 bond breakage and 1
+    bond formation is allowed,
+    even when the user specify "<=2 bond breakage + <=2 bond formation".
+    Args:
+        reactant([MoleculeEntry]): list of 1-2 molecular entries
+        product([MoleculeEntry]): list of 1-2 molecular entries
+        transition_state (MoleculeEntry or None): A MoleculeEntry
+        representing a
+            transition state for the reaction.
+        parameters (dict): Any additional data about this reaction
     """
 
     def __init__(
@@ -1690,18 +1665,18 @@ class ConcertedReaction(Reaction):
         parameters: Optional[Dict] = None,
     ):
         """
-            Initilizes IntermolecularReaction.reactant to be in the form of a
-                MoleculeEntry,
-            IntermolecularReaction.product to be in the form of [MoleculeEntry_0,
-                                                                 MoleculeEntry_1],
-            Reaction.reactant to be in the form of a of a list of MoleculeEntry
-                of length 1
-            Reaction.products to be in the form of a of a list of MoleculeEntry
-                of length 2
-          Args:
-            reactant: MoleculeEntry object
-            product: list of MoleculeEntry object of length 2
-            transition_state: MoleculeEntry representing the TS for the reaction
+          Initilizes IntermolecularReaction.reactant to be in the form of a
+              MoleculeEntry,
+          IntermolecularReaction.product to be in the form of [MoleculeEntry_0,
+                                                               MoleculeEntry_1],
+          Reaction.reactant to be in the form of a of a list of MoleculeEntry
+              of length 1
+          Reaction.products to be in the form of a of a list of MoleculeEntry
+              of length 2
+        Args:
+          reactant: MoleculeEntry object
+          product: list of MoleculeEntry object of length 2
+          transition_state: MoleculeEntry representing the TS for the reaction
 
         """
 
@@ -1718,10 +1693,10 @@ class ConcertedReaction(Reaction):
     ) -> nx.DiGraph:  # temp here, use graph_rep_1_2 instead
 
         """
-            A method to convert a Concerted class object into graph
-                representation (nx.Digraph object).
-            IntermolecularReaction must be of type 1 reactant -> 2 products
-            :return nx.Digraph object of a single IntermolecularReaction object
+        A method to convert a Concerted class object into graph
+            representation (nx.Digraph object).
+        IntermolecularReaction must be of type 1 reactant -> 2 products
+        :return nx.Digraph object of a single IntermolecularReaction object
         """
         if len(self.reactants) == len(self.products) == 1:
             return graph_rep_1_1(self)
@@ -1745,26 +1720,26 @@ class ConcertedReaction(Reaction):
     ) -> Tuple[List[Reaction], Mapping_Family_Dict]:
 
         """
-           A method to generate all the possible concerted reactions from given
-           entries_list.
-           Args:
-              :param entries_list, entries_list = [MoleculeEntry]
-              :param name(str): The name to put in FindConcertedReactions class. For
-                    reading in the files generated from that class.
-              :param read_file(bool): whether to read in the file generated from
-                    the FindConcertedReactions class.
-                    If true, name+'_concerted_rxns.json' has to be present in the
-                    running directory. If False, will find concerted reactions
-                    on the fly. Note that this will take a couple hours when
-                    running on 16 CPU with < 100 entries.
-              :param num_processors:
-              :param reaction_type: Can choose from "break2_form2" and
-                    "break1_form1"
-              :param allowed_charge_change: How many charge changes are allowed
-                    in a concerted reaction. If zero, sum(reactant total
-                    charges) = sun(product total charges). If n(non-zero),
-                    allow n-electron redox reactions.
-              :return list of IntermolecularReaction class objects
+        A method to generate all the possible concerted reactions from given
+        entries_list.
+        Args:
+           :param entries_list, entries_list = [MoleculeEntry]
+           :param name(str): The name to put in FindConcertedReactions class. For
+                 reading in the files generated from that class.
+           :param read_file(bool): whether to read in the file generated from
+                 the FindConcertedReactions class.
+                 If true, name+'_concerted_rxns.json' has to be present in the
+                 running directory. If False, will find concerted reactions
+                 on the fly. Note that this will take a couple hours when
+                 running on 16 CPU with < 100 entries.
+           :param num_processors:
+           :param reaction_type: Can choose from "break2_form2" and
+                 "break1_form1"
+           :param allowed_charge_change: How many charge changes are allowed
+                 in a concerted reaction. If zero, sum(reactant total
+                 charges) = sun(product total charges). If n(non-zero),
+                 allow n-electron redox reactions.
+           :return list of IntermolecularReaction class objects
         """
         if read_file:
             all_concerted_reactions = loadfn(name + "_concerted_rxns.json")
@@ -1798,14 +1773,14 @@ class ConcertedReaction(Reaction):
     def reaction_type(self) -> Mapping_ReactionType_Dict:
 
         """
-           A method to identify type of intermoleular reaction (bond decomposition
-           from one to two or formation from two to one molecules)
-           Args:
-              :return dictionary of the form {"class": "IntermolecularReaction",
-              "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
-              where rnx_type_A is the primary type of the reaction based on the
-              reactant and product of the IntermolecularReaction
-              object, and the backwards of this reaction would be rnx_type_B
+        A method to identify type of intermoleular reaction (bond decomposition
+        from one to two or formation from two to one molecules)
+        Args:
+           :return dictionary of the form {"class": "IntermolecularReaction",
+           "rxn_type_A": rxn_type_A, "rxn_type_B": rxn_type_B}
+           where rnx_type_A is the primary type of the reaction based on the
+           reactant and product of the IntermolecularReaction
+           object, and the backwards of this reaction would be rnx_type_B
         """
 
         rxn_type_A = "Concerted"
@@ -1820,14 +1795,14 @@ class ConcertedReaction(Reaction):
 
     def free_energy(self, temperature=298.15) -> Mapping_Energy_Dict:
         """
-          A method to determine the free energy of the concerted reaction
-          Args:
-             :return dictionary of the form {"free_energy_A": energy_A,
-                                             "free_energy_B": energy_B}
-             where free_energy_A is the primary type of the reaction based on
-             the reactant and product of the ConcertedReaction
-             object, and the backwards of this reaction would be free_energy_B.
-         """
+        A method to determine the free energy of the concerted reaction
+        Args:
+           :return dictionary of the form {"free_energy_A": energy_A,
+                                           "free_energy_B": energy_B}
+           where free_energy_A is the primary type of the reaction based on
+           the reactant and product of the ConcertedReaction
+           object, and the backwards of this reaction would be free_energy_B.
+        """
 
         if self.electron_free_energy is None:
             electron_free = 0.0
@@ -1867,14 +1842,14 @@ class ConcertedReaction(Reaction):
 
     def energy(self) -> Mapping_Energy_Dict:
         """
-          A method to determine the energy of the concerted reaction
-          Args:
-             :return dictionary of the form {"energy_A": energy_A,
-                                             "energy_B": energy_B}
-             where energy_A is the primary type of the reaction based on the
-             reactant and product of the ConcertedReaction
-             object, and the backwards of this reaction would be energy_B.
-             Electron electronic energy set to 0 for now.
+        A method to determine the energy of the concerted reaction
+        Args:
+           :return dictionary of the form {"energy_A": energy_A,
+                                           "energy_B": energy_B}
+           where energy_A is the primary type of the reaction based on the
+           reactant and product of the ConcertedReaction
+           object, and the backwards of this reaction would be energy_B.
+           Electron electronic energy set to 0 for now.
         """
         if all(reactant.energy is None for reactant in self.reactants) and all(
             product.energy is None for product in self.products
@@ -2941,7 +2916,7 @@ def generate_atom_mapping_1_2(
     and the atom mapping number for product atoms are determined accordingly.
     Atoms in the reactant and products with the same atom mapping number (value in the
     atom mapping dictionary {atom_index: atom_mapping_number}) corresponds to each other.
-    
+
     For example, given reactant
 
           C 0

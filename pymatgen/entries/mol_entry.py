@@ -6,12 +6,13 @@ import copy
 from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
 from monty.json import MSONable
+from monty.dev import deprecated
 from pymatgen import Molecule
 from pymatgen.analysis.fragmenter import metal_edge_extender
 from pymatgen.analysis.graphs import MoleculeGraph, MolGraphSplitError
 from pymatgen.analysis.local_env import OpenBabelNN
 
-__author__ = "Sam Blau"
+__author__ = "Sam Blau, Mingjian Wen"
 __copyright__ = "Copyright 2019, The Materials Project"
 __version__ = "0.1"
 __email__ = "samblau1@gmail.com"
@@ -61,15 +62,14 @@ class MoleculeEntry(MSONable):
 
         self.molecule = molecule
         self.uncorrected_energy = energy
+        self.correction = correction
         self.enthalpy = enthalpy
         self.entropy = entropy
-        self.composition = molecule.composition
-        self.correction = correction
-        self.mol_graph = mol_graph
         self.parameters = parameters if parameters else {}
         self.entry_id = entry_id
         self.attribute = attribute
         self.mol_doc = mol_doc if mol_doc else {}
+        self.mol_graph = mol_graph
 
         if self.mol_doc != {}:
 
@@ -117,12 +117,17 @@ class MoleculeEntry(MSONable):
                 analysis and plotting purposes. An attribute can be anything
                 but must be MSONable.
         """
-
-        molecule = mol_doc["molecule"]
-        energy = mol_doc["energy"]
-        enthalpy = mol_doc["enthalpy_kcal/mol"]
-        entropy = mol_doc["entropy_cal/molK"]
-        entry_id = mol_doc["task_id"]
+        try:
+            molecule = mol_doc["molecule"]
+            energy = mol_doc["energy"]
+            enthalpy = mol_doc["enthalpy_kcal/mol"]
+            entropy = mol_doc["entropy_cal/molK"]
+            entry_id = mol_doc["task_id"]
+        except KeyError as e:
+            raise MoleculeEntryError(
+                "Unable to construct molecule entry from molecule document; missing "
+                f"attribute {e} in `mol_doc`."
+            )
 
         if "mol_graph" in mol_doc:
             if isinstance(mol_doc["mol_graph"], MoleculeGraph):
@@ -139,10 +144,10 @@ class MoleculeEntry(MSONable):
             correction=correction,
             enthalpy=enthalpy,
             entropy=entropy,
-            mol_graph=mol_graph,
             parameters=parameters,
             entry_id=entry_id,
             attribute=attribute,
+            mol_graph=mol_graph,
         )
 
     @property
@@ -156,14 +161,11 @@ class MoleculeEntry(MSONable):
 
     @property
     def energy(self) -> float:
-        """
-        Returns the *corrected* energy of the entry.
-        """
         return self.uncorrected_energy + self.correction
 
     @property
     def formula(self) -> str:
-        return self.composition.alphabetical_formula
+        return self.molecule.composition.alphabetical_formula
 
     @property
     def charge(self) -> float:
@@ -182,14 +184,19 @@ class MoleculeEntry(MSONable):
     def Nbonds(self) -> int:
         return len(self.edges)
 
-    # TODO (mjwen) rename it as get_free_energy() to distinguish that this a function
-    #  not a property
+    @deprecated(
+        message="`free_energy(temp=<float>)` is replaced by "
+        "get_free_energy(temperature=<float>)`. This will be removed shortly."
+    )
     def free_energy(self, temp=298.15) -> float:
+        return self.get_free_energy(temp)
+
+    def get_free_energy(self, temperature: float = 298.15) -> float:
         if self.enthalpy is not None and self.entropy is not None:
             return (
                 self.energy * 27.21139
                 + 0.0433641 * self.enthalpy
-                - temp * self.entropy * 0.0000433641
+                - temperature * self.entropy * 0.0000433641
             )
         else:
             return None
@@ -233,15 +240,17 @@ class MoleculeEntry(MSONable):
         Isomorphic bonds are defined as bonds that when breaking them separately,
         the same fragments (in terms of graph connectivity) are obtained.
 
-        For example, for molecule
+        For example, for molecule:
 
-               0     1
-            H1---C0---H2
-              2 /  | 3
-              O3---O4
-                 4
+             b0      b1
+        H(1)----C(0)----H(2)
+            b2 /   | b3
+            O(3)---O(4)
+                b4
 
-        bond 0 is isomorphic to bond 1,  and bond 2 is isomorphic to bond 3.
+        (notation: number after b is bond index, number in `()` is atom index)
+
+        bond 0 is isomorphic to bond 1, and bond 2 is isomorphic to bond 3.
 
         Args:
             fragments: a dictionary of fragments obtained by breaking all bonds in the
@@ -311,3 +320,9 @@ class MoleculeEntry(MSONable):
 
     def __str__(self):
         return self.__repr__()
+
+
+class MoleculeEntryError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
