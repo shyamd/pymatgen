@@ -549,9 +549,8 @@ class IntramolSingleBondChangeReaction(Reaction):
                         rxns, subgs = cls._generate_one(entry1, entries, formula,
                                                         Nbonds0, charge, cls)
                         reactions.extend(rxns)
-                        families, templates = cls._update_families_and_templates(
-                                rxns, subgs, families, templates, charge
-                            )
+                        for r, g in zip(rxns, subgs):
+                            families, templates = categorize(r, families, templates, g, charge)
 
         return reactions, families
 
@@ -580,12 +579,6 @@ class IntramolSingleBondChangeReaction(Reaction):
                         break
 
         return reactions, sub_graphs
-
-    @staticmethod
-    def _update_families_and_templates(reactions, sub_graphs, families, templates, charge):
-        for r, g in zip(reactions, sub_graphs):
-            families, templates = categorize(r, families, templates, g, charge)
-        return families, templates
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
         """
@@ -806,9 +799,8 @@ class IntermolecularReaction(Reaction):
                     for entry in entries[formula][Nbonds][charge]:
                         rxns, subgs = cls._generate_one(entry, entries, charge, cls)
                         reactions.extend(rxns)
-                        families, templates = cls._update_families_and_templates(
-                            rxns, subgs, families, templates, charge
-                        )
+                        for r, g in zip(rxns, subgs):
+                            families, templates = categorize(r, families, templates, g, charge)
 
         return reactions, families
 
@@ -858,13 +850,6 @@ class IntermolecularReaction(Reaction):
                 pass
 
         return reactions, sub_graphs
-
-
-    @staticmethod
-    def _update_families_and_templates(reactions, sub_graphs, families, templates, charge):
-        for r, g in zip(reactions, sub_graphs):
-            families, templates = categorize(r, families, templates, g, charge)
-        return families, templates
 
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
@@ -1101,9 +1086,8 @@ class CoordinationBondChangeReaction(Reaction):
                         for entry in entries[formula][Nbonds][charge]:
                             rxns, subgs = cls._generate_one(entry, entries, M_entries, cls)
                             reactions.extend(rxns)
-                            families, templates = cls._update_families_and_templates(
-                                rxns, subgs, families, templates, charge
-                            )
+                            for r, g in zip(rxns, subgs):
+                                families, templates = categorize(r, families, templates, g, charge)
 
         return reactions, families
 
@@ -1173,13 +1157,6 @@ class CoordinationBondChangeReaction(Reaction):
                 pass
 
         return reactions, sub_graphs
-
-    @staticmethod
-    def _update_families_and_templates(reactions, sub_graphs, families, templates, charge):
-        for r, g in zip(reactions, sub_graphs):
-            families, templates = categorize(r, families, templates, g, charge)
-        return families, templates
-
 
 
     def reaction_type(self) -> Mapping_ReactionType_Dict:
