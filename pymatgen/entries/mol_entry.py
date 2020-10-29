@@ -154,9 +154,13 @@ class MoleculeEntry(MSONable):
     def graph(self) -> nx.MultiDiGraph:
         return self.mol_graph.graph
 
-    # TODO (mjwen) probably rename it as bonds, since we are dealing with molecules
     @property
+    @deprecated(message="`edges` is replaced by `bonds`. This will be removed shortly.")
     def edges(self) -> List[Tuple[int, int]]:
+        return self.bonds
+
+    @property
+    def bonds(self) -> List[Tuple[int, int]]:
         return [tuple(sorted(e)) for e in self.graph.edges()]
 
     @property
@@ -179,10 +183,16 @@ class MoleculeEntry(MSONable):
     def num_atoms(self) -> int:
         return len(self.molecule)
 
-    # TODO (mjwen) rename as num_bonds
     @property
+    @deprecated(
+        message="`Nbonds` is replaced by `num_bonds`. This will be removed shortly."
+    )
     def Nbonds(self) -> int:
-        return len(self.edges)
+        return self.num_bonds
+
+    @property
+    def num_bonds(self) -> int:
+        return len(self.bonds)
 
     @deprecated(
         message="`free_energy(temp=<float>)` is replaced by "
@@ -215,7 +225,7 @@ class MoleculeEntry(MSONable):
         """
 
         fragments = {}
-        for edge in self.edges:
+        for edge in self.bonds:
             try:
                 frags = self.mol_graph.split_molecule_subgraphs(
                     [edge], allow_reverse=True, alterations=None
