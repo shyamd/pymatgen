@@ -3,6 +3,7 @@
 # Distributed under the terms of the MIT License.
 
 import copy
+import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
 from monty.json import MSONable
@@ -118,8 +119,11 @@ class MoleculeEntry(MSONable):
                 but must be MSONable.
         """
         try:
-            molecule = mol_doc["molecule"]
-            energy = mol_doc["energy"]
+            if isinstance(mol_doc["molecule"], Molecule):
+                molecule = mol_doc["molecule"]
+            else:
+                molecule = Molecule.from_dict(mol_doc["molecule"])
+            energy = mol_doc["energy_Ha"]
             enthalpy = mol_doc["enthalpy_kcal/mol"]
             entropy = mol_doc["entropy_cal/molK"]
             entry_id = mol_doc["task_id"]
@@ -154,11 +158,6 @@ class MoleculeEntry(MSONable):
     def graph(self) -> nx.MultiDiGraph:
         return self.mol_graph.graph
 
-    # TODO (mjwen) probably rename it as bonds, since we are dealing with molecules
-    @property
-    def edges(self) -> List[Tuple[int, int]]:
-        return [tuple(sorted(e)) for e in self.graph.edges()]
-
     @property
     def energy(self) -> float:
         return self.uncorrected_energy + self.correction
@@ -179,10 +178,29 @@ class MoleculeEntry(MSONable):
     def num_atoms(self) -> int:
         return len(self.molecule)
 
-    # TODO (mjwen) rename as num_bonds
     @property
+    @deprecated(message="`edges` is replaced by `bonds`. This will be removed shortly.")
+    def edges(self) -> List[Tuple[int, int]]:
+        return self.bonds
+
+    @property
+    def bonds(self) -> List[Tuple[int, int]]:
+        return [tuple(sorted(e)) for e in self.graph.edges()]
+
+    @property
+    @deprecated(
+        message="`Nbonds` is replaced by `num_bonds`. This will be removed shortly."
+    )
     def Nbonds(self) -> int:
-        return len(self.edges)
+        return self.num_bonds
+
+    @property
+    def num_bonds(self) -> int:
+        return len(self.bonds)
+
+    @property
+    def coords(self) -> np.ndarray:
+        return self.molecule.cart_coords
 
     @deprecated(
         message="`free_energy(temp=<float>)` is replaced by "
@@ -215,7 +233,7 @@ class MoleculeEntry(MSONable):
         """
 
         fragments = {}
-        for edge in self.edges:
+        for edge in self.bonds:
             try:
                 frags = self.mol_graph.split_molecule_subgraphs(
                     [edge], allow_reverse=True, alterations=None
