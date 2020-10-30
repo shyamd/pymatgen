@@ -49,8 +49,10 @@ class ReactionRateCalculator(MSONable):
         self.transition_state = transition_state
 
         # Assume rate law is first-order in terms of each reactant/product
-        rate_law = {"reactants": {ii: 1 for ii in range(len(self.reactants))},
-                    "products": {jj: 1 for jj in range(len(self.products))}}
+        rate_law = {
+            "reactants": {ii: 1 for ii in range(len(self.reactants))},
+            "products": {jj: 1 for jj in range(len(self.products))},
+        }
 
         self.rate_law = rate_law
 
@@ -113,10 +115,12 @@ class ReactionRateCalculator(MSONable):
             net_thermo: dict with relevant net thermodynamic variables
         """
 
-        net_thermo = {"energy": self.net_energy,
-                      "enthalpy": self.net_enthalpy,
-                      "entropy": self.net_entropy,
-                      "gibbs": self.calculate_net_gibbs(temperature)}
+        net_thermo = {
+            "energy": self.net_energy,
+            "enthalpy": self.net_enthalpy,
+            "entropy": self.net_entropy,
+            "gibbs": self.calculate_net_gibbs(temperature),
+        }
 
         return net_thermo
 
@@ -220,10 +224,12 @@ class ReactionRateCalculator(MSONable):
             act_thermo: dict with relevant activation thermodynamic variables
         """
 
-        act_thermo = {"energy": self.calculate_act_energy(reverse=reverse),
-                      "enthalpy": self.calculate_act_enthalpy(reverse=reverse),
-                      "entropy": self.calculate_act_entropy(reverse=reverse),
-                      "gibbs": self.calculate_act_gibbs(temperature, reverse=reverse)}
+        act_thermo = {
+            "energy": self.calculate_act_energy(reverse=reverse),
+            "enthalpy": self.calculate_act_enthalpy(reverse=reverse),
+            "entropy": self.calculate_act_entropy(reverse=reverse),
+            "gibbs": self.calculate_act_gibbs(temperature, reverse=reverse),
+        }
 
         return act_thermo
 
@@ -244,7 +250,9 @@ class ReactionRateCalculator(MSONable):
 
         gibbs = self.calculate_act_gibbs(temperature=temperature, reverse=reverse)
 
-        k_rate = kappa * k * temperature / h * np.exp(-gibbs / (8.617333262 * 10 ** -5 * temperature))
+        k_rate = (
+            kappa * k * temperature / h * np.exp(-gibbs / (8.617333262 * 10 ** -5 * temperature))
+        )
         return k_rate
 
     def calculate_rate(self, concentrations, temperature=298.0, reverse=False, kappa=1.0):
@@ -266,8 +274,9 @@ class ReactionRateCalculator(MSONable):
             rate (float): reaction rate, based on the stoichiometric rate law and the rate constant
         """
 
-        rate_constant = self.calculate_rate_constant(temperature=temperature, reverse=reverse,
-                                                     kappa=kappa)
+        rate_constant = self.calculate_rate_constant(
+            temperature=temperature, reverse=reverse, kappa=kappa
+        )
 
         if reverse:
             exponents = np.array(list(self.rate_law["products"].values()))
@@ -318,8 +327,7 @@ class BEPRateCalculator(ReactionRateCalculator):
         alpha (float): the reaction coordinate (must between 0 and 1)
     """
 
-    def __init__(self, reactants, products, ea_reference, delta_h_reference,
-                 alpha=0.5):
+    def __init__(self, reactants, products, ea_reference, delta_h_reference, alpha=0.5):
 
         self.ea_reference = ea_reference
         self.delta_h_reference = delta_h_reference
@@ -348,20 +356,24 @@ class BEPRateCalculator(ReactionRateCalculator):
         return ea
 
     def calculate_act_enthalpy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_enthalpy is not valid for "
-                                  "BEPRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_enthalpy is not valid for " "BEPRateCalculator,"
+        )
 
     def calculate_act_entropy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_entropy is not valid for "
-                                  "BEPRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_entropy is not valid for " "BEPRateCalculator,"
+        )
 
     def calculate_act_gibbs(self, temperature, reverse=False):
-        raise NotImplementedError("Method calculate_act_gibbs is not valid for "
-                                  "BEPRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_gibbs is not valid for " "BEPRateCalculator,"
+        )
 
     def calculate_activation_thermo(self, temperature=298.0, reverse=False):
-        raise NotImplementedError("Method calculate_activation_thermo is not valid for "
-                                  "BEPRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_activation_thermo is not valid for " "BEPRateCalculator,"
+        )
 
     def calculate_rate_constant(self, temperature=298.0, reverse=False, kappa=None):
         """
@@ -412,7 +424,9 @@ class BEPRateCalculator(ReactionRateCalculator):
         masses = [m.composition.weight for m in mols]
 
         # Convert from Angstrom to m
-        radius_factor = pi * sum([(np.max(mol.distance_matrix) * (10 ** -10) / 2) for mol in mols]) ** 2
+        radius_factor = (
+            pi * sum([(np.max(mol.distance_matrix) * (10 ** -10) / 2) for mol in mols]) ** 2
+        )
         # Radius factor will be 0 for single atoms
         if radius_factor == 0:
             radius_factor = 1
@@ -420,7 +434,7 @@ class BEPRateCalculator(ReactionRateCalculator):
         total_exponent = sum(exponents)
         number_prefactor = (1000 * N_A) ** total_exponent
         concentration_factor = product(np.array(concentrations) ** exponents)
-        mass_factor = product(masses)/sum(masses) * amu_to_kg
+        mass_factor = product(masses) / sum(masses) * amu_to_kg
         root_factor = np.sqrt(8 * k * temperature / (pi * mass_factor))
 
         z = number_prefactor * concentration_factor * radius_factor * root_factor
@@ -474,9 +488,18 @@ class ExpandedBEPRateCalculator(ReactionRateCalculator):
         alpha (float): the reaction coordinate (must between 0 and 1)
     """
 
-    def __init__(self, reactants, products, delta_ea_reference, delta_ha_reference,
-                 delta_sa_reference, delta_e_reference,
-                 delta_h_reference, delta_s_reference, alpha=0.5):
+    def __init__(
+        self,
+        reactants,
+        products,
+        delta_ea_reference,
+        delta_ha_reference,
+        delta_sa_reference,
+        delta_e_reference,
+        delta_h_reference,
+        delta_s_reference,
+        alpha=0.5,
+    ):
         """
 
         """
@@ -497,16 +520,19 @@ class ExpandedBEPRateCalculator(ReactionRateCalculator):
         super().__init__(reactants, products, None)
 
     def calculate_act_energy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_energy is not valid for "
-                                  "ExpandedBEPRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_energy is not valid for " "ExpandedBEPRateCalculator,"
+        )
 
     def calculate_act_enthalpy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_enthalpy is not valid for "
-                                  "ExpandedBEPRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_enthalpy is not valid for " "ExpandedBEPRateCalculator,"
+        )
 
     def calculate_act_entropy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_entropy is not valid for "
-                                  "ExpandedBEPCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_entropy is not valid for " "ExpandedBEPCalculator,"
+        )
 
     def calculate_act_gibbs(self, temperature=298.0, reverse=False):
         """
@@ -528,16 +554,23 @@ class ExpandedBEPRateCalculator(ReactionRateCalculator):
         else:
             delta_g = self.calculate_net_gibbs(temperature)
 
-        delta_g_ref = self.delta_e_reference + self.delta_h_reference - temperature * self.delta_s_reference
-        delta_ga_ref = self.delta_ea_reference + self.delta_ha_reference - temperature * self.delta_sa_reference
+        delta_g_ref = (
+            self.delta_e_reference + self.delta_h_reference - temperature * self.delta_s_reference
+        )
+        delta_ga_ref = (
+            self.delta_ea_reference
+            + self.delta_ha_reference
+            - temperature * self.delta_sa_reference
+        )
 
         delta_ga = delta_ga_ref + self.alpha * (delta_g - delta_g_ref)
 
         return delta_ga
 
     def calculate_activation_thermo(self, temperature=298.0, reverse=False):
-        raise NotImplementedError("Method calculate_activation_thermo is not valid for "
-                                  "ExpandedBEPRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_activation_thermo is not valid for " "ExpandedBEPRateCalculator,"
+        )
 
     def calculate_rate_constant(self, temperature=298.0, reverse=False, kappa=1.0):
         """
@@ -556,7 +589,9 @@ class ExpandedBEPRateCalculator(ReactionRateCalculator):
 
         gibbs = self.calculate_act_gibbs(temperature=temperature, reverse=reverse)
 
-        k_rate = kappa * k * temperature / h * np.exp(-gibbs / (8.617333262 * 10 ** -5 * temperature))
+        k_rate = (
+            kappa * k * temperature / h * np.exp(-gibbs / (8.617333262 * 10 ** -5 * temperature))
+        )
         return k_rate
 
 
@@ -628,8 +663,17 @@ class RedoxRateCalculator(ReactionRateCalculator):
             Anstrom
     """
 
-    def __init__(self, reactants, products, lambda_inner, dielectric,
-                 refractive, electron_free_energy, radius, electrode_distance):
+    def __init__(
+        self,
+        reactants,
+        products,
+        lambda_inner,
+        dielectric,
+        refractive,
+        electron_free_energy,
+        radius,
+        electrode_distance,
+    ):
 
         self.lambda_inner = lambda_inner
         self.dielectric = dielectric
@@ -641,16 +685,19 @@ class RedoxRateCalculator(ReactionRateCalculator):
         super().__init__(reactants, products, None)
 
     def calculate_act_energy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_energy is not valid for "
-                                  "RedoxRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_energy is not valid for " "RedoxRateCalculator,"
+        )
 
     def calculate_act_enthalpy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_enthalpy is not valid for "
-                                  "RedoxRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_enthalpy is not valid for " "RedoxRateCalculator,"
+        )
 
     def calculate_act_entropy(self, reverse=False):
-        raise NotImplementedError("Method calculate_act_entropy is not valid for "
-                                  "RedoxRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_act_entropy is not valid for " "RedoxRateCalculator,"
+        )
 
     def calculate_outer_reorganization_energy(self):
         """
@@ -662,8 +709,8 @@ class RedoxRateCalculator(ReactionRateCalculator):
         """
 
         lambda_outer = abs(elementary_charge) / (8 * pi * epsilon_0)
-        lambda_outer *= (1/self.radius - 1/(2 * self.electrode_distance)) * 10 ** 10
-        lambda_outer *= (1/self.refractive ** 2 - 1/self.dielectric)
+        lambda_outer *= (1 / self.radius - 1 / (2 * self.electrode_distance)) * 10 ** 10
+        lambda_outer *= 1 / self.refractive ** 2 - 1 / self.dielectric
 
         return lambda_outer
 
@@ -700,8 +747,9 @@ class RedoxRateCalculator(ReactionRateCalculator):
         return delta_ga
 
     def calculate_activation_thermo(self, temperature=298.0, reverse=False):
-        raise NotImplementedError("Method calculate_activation_thermo is not valid for "
-                                  "RedoxRateCalculator,")
+        raise NotImplementedError(
+            "Method calculate_activation_thermo is not valid for " "RedoxRateCalculator,"
+        )
 
     def calculate_rate_constant(self, temperature=298.0, reverse=False, kappa=1.0):
         """
@@ -721,7 +769,8 @@ class RedoxRateCalculator(ReactionRateCalculator):
 
         kappa = np.exp(-1.2 * self.electrode_distance)
 
-        k_rate = kappa * k * temperature / h * np.exp(-gibbs / (8.617333262 * 10 ** -5 * temperature))
+        k_rate = (
+            kappa * k * temperature / h * np.exp(-gibbs / (8.617333262 * 10 ** -5 * temperature))
+        )
 
         return k_rate
-

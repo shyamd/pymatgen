@@ -45,11 +45,7 @@ class TestRedoxReaction(PymatgenTest):
                 H = float(entry["output"]["enthalpy"])
                 S = float(entry["output"]["entropy"])
                 mol_entry = MoleculeEntry(
-                    molecule=mol,
-                    energy=E,
-                    enthalpy=H,
-                    entropy=S,
-                    entry_id=entry["task_id"],
+                    molecule=mol, energy=E, enthalpy=H, entropy=S, entry_id=entry["task_id"],
                 )
                 if mol_entry.formula == "Li1":
                     if mol_entry.charge == 1:
@@ -129,9 +125,7 @@ class TestRedoxReaction(PymatgenTest):
         )
         self.assertEqual(len(graph.edges), 4)
         self.assertEqual(
-            graph.get_edge_data(EC_0_ind, str(EC_0_ind) + "," + str(EC_1_ind))[
-                "softplus"
-            ],
+            graph.get_edge_data(EC_0_ind, str(EC_0_ind) + "," + str(EC_1_ind))["softplus"],
             5.629805462349386,
         )
 
@@ -152,9 +146,7 @@ class TestRedoxReaction(PymatgenTest):
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_atom_mapping(self):
 
-        entries = bucket_mol_entries(
-            [self.EC_minus_entry, self.EC_0_entry, self.EC_1_entry]
-        )
+        entries = bucket_mol_entries([self.EC_minus_entry, self.EC_0_entry, self.EC_1_entry])
 
         reactions, families = RedoxReaction.generate(entries)
         self.assertEqual(len(reactions), 2)
@@ -187,8 +179,7 @@ class TestRedoxReaction(PymatgenTest):
         reaction.electron_free_energy = -2.15
         energy_dict = reaction.energy()
         self.assertEqual(
-            energy_dict,
-            {"energy_A": 0.3149076465170424, "energy_B": -0.3149076465170424},
+            energy_dict, {"energy_A": 0.3149076465170424, "energy_B": -0.3149076465170424},
         )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
@@ -221,11 +212,7 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
                 H = float(entry["output"]["enthalpy"])
                 S = float(entry["output"]["entropy"])
                 mol_entry = MoleculeEntry(
-                    molecule=mol,
-                    energy=E,
-                    enthalpy=H,
-                    entropy=S,
-                    entry_id=entry["task_id"],
+                    molecule=mol, energy=E, enthalpy=H, entropy=S, entry_id=entry["task_id"],
                 )
                 if mol_entry.formula == "Li1":
                     if mol_entry.charge == 1:
@@ -300,9 +287,7 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
         )
         self.assertEqual(len(graph.edges), 4)
         self.assertEqual(
-            graph.get_edge_data(LiEC_ind, str(LiEC_ind) + "," + str(LiEC_RO_ind))[
-                "softplus"
-            ],
+            graph.get_edge_data(LiEC_ind, str(LiEC_ind) + "," + str(LiEC_RO_ind))["softplus"],
             0.15092362164364986,
         )
 
@@ -369,8 +354,7 @@ class TestIntramolSingleBondChangeReaction(PymatgenTest):
         reaction = IntramolSingleBondChangeReaction(self.LiEC_entry, self.LiEC_RO_entry)
         energy_dict = reaction.energy()
         self.assertEqual(
-            energy_dict,
-            {"energy_A": -0.03746218086303088, "energy_B": 0.03746218086303088},
+            energy_dict, {"energy_A": -0.03746218086303088, "energy_B": 0.03746218086303088},
         )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
@@ -403,11 +387,7 @@ class TestIntermolecularReaction(PymatgenTest):
                 H = float(entry["output"]["enthalpy"])
                 S = float(entry["output"]["entropy"])
                 mol_entry = MoleculeEntry(
-                    molecule=mol,
-                    energy=E,
-                    enthalpy=H,
-                    entropy=S,
-                    entry_id=entry["task_id"],
+                    molecule=mol, energy=E, enthalpy=H, entropy=S, entry_id=entry["task_id"],
                 )
                 if mol_entry.formula == "Li1":
                     if mol_entry.charge == 1:
@@ -502,9 +482,7 @@ class TestIntermolecularReaction(PymatgenTest):
                 break
 
         # perform calc
-        reaction = IntermolecularReaction(
-            LiEC_RO_RN_entry, [C2H4_RN_entry, C1Li1O3_RN_entry]
-        )
+        reaction = IntermolecularReaction(LiEC_RO_RN_entry, [C2H4_RN_entry, C1Li1O3_RN_entry])
         graph = reaction.graph_representation()
 
         # assert
@@ -522,15 +500,13 @@ class TestIntermolecularReaction(PymatgenTest):
         self.assertEqual(len(graph.edges), 7)
         self.assertEqual(
             graph.get_edge_data(
-                LiEC_RO_ind,
-                str(LiEC_RO_ind) + "," + str(C1Li1O3_ind) + "+" + str(C2H4_ind),
+                LiEC_RO_ind, str(LiEC_RO_ind) + "," + str(C1Li1O3_ind) + "+" + str(C2H4_ind),
             )["softplus"],
             0.5828092060367285,
         )
         self.assertEqual(
             graph.get_edge_data(
-                LiEC_RO_ind,
-                str(C2H4_ind) + "+PR_" + str(C1Li1O3_ind) + "," + str(LiEC_RO_ind),
+                LiEC_RO_ind, str(C2H4_ind) + "+PR_" + str(C1Li1O3_ind) + "," + str(LiEC_RO_ind),
             ),
             None,
         )
@@ -550,24 +526,18 @@ class TestIntermolecularReaction(PymatgenTest):
                     or r.products[1].entry_id == self.C2H4_entry.entry_id
                 ):
                     self.assertTrue(
-                        r.products[0].formula == "C1 Li1 O3"
-                        or r.products[1].formula == "C1 Li1 O3"
+                        r.products[0].formula == "C1 Li1 O3" or r.products[1].formula == "C1 Li1 O3"
                     )
-                    self.assertTrue(
-                        r.products[0].charge == 0 or r.products[1].charge == 0
-                    )
+                    self.assertTrue(r.products[0].charge == 0 or r.products[1].charge == 0)
                     self.assertTrue(
                         r.products[0].free_energy() == self.C1Li1O3_entry.free_energy()
-                        or r.products[1].free_energy()
-                        == self.C1Li1O3_entry.free_energy()
+                        or r.products[1].free_energy() == self.C1Li1O3_entry.free_energy()
                     )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_atom_mapping(self):
 
-        entries = bucket_mol_entries(
-            [self.LiEC_RO_entry, self.C1Li1O3_entry, self.C2H4_entry]
-        )
+        entries = bucket_mol_entries([self.LiEC_RO_entry, self.C1Li1O3_entry, self.C2H4_entry])
 
         reactions, families = IntermolecularReaction.generate(entries)
         self.assertEqual(len(reactions), 1)
@@ -588,9 +558,7 @@ class TestIntermolecularReaction(PymatgenTest):
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_free_energy(self):
 
-        reaction = IntermolecularReaction(
-            self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry]
-        )
+        reaction = IntermolecularReaction(self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry])
         free_energy_dict = reaction.free_energy()
         self.assertEqual(
             free_energy_dict,
@@ -600,21 +568,16 @@ class TestIntermolecularReaction(PymatgenTest):
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_energy(self):
 
-        reaction = IntermolecularReaction(
-            self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry]
-        )
+        reaction = IntermolecularReaction(self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry])
         energy_dict = reaction.energy()
         self.assertEqual(
-            energy_dict,
-            {"energy_A": 0.035409666514283344, "energy_B": -0.035409666514283344},
+            energy_dict, {"energy_A": 0.035409666514283344, "energy_B": -0.035409666514283344},
         )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_reaction_type(self):
 
-        reaction = IntermolecularReaction(
-            self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry]
-        )
+        reaction = IntermolecularReaction(self.LiEC_RO_entry, [self.C1Li1O3_entry, self.C2H4_entry])
         type_dict = reaction.reaction_type()
         self.assertEqual(
             type_dict,
@@ -641,11 +604,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
                 H = float(entry["output"]["enthalpy"])
                 S = float(entry["output"]["entropy"])
                 mol_entry = MoleculeEntry(
-                    molecule=mol,
-                    energy=E,
-                    enthalpy=H,
-                    entropy=S,
-                    entry_id=entry["task_id"],
+                    molecule=mol, energy=E, enthalpy=H, entropy=S, entry_id=entry["task_id"],
                 )
                 if mol_entry.formula == "Li1":
                     if mol_entry.charge == 1:
@@ -729,9 +688,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
             break
 
         # perform calc
-        reaction = CoordinationBondChangeReaction(
-            LiEC_RN_entry, [EC_minus_RN_entry, Li_RN_entry]
-        )
+        reaction = CoordinationBondChangeReaction(LiEC_RN_entry, [EC_minus_RN_entry, Li_RN_entry])
         graph = reaction.graph_representation()
 
         # assert
@@ -779,16 +736,13 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
                     )
                     self.assertTrue(
                         r.products[0].free_energy() == self.EC_minus_entry.free_energy()
-                        or r.products[1].free_energy()
-                        == self.EC_minus_entry.free_energy()
+                        or r.products[1].free_energy() == self.EC_minus_entry.free_energy()
                     )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
     def test_atom_mapping(self):
 
-        entries = bucket_mol_entries(
-            [self.LiEC_entry, self.EC_minus_entry, self.Li_entry]
-        )
+        entries = bucket_mol_entries([self.LiEC_entry, self.EC_minus_entry, self.Li_entry])
 
         reactions, families = CoordinationBondChangeReaction.generate(entries)
         self.assertEqual(len(reactions), 1)
@@ -827,8 +781,7 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
         )
         energy_dict = reaction.energy()
         self.assertEqual(
-            energy_dict,
-            {"energy_A": 0.08317397598398202, "energy_B": -0.08317397598399001},
+            energy_dict, {"energy_A": 0.08317397598398202, "energy_B": -0.08317397598399001},
         )
 
     @unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
