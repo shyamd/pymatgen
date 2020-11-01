@@ -20,8 +20,8 @@ __copyright__ = "Copyright 2020, The Materials Project"
 __version__ = "0.1"
 
 """
-Kinetic Monte Carlo (kMC) simulation for a reaction network, assuming spatial homogeneity. Simulation can be performed 
-with and without ReactionNetwork objects. The version without ReactionNetwork objects is computationally cheaper. 
+Kinetic Monte Carlo (kMC) simulation for a reaction network, assuming spatial homogeneity. Simulation can be performed
+with and without ReactionNetwork objects. The version without ReactionNetwork objects is computationally cheaper.
 The algorithm is described by Gillespie (1976).
 
 """
@@ -704,15 +704,15 @@ class KmcDataAnalyzer:
         Given reaction histories, identify the most commonly occurring reactions, on average.
         Can rank generally, or by reactions of a certain type.
 
-         Args:
-             reaction_profiles (list of dicts): reactions fired as a function of time
-             reaction_type (string)
-             num_rxns (int): the amount of reactions interested in collecting data on. If None, record for all.
+        Args:
+            reaction_profiles (list of dicts): reactions fired as a function of time
+            reaction_type (string)
+            num_rxns (int): the amount of reactions interested in collecting data on. If None, record for all.
 
-         Returns:
-             reaction_data: list of reactions and their avg, std of times fired. Sorted by the average times fired.
-             [(rxn1, (avg, std)), (rxn2, (avg, std)) ... ]
-         """
+        Returns:
+            reaction_data: list of reactions and their avg, std of times fired. Sorted by the average times fired.
+            [(rxn1, (avg, std)), (rxn2, (avg, std)) ... ]
+        """
         allowed_rxn_types = [
             "One electron reduction",
             "One electron oxidation",
@@ -1018,7 +1018,8 @@ class KineticMonteCarloSimulator:
         return h_prop
 
     def update_state(self, reaction, reverse):
-        """ Update the system state dictionary based on a chosen reaction
+        """
+        Update the system state dictionary based on a chosen reaction
 
         Args:
             reaction (Reaction)

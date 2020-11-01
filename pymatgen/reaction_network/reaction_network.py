@@ -43,11 +43,11 @@ Mapping_Record_Dict = Dict[str, List[str]]
 
 class ReactionPath(MSONable):
     """
-        A class to define path object within the reaction network which
-        constains all the associated characteristic attributes of a given path
+    A class to define path object within the reaction network which
+    constains all the associated characteristic attributes of a given path
 
-        :param path - a list of nodes that defines a path from node A to B
-            within a graph built using ReactionNetwork.build()
+    :param path - a list of nodes that defines a path from node A to B
+        within a graph built using ReactionNetwork.build()
     """
 
     def __init__(self, path):
@@ -492,8 +492,7 @@ Mapping_PR_Dict = Dict[int, Dict[int, ReactionPath]]
 
 class ReactionNetwork(MSONable):
     """
-       Class to build a reaction network from entries
-
+    Class to build a reaction network from entries
     """
 
     def __init__(
@@ -780,11 +779,11 @@ class ReactionNetwork(MSONable):
 
     def build_PR_record(self) -> Mapping_Record_Dict:
         """
-            A method to determine all the reaction nodes that have a the same
-            PR in the ReactionNetwork.graph
+        A method to determine all the reaction nodes that have a the same
+        PR in the ReactionNetwork.graph
 
-            :return: a dict of the form {int(node1): [all the reaction nodes with
-            PR of node1, ex "2+PR_node1, 3"]}
+        :return: a dict of the form {int(node1): [all the reaction nodes with
+        PR of node1, ex "2+PR_node1, 3"]}
         """
         PR_record = {}
         for node in self.graph.nodes():
@@ -800,11 +799,11 @@ class ReactionNetwork(MSONable):
 
     def build_reactant_record(self) -> Mapping_Record_Dict:
         """
-            A method to determine all the reaction nodes that have the same non
-            PR reactant node in the ReactionNetwork.graph
+        A method to determine all the reaction nodes that have the same non
+        PR reactant node in the ReactionNetwork.graph
 
-            :return: a dict of the form {int(node1): [all the reaction nodes with
-            non PR reactant of node1, ex "node1+PR_2, 3"]}
+        :return: a dict of the form {int(node1): [all the reaction nodes with
+        non PR reactant of node1, ex "node1+PR_2, 3"]}
         """
         Reactant_record = {}
         for node in self.graph.nodes():
@@ -1448,8 +1447,9 @@ class ReactionNetwork(MSONable):
 
     @staticmethod
     def mols_w_cuttoff(RN_pr_solved, cutoff=0, build_pruned_network=True):
-        """"
-            A method to identify molecules reached by dG <= cutoff
+        """
+        A method to identify molecules reached by dG <= cutoff
+
         :param RN_pr_solved: instance of reaction network
         :param: cutoff: dG value
         :return: mols_to_keep: list of molecule nodes that can be reached by dG <= cutoff
