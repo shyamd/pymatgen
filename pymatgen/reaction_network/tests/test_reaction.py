@@ -1,7 +1,6 @@
 # coding: utf-8
 import os
 import unittest
-from typing import List, Optional
 
 from pymatgen.util.testing import PymatgenTest
 from pymatgen.reaction_network.reaction import (
@@ -10,12 +9,13 @@ from pymatgen.reaction_network.reaction import (
     IntermolecularReaction,
     CoordinationBondChangeReaction,
 )
-from pymatgen.reaction_network.reaction_network import ReactionNetwork
 from pymatgen.core.structure import Molecule
 from pymatgen.entries.mol_entry import MoleculeEntry
 from pymatgen.analysis.graphs import MoleculeGraph
 from pymatgen.analysis.local_env import OpenBabelNN
 from pymatgen.analysis.fragmenter import metal_edge_extender
+from pymatgen.reaction_network.reaction import bucket_mol_entries, unbucket_mol_entries
+from pymatgen.reaction_network.reaction_network import ReactionNetwork
 
 from monty.serialization import loadfn
 
@@ -801,42 +801,41 @@ class TestCoordinationBondChangeReaction(PymatgenTest):
         )
 
 
-def bucket_mol_entries(entries: List[MoleculeEntry], keys: Optional[List[str]] = None):
-    """
-    Bucket molecules into nested dictionaries according to molecule properties
-    specified in keys.
+@unittest.skipIf(not ob, "OpenBabel not present. Skipping...")
+def test_bucket_mol_entries():
+    C2H4_entry = MoleculeEntry(
+        Molecule.from_file(os.path.join(test_dir, "C2H4.xyz")),
+        energy=0.0,
+        enthalpy=0.0,
+        entropy=0.0,
+    )
+    LiEC_RO_entry = MoleculeEntry(
+        Molecule.from_file(os.path.join(test_dir, "LiEC_RO.xyz")),
+        energy=0.0,
+        enthalpy=0.0,
+        entropy=0.0,
+    )
+    C1Li1O3_entry = MoleculeEntry(
+        Molecule.from_file(os.path.join(test_dir, "C1Li1O3.xyz")),
+        energy=0.0,
+        enthalpy=0.0,
+        entropy=0.0,
+    )
 
-    The nested dictionary has keys as given in `keys`, and the innermost value is a
-    list. For example, if `keys = ['formula', 'Nbonds', 'charge']`, then the returned
-    bucket dictionary is something like:
+    bucket = bucket_mol_entries([C2H4_entry, LiEC_RO_entry, C1Li1O3_entry])
 
-    bucket[formula][Nbonds][charge] = [mol_entry1, mol_entry2, ...]
+    ref_dict = {
+        "C2 H4": {5: {0: [C2H4_entry]}},
+        "C3 H4 Li1 O3": {11: {0: [LiEC_RO_entry]}},
+        "C1 Li1 O3": {5: {0: [C1Li1O3_entry]}},
+    }
+    assert bucket == ref_dict
 
-    where mol_entry1, mol_entry2, ... have the same formula, number of bonds, nad charge.
 
-    Args:
-        entries: a list of molecule entries to bucket
-        keys: each str should be a molecule property.
-            default to ['formula', 'Nbonds', 'charge']
-
-    Returns:
-        Nested dictionary of molecule entry bucketed according to keys.
-    """
-    keys = ["formula", "Nbonds", "charge"] if keys is None else keys
-
-    num_keys = len(keys)
-    buckets = {}
-    for m in entries:
-        b = buckets
-        for i, k in enumerate(keys):
-            v = getattr(m, k)
-            if i == num_keys - 1:
-                b.setdefault(v, []).append(m)
-            else:
-                b.setdefault(v, {})
-            b = b[v]
-
-    return buckets
+def test_unbucket_mol_entries():
+    d = {"a": {"aa": [0, 1, 2], "aaa": [3, 4]}, "b": {"bb": [5, 6, 7], "bbb": (8, 9)}}
+    out = unbucket_mol_entries(d)
+    assert out == list(range(10))
 
 
 if __name__ == "__main__":

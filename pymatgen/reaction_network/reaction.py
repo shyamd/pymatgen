@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod
 import copy
 import itertools
-from typing import List, Dict, Tuple, Optional, Union
 import numpy as np
 from scipy.constants import h, k, R
+from collections.abc import Iterable
+from typing import Dict, Tuple, Optional, Union, List
 
 import networkx as nx
 import networkx.algorithms.isomorphism as iso
@@ -2714,3 +2715,72 @@ def generate_atom_mapping_1_2(
         products_atom_mapping.append(node_mapping)
 
     return reactant_atom_mapping, products_atom_mapping
+
+
+def bucket_mol_entries(entries: List[MoleculeEntry], keys: Optional[List[str]] = None):
+    """
+    Bucket molecules into nested dictionaries according to molecule properties
+    specified in keys.
+
+    The nested dictionary has keys as given in `keys`, and the innermost value is a
+    list. For example, if `keys = ['formula', 'Nbonds', 'charge']`, then the returned
+    bucket dictionary is something like:
+
+    bucket[formula][Nbonds][charge] = [mol_entry1, mol_entry2, ...]
+
+    where mol_entry1, mol_entry2, ... have the same formula, number of bonds, and charge.
+
+    Args:
+        entries: a list of molecule entries to bucket
+        keys: each str should be a molecule property.
+            default to ['formula', 'Nbonds', 'charge']
+
+    Returns:
+        Nested dictionary of molecule entry bucketed according to keys.
+    """
+    keys = ["formula", "Nbonds", "charge"] if keys is None else keys
+
+    num_keys = len(keys)
+    buckets = {}
+    for m in entries:
+        b = buckets
+        for i, k in enumerate(keys):
+            v = getattr(m, k)
+            if i == num_keys - 1:
+                b.setdefault(v, []).append(m)
+            else:
+                b.setdefault(v, {})
+            b = b[v]
+
+    return buckets
+
+
+def unbucket_mol_entries(entries: Dict) -> List[MoleculeEntry]:
+    """
+    Unbucket molecule entries stored in a nested dictionary to a list.
+
+    This is the opposite operation to `bucket_mol_entries()`.
+    
+    Args:
+        entries: nested dictionaries, e.g.
+            bucket[formula][Nbonds][charge] = [mol_entry1, mol_entry2, ...]
+
+    Returns:
+        a list of molecule entries
+    """
+
+    def unbucket(d):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                unbucket(v)
+            elif isinstance(v, Iterable):
+                entries_list.extend(v)
+            else:
+                raise RuntimeError(
+                    f"Cannot unbucket molecule entries. Unsupported data type `{type(v)}`"
+                )
+
+    entries_list = []
+    unbucket(entries)
+
+    return entries_list
