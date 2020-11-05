@@ -209,13 +209,20 @@ class Reaction(MSONable, metaclass=ABCMeta):
             ts = MoleculeEntry.from_dict(d["transition_state"])
             rate_calculator = ReactionRateCalculator.from_dict(d["rate_calculator"])
 
+        reactants_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["reactants_atom_mapping"]
+        ]
+        products_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["products_atom_mapping"]
+        ]
+
         reaction = cls(
             reactants,
             products,
             transition_state=ts,
             parameters=d["parameters"],
-            reactants_atom_mapping=d["reactants_atom_mapping"],
-            products_atom_mapping=d["products_atom_mapping"],
+            reactants_atom_mapping=reactants_atom_mapping,
+            products_atom_mapping=products_atom_mapping,
         )
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -540,8 +547,8 @@ class RedoxReaction(Reaction):
             "electrode_dist": self.electrode_dist,
             "rate_calculator": rc,
             "parameters": self.parameters,
-            "reactant_atom_mapping": self.reactants_atom_mapping[0],
-            "product_atom_mapping": self.products_atom_mapping[0],
+            "reactants_atom_mapping": self.reactants_atom_mapping,
+            "products_atom_mapping": self.products_atom_mapping,
         }
 
         return d
@@ -556,7 +563,12 @@ class RedoxReaction(Reaction):
         else:
             rate_calculator = RedoxRateCalculator.from_dict(d["rate_calculator"])
 
-        parameters = d["parameters"]
+        reactants_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["reactants_atom_mapping"]
+        ]
+        products_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["products_atom_mapping"]
+        ]
 
         reaction = cls(
             reactant,
@@ -567,9 +579,9 @@ class RedoxReaction(Reaction):
             d["electron_free_energy"],
             d["radius"],
             d["electrode_dist"],
-            parameters=parameters,
-            reactant_atom_mapping=d["reactant_atom_mapping"],
-            product_atom_mapping=d["product_atom_mapping"],
+            parameters=d["parameters"],
+            reactant_atom_mapping=reactants_atom_mapping[0],
+            product_atom_mapping=products_atom_mapping[0],
         )
         reaction.rate_calculator = rate_calculator
 
@@ -834,8 +846,8 @@ class IntramolSingleBondChangeReaction(Reaction):
             "transition_state": ts,
             "rate_calculator": rc,
             "parameters": self.parameters,
-            "reactant_atom_mapping": self.reactants_atom_mapping[0],
-            "product_atom_mapping": self.products_atom_mapping[0],
+            "reactants_atom_mapping": self.reactants_atom_mapping,
+            "products_atom_mapping": self.products_atom_mapping,
         }
 
         return d
@@ -854,15 +866,20 @@ class IntramolSingleBondChangeReaction(Reaction):
             ts = MoleculeEntry.from_dict(d["transition_state"])
             rate_calculator = ReactionRateCalculator.from_dict(d["rate_calculator"])
 
-        parameters = d["parameters"]
+        reactants_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["reactants_atom_mapping"]
+        ]
+        products_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["products_atom_mapping"]
+        ]
 
         reaction = cls(
             reactant,
             product,
             transition_state=ts,
-            parameters=parameters,
-            reactant_atom_mapping=d["reactant_atom_mapping"],
-            product_atom_mapping=d["product_atom_mapping"],
+            parameters=d["parameters"],
+            reactant_atom_mapping=reactants_atom_mapping[0],
+            product_atom_mapping=products_atom_mapping[0],
         )
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -1145,7 +1162,7 @@ class IntermolecularReaction(Reaction):
             "transition_state": ts,
             "rate_calculator": rc,
             "parameters": self.parameters,
-            "reactant_atom_mapping": self.reactants_atom_mapping[0],
+            "reactants_atom_mapping": self.reactants_atom_mapping,
             "products_atom_mapping": self.products_atom_mapping,
         }
 
@@ -1166,15 +1183,20 @@ class IntermolecularReaction(Reaction):
             ts = MoleculeEntry.from_dict(d["transition_state"])
             rate_calculator = ReactionRateCalculator.from_dict(d["rate_calculator"])
 
-        parameters = d["parameters"]
+        reactants_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["reactants_atom_mapping"]
+        ]
+        products_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["products_atom_mapping"]
+        ]
 
         reaction = cls(
             reactant,
             [product_0, product_1],
             transition_state=ts,
-            parameters=parameters,
-            reactant_atom_mapping=d["reactant_atom_mapping"],
-            products_atom_mapping=d["products_atom_mapping"],
+            parameters=d["parameters"],
+            reactant_atom_mapping=reactants_atom_mapping[0],
+            products_atom_mapping=products_atom_mapping,
         )
         reaction.rate_calculator = rate_calculator
         return reaction
@@ -1499,7 +1521,7 @@ class CoordinationBondChangeReaction(Reaction):
             "transition_state": ts,
             "rate_calculator": rc,
             "parameters": self.parameters,
-            "reactant_atom_mapping": self.reactants_atom_mapping[0],
+            "reactants_atom_mapping": self.reactants_atom_mapping,
             "products_atom_mapping": self.products_atom_mapping,
         }
 
@@ -1520,15 +1542,20 @@ class CoordinationBondChangeReaction(Reaction):
             ts = MoleculeEntry.from_dict(d["transition_state"])
             rate_calculator = ReactionRateCalculator.from_dict(d["rate_calculator"])
 
-        parameters = d["parameters"]
+        reactants_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["reactants_atom_mapping"]
+        ]
+        products_atom_mapping = [
+            {int(k): v for k, v in mp.items()} for mp in d["products_atom_mapping"]
+        ]
 
         reaction = cls(
             reactant,
             [product_0, product_1],
             transition_state=ts,
-            parameters=parameters,
-            reactant_atom_mapping=d["reactant_atom_mapping"],
-            products_atom_mapping=d["products_atom_mapping"],
+            parameters=d["parameters"],
+            reactant_atom_mapping=reactants_atom_mapping[0],
+            products_atom_mapping=products_atom_mapping,
         )
         reaction.rate_calculator = rate_calculator
         return reaction
