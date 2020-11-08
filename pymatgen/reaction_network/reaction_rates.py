@@ -40,7 +40,6 @@ class ReactionRateCalculator(MSONable):
     """
 
     def __init__(self, reactants, products, transition_state):
-        """"""
 
         self.reactants = reactants
         self.products = products
@@ -498,7 +497,6 @@ class ExpandedBEPRateCalculator(ReactionRateCalculator):
         delta_s_reference,
         alpha=0.5,
     ):
-        """"""
 
         # Reference values for activation properties
         self.delta_ea_reference = delta_ea_reference
