@@ -86,9 +86,7 @@ class Reaction(MSONable, metaclass=ABCMeta):
 
         self.reactant_ids = [e.entry_id for e in self.reactants]
         self.product_ids = [e.entry_id for e in self.products]
-        # TODO (mjwen) should be the below?
-        #  self.entry_ids = {e.entry_id for e in self.reactants + self.products}
-        self.entry_ids = {e.entry_id for e in self.reactants}
+        self.entry_ids = {e.entry_id for e in self.reactants + self.products}
 
         self.parameters = parameters or dict()
 
@@ -97,11 +95,6 @@ class Reaction(MSONable, metaclass=ABCMeta):
 
     def __in__(self, entry: MoleculeEntry):
         return entry.entry_id in self.entry_ids
-
-    def __len__(self):
-        # TODO (mjwen) define the length is a reaction to be the number of reactants of
-        #  value. We'd better directly define `num_reactants()`
-        return len(self.reactants)
 
     def update_calculator(
         self, transition_state: Optional[MoleculeEntry] = None, reference: Optional[Dict] = None,
@@ -1202,7 +1195,7 @@ class IntermolecularReaction(Reaction):
         return reaction
 
 
-# TODO rename argument `product` to `products`
+# TODO rename to CoordinateBondChangeReaction, and rename argument `product` to `products` and
 class CoordinationBondChangeReaction(Reaction):
     """
     A class to define coordination bond change as follows:
@@ -2713,27 +2706,18 @@ def generate_atom_mapping_1_2(
         products_atom_mapping: rdkit style atom mapping number for the two products
     """
 
-    def split_subgraphs(mol_graph, edges):
-        """
-        Split a mol graph into two subgraphs.
-
-        This is similar to MoleculeGraph.split_molecule_subbraphs(), but do not reorder
-        the nodes, i.e. the nodes in the subgraphs will have the same node indexes as
-        in the main graph.
-        """
-        original = copy.deepcopy(mol_graph)
-        for edge in edges:
-            original.break_edge(edge[0], edge[1], allow_reverse=True)
-        components = nx.weakly_connected_components(original.graph)
-        subgraphs = [original.graph.subgraph(c) for c in components]
-
-        return subgraphs
-
     assert len(products) == 2, f"Expect 2 product molecules, got {len(products)}."
 
     reactant_atom_mapping = {i: i for i in range(reactant.num_atoms)}
 
-    sub_graphs = split_subgraphs(reactant.mol_graph, edges)
+    # Split the reactant mol graph to form two sub graphs
+    # This is similar to MoleculeGraph.split_molecule_subbraphs(), but do not reorder
+    # the nodes, i.e. the nodes in the subgraphs will have the same node indexes as
+    original = copy.deepcopy(reactant.mol_graph)
+    for edge in edges:
+        original.break_edge(edge[0], edge[1], allow_reverse=True)
+    components = nx.weakly_connected_components(original.graph)
+    sub_graphs = [original.graph.subgraph(c) for c in components]
 
     products_atom_mapping = []
     for subg, prdt in zip(sub_graphs, products):
