@@ -23,7 +23,6 @@ try:
 except ImportError:
     ob = None
 
-
 __author__ = "Evan Spotte-Smith"
 __version__ = "0.1"
 __maintainer__ = "Evan Spotte-Smith"

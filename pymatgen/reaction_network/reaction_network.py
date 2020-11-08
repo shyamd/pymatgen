@@ -493,7 +493,6 @@ Mapping_PR_Dict = Dict[int, Dict[int, ReactionPath]]
 class ReactionNetwork(MSONable):
     """
     Class to build a reaction network from entries
-
     """
 
     def __init__(
@@ -1448,8 +1447,9 @@ class ReactionNetwork(MSONable):
 
     @staticmethod
     def mols_w_cuttoff(RN_pr_solved, cutoff=0, build_pruned_network=True):
-        """ "
-            A method to identify molecules reached by dG <= cutoff
+        """
+        A method to identify molecules reached by dG <= cutoff
+
         :param RN_pr_solved: instance of reaction network
         :param: cutoff: dG value
         :return: mols_to_keep: list of molecule nodes that can be reached by dG <= cutoff
